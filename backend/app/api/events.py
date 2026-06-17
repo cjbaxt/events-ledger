@@ -155,9 +155,11 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
         for item in items:
             from app.models import MusicalPiece
             piece = session.get(MusicalPiece, item.musical_piece_id)
+            composer = _resolve_name(session, Person, piece.composer_id) if piece and piece.composer_id else None
             programme.append({
                 "order": item.order,
                 "piece": {"id": str(piece.id), "title": piece.title, "movement": piece.movement} if piece else None,
+                "composer": composer,
                 "soloists": _resolve_ids_to_names(session, item.soloists, Person),
                 "notes": item.notes,
             })
@@ -209,7 +211,12 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
                 "choreographer": _resolve_name(session, Person, item.choreographer_id),
                 "soloists": _resolve_ids_to_names(session, item.soloists, Person),
                 "music": [
-                    {"id": str(m.musical_piece_id), "title": (session.get(MusicalPiece, m.musical_piece_id).title if session.get(MusicalPiece, m.musical_piece_id) else None)}
+                    {
+                        "id": str(m.musical_piece_id),
+                        "title": (session.get(MusicalPiece, m.musical_piece_id).title if session.get(MusicalPiece, m.musical_piece_id) else None),
+                        "composer": _resolve_name(session, Person, session.get(MusicalPiece, m.musical_piece_id).composer_id) if session.get(MusicalPiece, m.musical_piece_id) and session.get(MusicalPiece, m.musical_piece_id).composer_id else None,
+                        "composer_text": session.get(MusicalPiece, m.musical_piece_id).composer_text if session.get(MusicalPiece, m.musical_piece_id) else None,
+                    }
                     for m in music
                 ],
             })

@@ -67,6 +67,8 @@ function ClickableRef({
   );
 }
 
+type MusicItem = { id: string; title: string | null; composer?: NamedObj | null; composer_text?: string | null };
+
 function BalletProgrammeItem({
   item,
   onPersonClick,
@@ -76,7 +78,7 @@ function BalletProgrammeItem({
 }) {
   const work = item.work as NamedObj | null;
   const choreographer = item.choreographer as NamedObj | null;
-  const music = item.music as NamedObj[] | null;
+  const music = item.music as MusicItem[] | null;
   const soloists = item.soloists as NamedObj[] | null;
   const order = item.order as number;
 
@@ -88,8 +90,17 @@ function BalletProgrammeItem({
         <span className="text-neutral-500"> — <ClickableRef obj={choreographer} onClick={onPersonClick} /></span>
       )}
       {music && music.length > 0 && (
-        <div className="text-xs text-neutral-400 mt-0.5 ml-4">
-          {music.map((m) => namedStr(m)).join(", ")}
+        <div className="text-xs text-neutral-400 mt-0.5 ml-4 space-y-0.5">
+          {music.map((m) => (
+            <div key={m.id}>
+              <span>{m.title ?? "—"}</span>
+              {m.composer ? (
+                <span> — <ClickableRef obj={m.composer} onClick={onPersonClick} /></span>
+              ) : m.composer_text ? (
+                <span> — {m.composer_text}</span>
+              ) : null}
+            </div>
+          ))}
         </div>
       )}
       {soloists && soloists.length > 0 && (
