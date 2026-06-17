@@ -32,7 +32,7 @@ export interface EventDetail {
   subtype: string | null;
   title: string;
   venue: NamedRef;
-  venue_parent: NamedRef | null;
+  venue_path: NamedRef[];
   work_id: string | null;
   festival: NamedRef | null;
   price_paid: string | null;
@@ -42,5 +42,6 @@ export interface EventDetail {
   substack_url: string | null;
   data_completeness: string | null;
   status: EventStatus;
+  related_events: Array<{ id: string; title: string; date: string; type: string }>;
   extension: Record<string, unknown> | null;
 }

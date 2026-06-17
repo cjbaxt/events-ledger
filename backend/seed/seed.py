@@ -571,7 +571,7 @@ def seed():
         ))
 
         # evt-020 — Tilda Swinton: Ongoing (exhibition)
-        s.add(Event(id=uid("evt-020"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Tilda Swinton: Ongoing", price_paid=Decimal("0.00"), currency="EUR", data_completeness="complete", notes="Museumkaart."))
+        s.add(Event(id=uid("evt-020"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Tilda Swinton: Ongoing", price_paid=Decimal("0.00"), currency="EUR", data_completeness="complete", notes="Museumkaart.", related_event_ids=[uid("evt-021")]))
         s.add(EventExhibition(
             event_id=uid("evt-020"),
             subtype="art",
@@ -583,7 +583,7 @@ def seed():
         ))
 
         # evt-021 — Eye Filmmuseum Permanent Collection (exhibition)
-        s.add(Event(id=uid("evt-021"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Eye Filmmuseum Permanent Collection", price_paid=Decimal("0.00"), currency="EUR", data_completeness="stub", notes="Museumkaart. Same-day visit as evt-020."))
+        s.add(Event(id=uid("evt-021"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Eye Filmmuseum Permanent Collection", price_paid=Decimal("0.00"), currency="EUR", data_completeness="stub", notes="Museumkaart.", related_event_ids=[uid("evt-020")]))
         s.add(EventExhibition(event_id=uid("evt-021"), subtype="other", permanent_or_temp="permanent"))
 
         # evt-022 — Our Anxious Measurements III (spoken word)

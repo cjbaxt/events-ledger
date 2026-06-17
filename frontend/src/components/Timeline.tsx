@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { fetchEvents } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -146,11 +146,20 @@ function MonthGroup({
   );
 }
 
+const ALL_TYPES = [
+  "ballet", "cabaret", "circus", "classical", "comedy", "dance",
+  "exhibition", "music", "opera", "other", "screening", "spoken_word",
+  "talk", "theatre",
+];
+
 export default function Timeline() {
   const [allEvents, setAllEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(50);
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const typeMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchEvents({ status: "attended", limit: 500 })
@@ -163,12 +172,35 @@ export default function Timeline() {
       .finally(() => setLoading(false));
   }, []);
 
+  const presentTypes = useMemo(
+    () => new Set(allEvents.map((e) => e.type)),
+    [allEvents]
+  );
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) {
+        setTypeMenuOpen(false);
+      }
+    }
+    if (typeMenuOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [typeMenuOpen]);
+
+  function toggleType(type: string) {
+    setHiddenTypes((prev) => {
+      const next = new Set(prev);
+      next.has(type) ? next.delete(type) : next.add(type);
+      return next;
+    });
+  }
+
   const grouped = useMemo(() => groupByYearMonth(allEvents), [allEvents]);
   const years = useMemo(() => Object.keys(grouped).sort((a, b) => +b - +a), [grouped]);
 
   const yearEvents = useMemo(
-    () => (selectedYear ? allEvents.filter((e) => e.date.startsWith(selectedYear)) : []),
-    [allEvents, selectedYear]
+    () => (selectedYear ? allEvents.filter((e) => e.date.startsWith(selectedYear) && !hiddenTypes.has(e.type)) : []),
+    [allEvents, selectedYear, hiddenTypes]
   );
 
   const pagedEvents = useMemo(
@@ -241,7 +273,66 @@ export default function Timeline() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-xs text-neutral-400">
+        <div className="flex items-center gap-3 text-xs text-neutral-400">
+          {/* Type filter */}
+          <div className="relative" ref={typeMenuRef}>
+            <button
+              onClick={() => setTypeMenuOpen((o) => !o)}
+              className={`flex items-center gap-1.5 border rounded-md px-2.5 py-1 text-xs transition-colors ${
+                hiddenTypes.size > 0
+                  ? "border-neutral-900 text-neutral-900 bg-neutral-50"
+                  : "border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
+              }`}
+            >
+              Types
+              {hiddenTypes.size > 0 && (
+                <span className="text-[10px] bg-neutral-900 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                  {hiddenTypes.size}
+                </span>
+              )}
+            </button>
+            {typeMenuOpen && (
+              <div className="absolute bottom-full right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 min-w-[160px] z-20">
+                {ALL_TYPES.filter((t) => presentTypes.has(t)).map((type) => {
+                  const hidden = hiddenTypes.has(type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => toggleType(type)}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className={`w-3.5 h-3.5 rounded border flex-shrink-0 transition-colors ${
+                        hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"
+                      }`}>
+                        {!hidden && (
+                          <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400">
+                        <EventTypeIcon type={type} size={10} />
+                      </div>
+                      <span className={`capitalize transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>
+                        {type.replace(/_/g, " ")}
+                      </span>
+                    </button>
+                  );
+                })}
+                {hiddenTypes.size > 0 && (
+                  <div className="border-t border-neutral-100 mt-1 pt-1">
+                    <button
+                      onClick={() => setHiddenTypes(new Set())}
+                      className="w-full text-left px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition-colors"
+                    >
+                      Show all
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <span>Per page</span>
           <select
             value={pageSize}

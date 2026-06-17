@@ -82,7 +82,7 @@ class EventDetail(BaseModel):
     subtype: Optional[str] = None
     title: str
     venue: NamedRef
-    venue_parent: Optional[NamedRef] = None
+    venue_path: List[NamedRef] = []  # ancestors from immediate parent to root
     work_id: Optional[uuid.UUID] = None
     festival: Optional[NamedRef] = None
     price_paid: Optional[Decimal] = None
@@ -92,6 +92,7 @@ class EventDetail(BaseModel):
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
     status: str = "attended"
+    related_events: List[dict] = []
     extension: Optional[dict] = None
     model_config = {"from_attributes": True}
 

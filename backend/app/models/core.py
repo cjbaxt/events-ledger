@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from datetime import time as time_type
 from datetime import datetime
 from decimal import Decimal
 from sqlmodel import Field, SQLModel, Column
-from sqlalchemy import Time
+from sqlalchemy import Time, ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 import uuid
 
 
@@ -69,4 +70,5 @@ class Event(SQLModel, table=True):
     data_completeness: Optional[str] = None
     # attended / planned / cancelled
     status: str = Field(default="attended")
+    related_event_ids: Optional[List[uuid.UUID]] = Field(default=None, sa_column=Column(ARRAY(PG_UUID(as_uuid=True))))
     created_at: datetime = Field(default_factory=datetime.utcnow)

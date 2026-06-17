@@ -507,7 +507,7 @@ export default function EventDetailPanel() {
                   </div>
 
                   <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <Field label="Venue">
                         <button
                           onClick={() => navigate("venue", event.venue.id)}
@@ -516,16 +516,16 @@ export default function EventDetailPanel() {
                           {event.venue.name}
                         </button>
                       </Field>
-                      {event.venue_parent && (
-                        <div className="text-xs text-neutral-400">
+                      {event.venue_path.map((v) => (
+                        <div key={v.id} className="text-xs text-neutral-400">
                           <button
-                            onClick={() => navigate("venue", event.venue_parent!.id)}
+                            onClick={() => navigate("venue", v.id)}
                             className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
                           >
-                            {event.venue_parent.name}
+                            {v.name}
                           </button>
                         </div>
-                      )}
+                      ))}
                     </div>
                     {event.rating && (
                       <div className="flex flex-col items-end gap-1">
@@ -549,6 +549,30 @@ export default function EventDetailPanel() {
                     <Field label="Notes">
                       <p className="text-neutral-600 leading-relaxed whitespace-pre-wrap">{event.notes}</p>
                     </Field>
+                  )}
+
+                  {event.related_events && event.related_events.length > 0 && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Also visited</div>
+                      <div className="space-y-1.5">
+                        {event.related_events.map((rel) => {
+                          const [yr, m, d] = rel.date.split("-");
+                          return (
+                            <button
+                              key={rel.id}
+                              onClick={() => { setEventId(rel.id); setEvent(null); setNavTarget(null); }}
+                              className="w-full text-left flex items-center gap-3 bg-neutral-50 border border-neutral-100 rounded-lg px-3 py-2 hover:border-neutral-300 transition-colors group"
+                            >
+                              <div className="w-6 h-6 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
+                                <EventTypeIcon type={rel.type} size={12} />
+                              </div>
+                              <span className="font-serif text-sm text-neutral-800 flex-1 truncate">{rel.title}</span>
+                              <span className="text-xs text-neutral-400 flex-shrink-0">{parseInt(d)} {MONTH_NAMES[parseInt(m)]} {yr}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
 
                   {event.substack_url && (

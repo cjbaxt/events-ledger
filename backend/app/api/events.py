@@ -67,17 +67,27 @@ def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], mode
 
 
 def _venue_display(session: Session, venue_id: Optional[uuid.UUID]):
-    """Return (venue, parent_venue, display_name)."""
+    """Return (venue, ancestor_path, display_name).
+    ancestor_path is list of Venue objects from immediate parent to root.
+    display_name is 'Child, ImmediateParent' (two levels, for list views).
+    """
     if not venue_id:
-        return None, None, "Unknown"
+        return None, [], "Unknown"
     venue = session.get(Venue, venue_id)
     if not venue:
-        return None, None, "Unknown"
-    if venue.parent_id:
-        parent = session.get(Venue, venue.parent_id)
-        if parent:
-            return venue, parent, f"{venue.name}, {parent.name}"
-    return venue, None, venue.name
+        return None, [], "Unknown"
+    path = []
+    current = venue
+    seen = {current.id}
+    while current.parent_id and current.parent_id not in seen:
+        parent = session.get(Venue, current.parent_id)
+        if not parent:
+            break
+        path.append(parent)
+        seen.add(parent.id)
+        current = parent
+    display = f"{venue.name}, {path[0].name}" if path else venue.name
+    return venue, path, display
 
 
 def _resolve_work(session: Session, work_id: Optional[uuid.UUID]) -> Optional[dict]:
@@ -417,8 +427,15 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    venue, venue_parent, venue_display = _venue_display(session, event.venue_id)
+    venue, venue_path, venue_display = _venue_display(session, event.venue_id)
     festival = session.get(Festival, event.festival_id) if event.festival_id else None
+
+    related_events = []
+    if event.related_event_ids:
+        for rid in event.related_event_ids:
+            rel = session.get(Event, rid)
+            if rel:
+                related_events.append({"id": str(rel.id), "title": rel.title, "date": str(rel.date), "type": rel.type})
 
     return EventDetail(
         id=event.id,
@@ -428,7 +445,7 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
         subtype=event.subtype,
         title=event.title,
         venue=NamedRef(id=venue.id, name=venue.name) if venue else NamedRef(id=event.venue_id, name="Unknown"),
-        venue_parent=NamedRef(id=venue_parent.id, name=venue_parent.name) if venue_parent else None,
+        venue_path=[NamedRef(id=v.id, name=v.name) for v in venue_path],
         work_id=event.work_id,
         festival=NamedRef(id=festival.id, name=f"{festival.name} {festival.edition}".strip()) if festival else None,
         price_paid=event.price_paid,
@@ -437,6 +454,7 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
         notes=event.notes,
         substack_url=event.substack_url,
         data_completeness=event.data_completeness,
+        related_events=related_events,
         extension=_build_extension(session, event),
     )
 

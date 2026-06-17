@@ -197,7 +197,7 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 def _events_to_list_items(session: Session, events) -> List[EventListItem]:
     result = []
     for e in events:
-        _, _parent, venue_display = _venue_display(session, e.venue_id)
+        _, _path, venue_display = _venue_display(session, e.venue_id)
         festival = session.get(Festival, e.festival_id) if e.festival_id else None
         result.append(EventListItem(
             id=e.id,
