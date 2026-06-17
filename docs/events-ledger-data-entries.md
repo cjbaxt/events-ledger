@@ -1,5 +1,9 @@
 # Events Ledger — Stress Test Data Entries
-*Updated June 2026. All events mapped to schema as of this export.*
+*Updated June 2026. All 24 events are live in the database and in `backend/seed/seed.py` on GitHub.*
+
+> **Source of truth:** `backend/seed/seed.py` — the Python seed script is authoritative for these events and all reference entities. This document is a human-readable reference. If there are discrepancies, the seed script wins.
+>
+> **Adding new events:** Use the POST API (`http://localhost:8000/docs`) — do not add to the seed script for incremental imports.
 
 ---
 

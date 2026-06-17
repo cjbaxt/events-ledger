@@ -1,6 +1,6 @@
 # Personal Events Ledger — Data Model
 
-*Working document. Captured June 2026. Incomplete by design — to be revisited when building begins.*
+*Updated June 2026. App is built and running — this reflects the live schema.*
 
 ---
 
@@ -73,11 +73,13 @@ The attendance record. One row per visit.
 | `work_id` | fk → Work | The piece being performed (optional) |
 | `price_paid` | decimal | Total amount you personally paid divided by number of tickets — includes all fees, excludes postage. Always what you actually paid, not face value (resale prices are fine). Free events → 0.00 with explanation in notes. |
 | `currency` | string | ISO 4217 currency code e.g. `GBP`, `EUR`, `USD` |
-| `rating` | integer | e.g. 1–5 or 1–10 |
+| `rating` | float | 0.5–5.0 in 0.5 increments (half-star). Null = unrated. |
 | `notes` | text | Personal notes |
 | `festival_id` | fk → Festival | Optional — if attended as part of a festival |
 | `substack_url` | url | Link to your review (nullable) |
 | `data_completeness` | enum | `complete` / `partial` / `stub` — `complete` means all known programme/metadata entered; `partial` means some fields missing; `stub` means date/venue/price only |
+| `status` | enum | `attended` / `planned` / `cancelled` — default `attended` |
+| `related_event_ids` | uuid[] | Array of other Event IDs visited the same day (e.g. two exhibitions at the same venue) |
 | `created_at` | timestamp | Record creation |
 
 ---
@@ -298,8 +300,9 @@ One row per piece in an `EventClassical` programme.
 | `production_id` | fk → Production |
 | `conductor_id` | fk → Person |
 | `director_id` | fk → Person |
-| `cast` | JSON: role → Person id |
+| `cast` | JSON: role → Person id (or array of Person ids for group roles) |
 | `ensemble_id` | fk → Ensemble (the opera company or orchestra) |
+| `composers` | uuid[] | Array of composer Person ids — for pasticcios or arrangements with multiple credited composers (e.g. Opera Circus — Handel) |
 | `libretto_language` | string | Language the opera is sung in, e.g. "Italian", "German", "French" |
 | `surtitles_languages` | string[] | Languages shown as surtitles, e.g. ["Dutch", "English"] — array since dual surtitles are common |
 | `operabase_url` | url |
