@@ -1,14 +1,17 @@
 """CRUD routers for reference entities: Person, Ensemble, Venue, VenueOperator,
 Festival, Work, MusicalPiece, Production."""
 from typing import List, Optional
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from sqlalchemy import text
 
 from app.db import get_session
 from app.models import (
     Person, Ensemble, Venue, VenueOperator, Festival,
-    Work, MusicalPiece, Production,
+    Work, MusicalPiece, Production, Event,
 )
+from app.schemas.events import EventListItem
 from app.schemas.reference import (
     PersonCreate, PersonRead, PersonUpdate,
     EnsembleCreate, EnsembleRead, EnsembleUpdate,
@@ -54,6 +57,117 @@ def create_person(data: PersonCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(person)
     return person
+
+
+@router.get("/persons/{person_id}/events", response_model=List[EventListItem])
+def get_person_events(person_id: str, session: Session = Depends(get_session)):
+    """Return all events referencing this person, across every extension table."""
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+
+    try:
+        pid_str = str(uuid.UUID(person_id))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid UUID")
+
+    event_ids: set = set()
+
+    def by_fk(table: str, column: str) -> None:
+        rows = session.execute(
+            text(f"SELECT event_id FROM {table} WHERE {column} = :pid::uuid"),
+            {"pid": pid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    def by_array(table: str, column: str) -> None:
+        rows = session.execute(
+            text(f"SELECT event_id FROM {table} WHERE :pid::uuid = ANY({column})"),
+            {"pid": pid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    def by_json_cast(table: str) -> None:
+        rows = session.execute(
+            text(
+                f"SELECT event_id FROM {table} WHERE cast IS NOT NULL "
+                f"AND EXISTS (SELECT 1 FROM jsonb_each_text(cast::jsonb) WHERE value = :pid)"
+            ),
+            {"pid": pid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    by_fk("event_music", "headliner_person_id")
+    by_array("event_music", "support_act_person_ids")
+
+    by_fk("event_classical", "conductor_id")
+    by_array("classical_programme_item", "soloists")
+
+    by_fk("event_opera", "conductor_id")
+    by_fk("event_opera", "director_id")
+    by_json_cast("event_opera")
+
+    by_fk("event_ballet", "conductor_id")
+    by_json_cast("event_ballet")
+    by_fk("ballet_programme_item", "choreographer_id")
+    by_array("ballet_programme_item", "soloists")
+
+    by_fk("event_dance", "choreographer_id")
+
+    by_fk("event_circus", "director_id")
+
+    by_fk("event_theatre", "director_id")
+    by_fk("event_theatre", "playwright_id")
+    by_json_cast("event_theatre")
+
+    by_fk("event_cabaret", "headliner_id")
+    by_fk("event_cabaret", "host_id")
+    by_array("event_cabaret", "supporting_cast")
+
+    by_fk("event_comedy", "performer_id")
+    by_array("event_comedy", "support_acts")
+
+    by_array("event_spoken_word", "performers")
+    by_fk("event_spoken_word", "host_id")
+
+    by_array("event_talk", "speaker_ids")
+    by_fk("event_talk", "host_id")
+
+    by_array("event_exhibition", "artists")
+    by_fk("event_exhibition", "curator_id")
+
+    by_fk("event_screening", "director_id")
+    by_fk("event_screening", "conductor_id")
+
+    if not event_ids:
+        return []
+
+    events = session.exec(
+        select(Event).where(Event.id.in_(event_ids)).order_by(Event.date.desc())
+    ).all()
+
+    result = []
+    for e in events:
+        venue = session.get(Venue, e.venue_id)
+        festival = session.get(Festival, e.festival_id) if e.festival_id else None
+        result.append(EventListItem(
+            id=e.id,
+            date=e.date,
+            time=e.time,
+            type=e.type,
+            subtype=e.subtype,
+            title=e.title,
+            venue_id=e.venue_id,
+            venue_name=venue.name if venue else "Unknown",
+            festival_id=e.festival_id,
+            festival_name=f"{festival.name} {festival.edition}".strip() if festival else None,
+            price_paid=e.price_paid,
+            currency=e.currency,
+            rating=e.rating,
+            data_completeness=e.data_completeness,
+            substack_url=e.substack_url,
+        ))
+    return result
 
 
 @router.patch("/persons/{person_id}", response_model=PersonRead)
