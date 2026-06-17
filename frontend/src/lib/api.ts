@@ -26,6 +26,15 @@ export async function fetchEvent(id: string): Promise<EventDetail> {
   return res.json();
 }
 
+export async function patchEventRating(id: string, rating: number | null): Promise<void> {
+  const res = await fetch(`${BASE}/api/events/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating }),
+  });
+  if (!res.ok) throw new Error(`Failed to patch rating: ${res.status}`);
+}
+
 export interface PersonRef {
   id: string;
   name: string;

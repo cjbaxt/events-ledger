@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { fetchEvents } from "../lib/api";
+import { fetchEvents, patchEventRating } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -29,12 +29,77 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-function Stars({ rating }: { rating: number | null }) {
-  if (!rating) return null;
+// SVG star with a horizontal clip for partial fill
+function StarSvg({ fill, size = 14 }: { fill: number; size?: number }) {
+  const id = `clip-${Math.random().toString(36).slice(2)}`;
   return (
-    <span className="text-neutral-400 text-xs tracking-wide">
-      {"★".repeat(rating)}{"☆".repeat(5 - rating)}
-    </span>
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
+      <defs>
+        <clipPath id={id}>
+          <rect x="0" y="0" width={14 * fill} height="14" />
+        </clipPath>
+      </defs>
+      {/* outline */}
+      <path
+        d="M7 1l1.545 3.09L12 4.635l-2.5 2.41.59 3.41L7 8.77l-3.09 1.685.59-3.41L2 4.635l3.455-.545L7 1z"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinejoin="round"
+        className="text-neutral-300"
+      />
+      {/* filled portion */}
+      {fill > 0 && (
+        <path
+          d="M7 1l1.545 3.09L12 4.635l-2.5 2.41.59 3.41L7 8.77l-3.09 1.685.59-3.41L2 4.635l3.455-.545L7 1z"
+          fill="currentColor"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinejoin="round"
+          clipPath={`url(#${id})`}
+          className="text-neutral-700"
+        />
+      )}
+    </svg>
+  );
+}
+
+function StarRating({
+  rating,
+  onRate,
+}: {
+  rating: number | null;
+  onRate: (r: number | null) => void;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const displayed = hover ?? rating ?? 0;
+
+  return (
+    <div
+      className="flex gap-0.5 items-center"
+      onMouseLeave={() => setHover(null)}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fill = Math.min(1, Math.max(0, displayed - (star - 1)));
+        return (
+          <div
+            key={star}
+            className="cursor-pointer"
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setHover(e.clientX - rect.left < rect.width / 2 ? star - 0.5 : star);
+            }}
+            onClick={() => {
+              const next = hover ?? null;
+              // clicking same rating clears it
+              onRate(next === rating ? null : next);
+            }}
+          >
+            <StarSvg fill={fill} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -87,7 +152,15 @@ function YearSummary({ events, year }: { events: EventListItem[]; year: string }
   );
 }
 
-function EventCard({ event, onClick }: { event: EventListItem; onClick: () => void }) {
+function EventCard({
+  event,
+  onClick,
+  onRate,
+}: {
+  event: EventListItem;
+  onClick: () => void;
+  onRate: (r: number | null) => void;
+}) {
   const dateObj = new Date(event.date + "T00:00:00");
   const day = dateObj.getDate();
   const monthShort = dateObj.toLocaleString("en-GB", { month: "short" });
@@ -111,9 +184,9 @@ function EventCard({ event, onClick }: { event: EventListItem; onClick: () => vo
         </div>
         <div className="text-xs text-neutral-400 mt-0.5">{event.venue_name}</div>
       </div>
-      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
-        <Stars rating={event.rating} />
+        <StarRating rating={event.rating} onRate={onRate} />
       </div>
     </button>
   );
@@ -123,10 +196,12 @@ function MonthGroup({
   month,
   events,
   onEventClick,
+  onRate,
 }: {
   month: string;
   events: EventListItem[];
   onEventClick: (id: string) => void;
+  onRate: (id: string, r: number | null) => void;
 }) {
   return (
     <div className="flex gap-0 mb-1">
@@ -139,7 +214,7 @@ function MonthGroup({
       <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
       <div className="flex-1 flex flex-col gap-2 pb-5">
         {events.map((e) => (
-          <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
+          <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} onRate={(r) => onRate(e.id, r)} />
         ))}
       </div>
     </div>
@@ -214,9 +289,19 @@ export default function Timeline() {
   }, [pagedEvents, selectedYear]);
 
   function handleEventClick(id: string) {
-    // Push to history so back button works; detail panel listens to popstate
     window.history.pushState({ eventId: id }, "", `/events/${id}`);
     window.dispatchEvent(new CustomEvent("open-event", { detail: id }));
+  }
+
+  function handleRate(id: string, rating: number | null) {
+    // Optimistic update
+    setAllEvents((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, rating } : e))
+    );
+    patchEventRating(id, rating).catch(() => {
+      // revert on failure — refetch
+      fetchEvents({ status: "attended", limit: 500 }).then(setAllEvents);
+    });
   }
 
   if (loading) {
@@ -253,6 +338,7 @@ export default function Timeline() {
               month={month}
               events={pagedMonthGrouped[month]}
               onEventClick={handleEventClick}
+              onRate={handleRate}
             />
           ))}
 

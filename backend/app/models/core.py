@@ -62,7 +62,7 @@ class Event(SQLModel, table=True):
     work_id: Optional[uuid.UUID] = Field(default=None, foreign_key="work.id")
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None  # ISO 4217, e.g. GBP, EUR
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = Field(default=None, foreign_key="festival.id")
     substack_url: Optional[str] = None
