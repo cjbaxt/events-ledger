@@ -56,17 +56,17 @@ def seed():
         venues = [
             # Amsterdam
             Venue(id=uid("venue-001"), name="Nationale Opera & Ballet", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Amstel+3,+1011+PN+Amsterdam"),
-            Venue(id=uid("venue-001b"), name="Grote Zaal (NOB)", parent_id=uid("venue-001"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
+            Venue(id=uid("venue-001b"), name="Grote Zaal", parent_id=uid("venue-001"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-003"), name="Koninklijk Theater Carré", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Amstel+115,+1018+EM+Amsterdam"),
             Venue(id=uid("venue-005"), name="Royal Concertgebouw", city="Amsterdam", country="Netherlands", venue_type="concert_hall", maps_url="https://maps.google.com/?q=Concertgebouwplein+2,+1071+LR+Amsterdam"),
-            Venue(id=uid("venue-005b"), name="Grote Zaal (Concertgebouw)", parent_id=uid("venue-005"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
+            Venue(id=uid("venue-005b"), name="Grote Zaal", parent_id=uid("venue-005"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
             Venue(id=uid("venue-006"), name="Muziekgebouw aan 't IJ", city="Amsterdam", country="Netherlands", venue_type="concert_hall", maps_url="https://maps.google.com/?q=Piet+Heinkade+1,+1019+BR+Amsterdam"),
-            Venue(id=uid("venue-006b"), name="Grote Zaal (Muziekgebouw)", parent_id=uid("venue-006"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
+            Venue(id=uid("venue-006b"), name="Grote Zaal", parent_id=uid("venue-006"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
             Venue(id=uid("venue-007"), name="JoyJoyJoy Basilika", city="Amsterdam", country="Netherlands", venue_type="other", maps_url="https://maps.google.com/?q=Kometensingel+152,+1033+BZ+Amsterdam"),
             Venue(id=uid("venue-008"), name="DeLaMar", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Marnixstraat+402,+1017+PL+Amsterdam"),
             Venue(id=uid("venue-008b"), name="Wim Sonneveld zaal", parent_id=uid("venue-008"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-010"), name="Boom Chicago", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Rozengracht+117,+1016+LV+Amsterdam"),
-            Venue(id=uid("venue-010b"), name="Main Theatre (Boom Chicago)", parent_id=uid("venue-010"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
+            Venue(id=uid("venue-010b"), name="Main Theatre", parent_id=uid("venue-010"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-014"), name="Ziggo Dome", city="Amsterdam", country="Netherlands", venue_type="arena", maps_url="https://maps.google.com/?q=De+Passage+100,+1101+AX+Amsterdam"),
             Venue(id=uid("venue-015"), name="Eye Filmmuseum", city="Amsterdam", country="Netherlands", venue_type="other", maps_url="https://maps.google.com/?q=IJpromenade+1,+1031+KK+Amsterdam"),
             # Edinburgh
