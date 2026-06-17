@@ -48,6 +48,7 @@ def seed():
             VenueOperator(id=uid("vop-004"), name="PBH Free Fringe", website_url="https://freefringe.org.uk"),
         ]
         s.add_all(vops)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Venues  (parents first, then children)
@@ -92,6 +93,7 @@ def seed():
             Venue(id=uid("venue-012"), name="Big Top — Malieveld Den Haag", city="The Hague", country="Netherlands", venue_type="circus_tent", maps_url="https://maps.google.com/?q=Malieveld,+Boorlaan+1,+2585+Den+Haag"),
         ]
         s.add_all(venues)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Festivals
@@ -105,6 +107,7 @@ def seed():
             Festival(id=uid("fest-006"), name="Edinburgh Festival Fringe", edition="2023", city="Edinburgh", website_url="https://edfringe.com"),
         ]
         s.add_all(festivals)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Ensembles
@@ -126,6 +129,7 @@ def seed():
             Ensemble(id=uid("ens-014"), name="Darkfield", type="theatre_company", notes="Immersive experience company; shipping container shows"),
         ]
         s.add_all(ensembles)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Persons (130 entries — abbreviated for clarity, all included)
@@ -263,6 +267,7 @@ def seed():
             Person(id=uid("per-130"), name="Daisy Doris May", roles=["performer"], notes="Character comedian and drag king; characters: Steve Porters, The Divine Karen Moonstone, Häns Off"),
         ]
         s.add_all(persons)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Works
@@ -283,6 +288,7 @@ def seed():
             Work(id=uid("work-013"), title="Flight", type="other", year=2018, notes="Darkfield immersive; shipping container, binaural audio, complete darkness"),
         ]
         s.add_all(works)
+        s.flush()
 
         # ---------------------------------------------------------------
         # MusicalPieces
@@ -333,6 +339,7 @@ def seed():
             MusicalPiece(id=uid("mp-040"), title="Ripe and Ruin", composer_text="Alt-J (arr. Davin Curtis)", arranger_id=uid("per-060"), year=2012),
         ]
         s.add_all(pieces)
+        s.flush()
 
         # ---------------------------------------------------------------
         # Productions
