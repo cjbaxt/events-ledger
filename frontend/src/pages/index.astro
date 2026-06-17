@@ -1,0 +1,28 @@
+---
+import "../styles/global.css";
+import Nav from "../components/Nav";
+import Timeline from "../components/Timeline";
+import EventDetailPanel from "../components/EventDetailPanel";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Events Ledger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-white min-h-screen">
+    <Nav current="/" client:load />
+    <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
+      <Timeline client:load />
+    </main>
+    <EventDetailPanel client:load />
+  </body>
+</html>

@@ -56,17 +56,17 @@ def seed():
         venues = [
             # Amsterdam
             Venue(id=uid("venue-001"), name="Nationale Opera & Ballet", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Amstel+3,+1011+PN+Amsterdam"),
-            Venue(id=uid("venue-001b"), name="Grote Zaal (NOB)", parent_id=uid("venue-001"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
+            Venue(id=uid("venue-001b"), name="Grote Zaal", parent_id=uid("venue-001"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-003"), name="Koninklijk Theater Carré", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Amstel+115,+1018+EM+Amsterdam"),
             Venue(id=uid("venue-005"), name="Royal Concertgebouw", city="Amsterdam", country="Netherlands", venue_type="concert_hall", maps_url="https://maps.google.com/?q=Concertgebouwplein+2,+1071+LR+Amsterdam"),
-            Venue(id=uid("venue-005b"), name="Grote Zaal (Concertgebouw)", parent_id=uid("venue-005"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
+            Venue(id=uid("venue-005b"), name="Grote Zaal", parent_id=uid("venue-005"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
             Venue(id=uid("venue-006"), name="Muziekgebouw aan 't IJ", city="Amsterdam", country="Netherlands", venue_type="concert_hall", maps_url="https://maps.google.com/?q=Piet+Heinkade+1,+1019+BR+Amsterdam"),
-            Venue(id=uid("venue-006b"), name="Grote Zaal (Muziekgebouw)", parent_id=uid("venue-006"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
+            Venue(id=uid("venue-006b"), name="Grote Zaal", parent_id=uid("venue-006"), city="Amsterdam", country="Netherlands", venue_type="concert_hall"),
             Venue(id=uid("venue-007"), name="JoyJoyJoy Basilika", city="Amsterdam", country="Netherlands", venue_type="other", maps_url="https://maps.google.com/?q=Kometensingel+152,+1033+BZ+Amsterdam"),
             Venue(id=uid("venue-008"), name="DeLaMar", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Marnixstraat+402,+1017+PL+Amsterdam"),
             Venue(id=uid("venue-008b"), name="Wim Sonneveld zaal", parent_id=uid("venue-008"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-010"), name="Boom Chicago", city="Amsterdam", country="Netherlands", venue_type="theatre", maps_url="https://maps.google.com/?q=Rozengracht+117,+1016+LV+Amsterdam"),
-            Venue(id=uid("venue-010b"), name="Main Theatre (Boom Chicago)", parent_id=uid("venue-010"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
+            Venue(id=uid("venue-010b"), name="Main Theatre", parent_id=uid("venue-010"), city="Amsterdam", country="Netherlands", venue_type="theatre"),
             Venue(id=uid("venue-014"), name="Ziggo Dome", city="Amsterdam", country="Netherlands", venue_type="arena", maps_url="https://maps.google.com/?q=De+Passage+100,+1101+AX+Amsterdam"),
             Venue(id=uid("venue-015"), name="Eye Filmmuseum", city="Amsterdam", country="Netherlands", venue_type="other", maps_url="https://maps.google.com/?q=IJpromenade+1,+1031+KK+Amsterdam"),
             # Edinburgh
@@ -545,6 +545,7 @@ def seed():
             conductor_id=uid("per-101"),
             director_id=uid("per-099"),
             ensemble_id=uid("ens-012"),
+            composers=[uid("per-098")],  # Georg Friedrich Handel
             libretto_language="Italian",
             surtitles_languages=["Dutch", "English"],
             cast={
@@ -570,7 +571,7 @@ def seed():
         ))
 
         # evt-020 — Tilda Swinton: Ongoing (exhibition)
-        s.add(Event(id=uid("evt-020"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Tilda Swinton: Ongoing", price_paid=Decimal("0.00"), currency="EUR", data_completeness="complete", notes="Museumkaart."))
+        s.add(Event(id=uid("evt-020"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Tilda Swinton: Ongoing", price_paid=Decimal("0.00"), currency="EUR", data_completeness="complete", notes="Museumkaart.", related_event_ids=[uid("evt-021")]))
         s.add(EventExhibition(
             event_id=uid("evt-020"),
             subtype="art",
@@ -582,7 +583,7 @@ def seed():
         ))
 
         # evt-021 — Eye Filmmuseum Permanent Collection (exhibition)
-        s.add(Event(id=uid("evt-021"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Eye Filmmuseum Permanent Collection", price_paid=Decimal("0.00"), currency="EUR", data_completeness="stub", notes="Museumkaart. Same-day visit as evt-020."))
+        s.add(Event(id=uid("evt-021"), date=date(2026, 3, 11), venue_id=uid("venue-015"), type="exhibition", title="Eye Filmmuseum Permanent Collection", price_paid=Decimal("0.00"), currency="EUR", data_completeness="stub", notes="Museumkaart.", related_event_ids=[uid("evt-020")]))
         s.add(EventExhibition(event_id=uid("evt-021"), subtype="other", permanent_or_temp="permanent"))
 
         # evt-022 — Our Anxious Measurements III (spoken word)

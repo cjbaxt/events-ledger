@@ -12,6 +12,7 @@ from app.models import (
     Work, MusicalPiece, Production, Event,
 )
 from app.schemas.events import EventListItem
+from app.api.events import _venue_display
 from app.schemas.reference import (
     PersonCreate, PersonRead, PersonUpdate,
     EnsembleCreate, EnsembleRead, EnsembleUpdate,
@@ -75,23 +76,39 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     def by_fk(table: str, column: str) -> None:
         rows = session.execute(
-            text(f"SELECT event_id FROM {table} WHERE {column} = :pid::uuid"),
+            text(f"SELECT event_id FROM {table} WHERE {column} = cast(:pid AS uuid)"),
             {"pid": pid_str},
         ).all()
         event_ids.update(r[0] for r in rows)
 
     def by_array(table: str, column: str) -> None:
         rows = session.execute(
-            text(f"SELECT event_id FROM {table} WHERE :pid::uuid = ANY({column})"),
+            text(f"SELECT event_id FROM {table} WHERE cast(:pid AS uuid) = ANY({column})"),
+            {"pid": pid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    def by_work_creator(table: str, fk_col: str = "work_id") -> None:
+        """Find events where a work linked from this extension table was created by pid."""
+        rows = session.execute(
+            text(
+                f"SELECT t.event_id FROM {table} t "
+                f"JOIN work w ON w.id = t.{fk_col} "
+                f"WHERE w.creator_id = cast(:pid AS uuid)"
+            ),
             {"pid": pid_str},
         ).all()
         event_ids.update(r[0] for r in rows)
 
     def by_json_cast(table: str) -> None:
+        # Match scalar values (role → uuid string) and array values (role → [uuid, ...])
+        # Guard with jsonb_typeof = 'object' to skip null/array top-level values
         rows = session.execute(
             text(
-                f"SELECT event_id FROM {table} WHERE cast IS NOT NULL "
-                f"AND EXISTS (SELECT 1 FROM jsonb_each_text(cast::jsonb) WHERE value = :pid)"
+                f'SELECT event_id FROM {table} WHERE "cast" IS NOT NULL AND jsonb_typeof("cast"::jsonb) = \'object\' AND ('
+                f'  EXISTS (SELECT 1 FROM jsonb_each("cast"::jsonb) kv WHERE jsonb_typeof(kv.value) = \'string\' AND kv.value #>> \'{{}}\' = :pid)'
+                f'  OR EXISTS (SELECT 1 FROM jsonb_each("cast"::jsonb) kv, jsonb_array_elements_text(CASE WHEN jsonb_typeof(kv.value) = \'array\' THEN kv.value ELSE \'[]\' END) v WHERE v = :pid)'
+                f')'
             ),
             {"pid": pid_str},
         ).all()
@@ -102,27 +119,54 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     by_fk("event_classical", "conductor_id")
     by_array("classical_programme_item", "soloists")
+    # composer via musical_piece → classical_programme_item
+    rows = session.execute(
+        text(
+            "SELECT cpi.event_id FROM classical_programme_item cpi "
+            "JOIN musical_piece mp ON mp.id = cpi.musical_piece_id "
+            "WHERE mp.composer_id = cast(:pid AS uuid)"
+        ),
+        {"pid": pid_str},
+    ).all()
+    event_ids.update(r[0] for r in rows)
 
     by_fk("event_opera", "conductor_id")
     by_fk("event_opera", "director_id")
+    by_array("event_opera", "composers")
     by_json_cast("event_opera")
+    by_work_creator("event_opera")
 
     by_fk("event_ballet", "conductor_id")
     by_json_cast("event_ballet")
     by_fk("ballet_programme_item", "choreographer_id")
     by_array("ballet_programme_item", "soloists")
+    # composer via musical_piece → ballet_programme_music → ballet_programme_item
+    rows = session.execute(
+        text(
+            "SELECT bpi.event_id FROM ballet_programme_item bpi "
+            "JOIN ballet_programme_music bpm ON bpm.programme_item_id = bpi.id "
+            "JOIN musical_piece mp ON mp.id = bpm.musical_piece_id "
+            "WHERE mp.composer_id = cast(:pid AS uuid)"
+        ),
+        {"pid": pid_str},
+    ).all()
+    event_ids.update(r[0] for r in rows)
 
     by_fk("event_dance", "choreographer_id")
+    by_work_creator("event_dance")
 
     by_fk("event_circus", "director_id")
+    by_work_creator("event_circus")
 
     by_fk("event_theatre", "director_id")
     by_fk("event_theatre", "playwright_id")
     by_json_cast("event_theatre")
+    by_work_creator("event_theatre")
 
     by_fk("event_cabaret", "headliner_id")
     by_fk("event_cabaret", "host_id")
     by_array("event_cabaret", "supporting_cast")
+    by_work_creator("event_cabaret")
 
     by_fk("event_comedy", "performer_id")
     by_array("event_comedy", "support_acts")
@@ -138,6 +182,7 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     by_fk("event_screening", "director_id")
     by_fk("event_screening", "conductor_id")
+    by_work_creator("event_screening")
 
     if not event_ids:
         return []
@@ -146,9 +191,13 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
         select(Event).where(Event.id.in_(event_ids)).order_by(Event.date.desc())
     ).all()
 
+    return _events_to_list_items(session, events)
+
+
+def _events_to_list_items(session: Session, events) -> List[EventListItem]:
     result = []
     for e in events:
-        venue = session.get(Venue, e.venue_id)
+        _, _path, venue_display = _venue_display(session, e.venue_id)
         festival = session.get(Festival, e.festival_id) if e.festival_id else None
         result.append(EventListItem(
             id=e.id,
@@ -158,7 +207,7 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
             subtype=e.subtype,
             title=e.title,
             venue_id=e.venue_id,
-            venue_name=venue.name if venue else "Unknown",
+            venue_name=venue_display,
             festival_id=e.festival_id,
             festival_name=f"{festival.name} {festival.edition}".strip() if festival else None,
             price_paid=e.price_paid,
@@ -166,6 +215,7 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
             rating=e.rating,
             data_completeness=e.data_completeness,
             substack_url=e.substack_url,
+            status=e.status,
         ))
     return result
 
@@ -229,6 +279,57 @@ def update_ensemble(ensemble_id: str, data: EnsembleUpdate, session: Session = D
     session.commit()
     session.refresh(ensemble)
     return ensemble
+
+
+@router.get("/ensembles/{ensemble_id}/events", response_model=List[EventListItem])
+def get_ensemble_events(ensemble_id: str, session: Session = Depends(get_session)):
+    """Return all events referencing this ensemble across all extension tables."""
+    ensemble = session.get(Ensemble, ensemble_id)
+    if not ensemble:
+        raise HTTPException(status_code=404, detail="Ensemble not found")
+
+    try:
+        eid_str = str(uuid.UUID(ensemble_id))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid UUID")
+
+    event_ids: set = set()
+
+    def by_fk(table: str, column: str) -> None:
+        rows = session.execute(
+            text(f"SELECT event_id FROM {table} WHERE {column} = cast(:eid AS uuid)"),
+            {"eid": eid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    def by_array(table: str, column: str) -> None:
+        rows = session.execute(
+            text(f"SELECT event_id FROM {table} WHERE cast(:eid AS uuid) = ANY({column})"),
+            {"eid": eid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    by_fk("event_music", "headliner_ensemble_id")
+    by_array("event_music", "support_act_ensemble_ids")
+    by_fk("event_classical", "ensemble_id")
+    by_fk("event_opera", "ensemble_id")
+    by_fk("event_ballet", "company_id")
+    by_fk("event_ballet", "orchestra_id")
+    by_fk("event_dance", "company_id")
+    by_fk("event_circus", "company_id")
+    by_fk("event_theatre", "company_id")
+    by_fk("event_cabaret", "ensemble_id")
+    by_fk("event_comedy", "ensemble_id")
+    by_fk("event_screening", "ensemble_id")
+
+    if not event_ids:
+        return []
+
+    events = session.exec(
+        select(Event).where(Event.id.in_(event_ids)).order_by(Event.date.desc())
+    ).all()
+
+    return _events_to_list_items(session, events)
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +417,32 @@ def update_venue(venue_id: str, data: VenueUpdate, session: Session = Depends(ge
     session.commit()
     session.refresh(venue)
     return venue
+
+
+@router.get("/venues/{venue_id}/events", response_model=List[EventListItem])
+def get_venue_events(venue_id: str, session: Session = Depends(get_session)):
+    """Return all events at this venue or any of its child venues."""
+    venue = session.get(Venue, venue_id)
+    if not venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+
+    try:
+        vid = uuid.UUID(venue_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid UUID")
+
+    # Collect this venue + all children
+    child_ids = session.execute(
+        text("SELECT id FROM venue WHERE parent_id = cast(:vid AS uuid)"),
+        {"vid": str(vid)},
+    ).scalars().all()
+    venue_ids = {vid} | set(child_ids)
+
+    events = session.exec(
+        select(Event).where(Event.venue_id.in_(venue_ids)).order_by(Event.date.desc())
+    ).all()
+
+    return _events_to_list_items(session, events)
 
 
 # ---------------------------------------------------------------------------

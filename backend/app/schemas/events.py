@@ -21,11 +21,12 @@ class EventBase(BaseModel):
     work_id: Optional[uuid.UUID] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
+    status: str = "attended"
 
 
 class EventUpdate(BaseModel):
@@ -37,11 +38,12 @@ class EventUpdate(BaseModel):
     work_id: Optional[uuid.UUID] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
+    status: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -61,9 +63,10 @@ class EventListItem(BaseModel):
     festival_name: Optional[str] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     data_completeness: Optional[str] = None
     substack_url: Optional[str] = None
+    status: str = "attended"
     model_config = {"from_attributes": True}
 
 
@@ -79,15 +82,18 @@ class EventDetail(BaseModel):
     subtype: Optional[str] = None
     title: str
     venue: NamedRef
+    venue_path: List[NamedRef] = []  # ancestors from immediate parent to root
     work_id: Optional[uuid.UUID] = None
     festival: Optional[NamedRef] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     notes: Optional[str] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
-    extension: Optional[dict] = None  # type-specific extension data, keys resolved where useful
+    status: str = "attended"
+    related_events: List[dict] = []
+    extension: Optional[dict] = None
     model_config = {"from_attributes": True}
 
 
