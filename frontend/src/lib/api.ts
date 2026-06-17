@@ -42,3 +42,41 @@ export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
   if (!res.ok) throw new Error(`Failed to fetch person events: ${res.status}`);
   return res.json();
 }
+
+export interface VenueRef {
+  id: string;
+  name: string;
+  city?: string;
+  country?: string;
+  parent_id?: string | null;
+}
+
+export async function fetchVenue(id: string): Promise<VenueRef> {
+  const res = await fetch(`${BASE}/api/venues/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchVenueEvents(id: string): Promise<EventListItem[]> {
+  const res = await fetch(`${BASE}/api/venues/${id}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch venue events: ${res.status}`);
+  return res.json();
+}
+
+export interface EnsembleRef {
+  id: string;
+  name: string;
+  type?: string;
+}
+
+export async function fetchEnsemble(id: string): Promise<EnsembleRef> {
+  const res = await fetch(`${BASE}/api/ensembles/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchEnsembleEvents(id: string): Promise<EventListItem[]> {
+  const res = await fetch(`${BASE}/api/ensembles/${id}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch ensemble events: ${res.status}`);
+  return res.json();
+}

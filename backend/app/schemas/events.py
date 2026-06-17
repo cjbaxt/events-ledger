@@ -82,6 +82,7 @@ class EventDetail(BaseModel):
     subtype: Optional[str] = None
     title: str
     venue: NamedRef
+    venue_parent: Optional[NamedRef] = None
     work_id: Optional[uuid.UUID] = None
     festival: Optional[NamedRef] = None
     price_paid: Optional[Decimal] = None

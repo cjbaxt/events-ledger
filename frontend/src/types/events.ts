@@ -32,6 +32,7 @@ export interface EventDetail {
   subtype: string | null;
   title: string;
   venue: NamedRef;
+  venue_parent: NamedRef | null;
   work_id: string | null;
   festival: NamedRef | null;
   price_paid: string | null;

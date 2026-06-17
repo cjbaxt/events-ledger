@@ -66,18 +66,18 @@ def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], mode
     return results or None
 
 
-def _venue_display(session: Session, venue_id: Optional[uuid.UUID]) -> tuple[Optional[object], str]:
-    """Return (venue, display_name) where display_name includes parent if present."""
+def _venue_display(session: Session, venue_id: Optional[uuid.UUID]):
+    """Return (venue, parent_venue, display_name)."""
     if not venue_id:
-        return None, "Unknown"
+        return None, None, "Unknown"
     venue = session.get(Venue, venue_id)
     if not venue:
-        return None, "Unknown"
+        return None, None, "Unknown"
     if venue.parent_id:
         parent = session.get(Venue, venue.parent_id)
         if parent:
-            return venue, f"{venue.name}, {parent.name}"
-    return venue, venue.name
+            return venue, parent, f"{venue.name}, {parent.name}"
+    return venue, None, venue.name
 
 
 def _resolve_work(session: Session, work_id: Optional[uuid.UUID]) -> Optional[dict]:
@@ -377,7 +377,7 @@ def list_events(
 
     result = []
     for e in events:
-        venue, venue_display = _venue_display(session, e.venue_id)
+        venue, _parent, venue_display = _venue_display(session, e.venue_id)
         festival = session.get(Festival, e.festival_id) if e.festival_id else None
         result.append(EventListItem(
             id=e.id,
@@ -410,7 +410,7 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    venue, venue_display = _venue_display(session, event.venue_id)
+    venue, venue_parent, venue_display = _venue_display(session, event.venue_id)
     festival = session.get(Festival, event.festival_id) if event.festival_id else None
 
     return EventDetail(
@@ -420,7 +420,8 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
         type=event.type,
         subtype=event.subtype,
         title=event.title,
-        venue=NamedRef(id=venue.id, name=venue_display) if venue else NamedRef(id=event.venue_id, name="Unknown"),
+        venue=NamedRef(id=venue.id, name=venue.name) if venue else NamedRef(id=event.venue_id, name="Unknown"),
+        venue_parent=NamedRef(id=venue_parent.id, name=venue_parent.name) if venue_parent else None,
         work_id=event.work_id,
         festival=NamedRef(id=festival.id, name=f"{festival.name} {festival.edition}".strip()) if festival else None,
         price_paid=event.price_paid,

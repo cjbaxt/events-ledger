@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { IconX, IconExternalLink, IconStar, IconStarFilled, IconChevronLeft } from "@tabler/icons-react";
-import { fetchEvent, fetchPerson, fetchPersonEvents } from "../lib/api";
+import {
+  fetchEvent, fetchPerson, fetchPersonEvents,
+  fetchVenue, fetchVenueEvents,
+  fetchEnsemble, fetchEnsembleEvents,
+} from "../lib/api";
 import type { EventListItem, EventDetail } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -44,16 +48,18 @@ function namedStr(obj: NamedObj) {
   return obj.name ?? obj.title ?? "";
 }
 
-function namedList(arr: NamedObj[]) {
-  return arr.map(namedStr).filter(Boolean).join(", ");
-}
-
-function PersonLink({ person, onPersonClick }: { person: NamedObj; onPersonClick?: (id: string) => void }) {
-  const name = namedStr(person);
-  if (!onPersonClick) return <span>{name}</span>;
+function ClickableRef({
+  obj,
+  onClick,
+}: {
+  obj: NamedObj;
+  onClick?: (id: string) => void;
+}) {
+  const name = namedStr(obj);
+  if (!onClick) return <span>{name}</span>;
   return (
     <button
-      onClick={() => onPersonClick(person.id)}
+      onClick={() => onClick(obj.id)}
       className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
     >
       {name}
@@ -61,9 +67,13 @@ function PersonLink({ person, onPersonClick }: { person: NamedObj; onPersonClick
   );
 }
 
-// Render a ballet programme item:
-// "1. Empire Noir — David Dawson (Empire Noir (original score))"
-function BalletProgrammeItem({ item, onPersonClick }: { item: Record<string, unknown>; onPersonClick: (id: string) => void }) {
+function BalletProgrammeItem({
+  item,
+  onPersonClick,
+}: {
+  item: Record<string, unknown>;
+  onPersonClick: (id: string) => void;
+}) {
   const work = item.work as NamedObj | null;
   const choreographer = item.choreographer as NamedObj | null;
   const music = item.music as NamedObj[] | null;
@@ -75,7 +85,7 @@ function BalletProgrammeItem({ item, onPersonClick }: { item: Record<string, unk
       <span className="text-neutral-400 mr-2">{order}.</span>
       <span className="text-neutral-800 font-medium">{work ? namedStr(work) : "—"}</span>
       {choreographer && (
-        <span className="text-neutral-500"> — <PersonLink person={choreographer} onPersonClick={onPersonClick} /></span>
+        <span className="text-neutral-500"> — <ClickableRef obj={choreographer} onClick={onPersonClick} /></span>
       )}
       {music && music.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
@@ -85,7 +95,7 @@ function BalletProgrammeItem({ item, onPersonClick }: { item: Record<string, unk
       {soloists && soloists.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
           Soloists: {soloists.map((s, i) => (
-            <span key={s.id}>{i > 0 && ", "}<PersonLink person={s} onPersonClick={onPersonClick} /></span>
+            <span key={s.id}>{i > 0 && ", "}<ClickableRef obj={s} onClick={onPersonClick} /></span>
           ))}
         </div>
       )}
@@ -93,9 +103,13 @@ function BalletProgrammeItem({ item, onPersonClick }: { item: Record<string, unk
   );
 }
 
-// Render a classical/choral programme item:
-// "1. Ubi Caritas  trad. Gregorian"
-function ClassicalProgrammeItem({ item, onPersonClick }: { item: Record<string, unknown>; onPersonClick: (id: string) => void }) {
+function ClassicalProgrammeItem({
+  item,
+  onPersonClick,
+}: {
+  item: Record<string, unknown>;
+  onPersonClick: (id: string) => void;
+}) {
   const piece = item.piece as NamedObj | null;
   const notes = item.notes as string | null;
   const order = item.order as number;
@@ -109,12 +123,12 @@ function ClassicalProgrammeItem({ item, onPersonClick }: { item: Record<string, 
     <li className="text-sm">
       <span className="text-neutral-400 mr-2">{order}.</span>
       <span className="text-neutral-800">{title ?? "—"}</span>
-      {composer && <span className="text-neutral-500"> — <PersonLink person={composer} onPersonClick={onPersonClick} /></span>}
+      {composer && <span className="text-neutral-500"> — <ClickableRef obj={composer} onClick={onPersonClick} /></span>}
       {notes && <span className="text-neutral-400 text-xs ml-2">({notes})</span>}
       {soloists && soloists.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
           Soloists: {soloists.map((s, i) => (
-            <span key={s.id}>{i > 0 && ", "}<PersonLink person={s} onPersonClick={onPersonClick} /></span>
+            <span key={s.id}>{i > 0 && ", "}<ClickableRef obj={s} onClick={onPersonClick} /></span>
           ))}
         </div>
       )}
@@ -138,7 +152,7 @@ function WorkField({ work }: { work: WorkObj }) {
   );
 }
 
-function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick: (id: string) => void }) {
+function CastField({ cast }: { cast: CastObj }) {
   const entries = Object.entries(cast);
   if (!entries.length) return null;
   return (
@@ -156,15 +170,26 @@ function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick: (id:
   );
 }
 
-function ExtensionFields({ extension, type, onPersonClick }: { extension: Record<string, unknown>; type: string; onPersonClick: (id: string) => void }) {
+function ExtensionFields({
+  extension,
+  type,
+  onPersonClick,
+  onEnsembleClick,
+}: {
+  extension: Record<string, unknown>;
+  type: string;
+  onPersonClick: (id: string) => void;
+  onEnsembleClick: (id: string) => void;
+}) {
   const skip = new Set(["id", "event_id", "subtype"]);
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
   const cast = extension.cast as CastObj | null;
-  // Named-ref fields that should be clickable persons
+
   const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
-  // Named-ref list fields that are persons
   const personListFields = new Set(["composers", "soloists", "speakers", "performers", "support_acts", "supporting_cast", "artists"]);
+  const ensembleFields = new Set(["ensemble", "company", "orchestra"]);
+
   const scalarEntries = Object.entries(extension).filter(
     ([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null
   );
@@ -176,17 +201,25 @@ function ExtensionFields({ extension, type, onPersonClick }: { extension: Record
       {scalarEntries.map(([key, val]) => {
         if (val === null || val === undefined) return null;
 
-        // Clickable named-ref (single person)
+        // Clickable person (single)
         if (personFields.has(key) && typeof val === "object" && !Array.isArray(val) && "id" in (val as object)) {
-          const obj = val as NamedObj;
           return (
             <Field key={key} label={key.replace(/_/g, " ")}>
-              <PersonLink person={obj} onPersonClick={onPersonClick} />
+              <ClickableRef obj={val as NamedObj} onClick={onPersonClick} />
             </Field>
           );
         }
 
-        // Clickable named-ref list (persons)
+        // Clickable ensemble (single)
+        if (ensembleFields.has(key) && typeof val === "object" && !Array.isArray(val) && "id" in (val as object)) {
+          return (
+            <Field key={key} label={key.replace(/_/g, " ")}>
+              <ClickableRef obj={val as NamedObj} onClick={onEnsembleClick} />
+            </Field>
+          );
+        }
+
+        // Clickable persons (list)
         if (personListFields.has(key) && Array.isArray(val)) {
           const items = val as NamedObj[];
           if (!items.length) return null;
@@ -194,14 +227,14 @@ function ExtensionFields({ extension, type, onPersonClick }: { extension: Record
             <Field key={key} label={key.replace(/_/g, " ")}>
               <span className="text-neutral-600">
                 {items.map((p, i) => (
-                  <span key={p.id}>{i > 0 && ", "}<PersonLink person={p} onPersonClick={onPersonClick} /></span>
+                  <span key={p.id}>{i > 0 && ", "}<ClickableRef obj={p} onClick={onPersonClick} /></span>
                 ))}
               </span>
             </Field>
           );
         }
 
-        // Generic scalar / named-ref / string list
+        // Generic display
         let display: string | null = null;
         if (typeof val === "string") display = val;
         else if (typeof val === "number") display = String(val);
@@ -242,37 +275,57 @@ function ExtensionFields({ extension, type, onPersonClick }: { extension: Record
         </div>
       )}
 
-      {cast && <CastField cast={cast} onPersonClick={onPersonClick} />}
+      {cast && <CastField cast={cast} />}
     </div>
   );
 }
 
-// ── Person events sub-panel ────────────────────────────────────────────────
+// ── Generic sub-panel for person/venue/ensemble event lists ────────────────
 
-function PersonEventsView({
-  personId,
+type NavKind = "person" | "venue" | "ensemble";
+
+interface NavTarget {
+  kind: NavKind;
+  id: string;
+}
+
+const NAV_LABELS: Record<NavKind, string> = {
+  person: "Person",
+  venue: "Venue",
+  ensemble: "Ensemble",
+};
+
+async function fetchNavName(kind: NavKind, id: string): Promise<string> {
+  if (kind === "person") return (await fetchPerson(id)).name;
+  if (kind === "venue") return (await fetchVenue(id)).name;
+  return (await fetchEnsemble(id)).name;
+}
+
+async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {
+  if (kind === "person") return fetchPersonEvents(id);
+  if (kind === "venue") return fetchVenueEvents(id);
+  return fetchEnsembleEvents(id);
+}
+
+function NavEventsView({
+  target,
   onBack,
   onEventClick,
 }: {
-  personId: string;
+  target: NavTarget;
   onBack: () => void;
   onEventClick: (id: string) => void;
 }) {
-  const [personName, setPersonName] = useState<string>("");
+  const [name, setName] = useState<string>("");
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchPerson(personId), fetchPersonEvents(personId)])
-      .then(([person, evts]) => {
-        setPersonName(person.name);
-        setEvents(evts);
-      })
+    Promise.all([fetchNavName(target.kind, target.id), fetchNavEvents(target.kind, target.id)])
+      .then(([n, evts]) => { setName(n); setEvents(evts); })
       .finally(() => setLoading(false));
-  }, [personId]);
-
-  const MONTH = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  }, [target.kind, target.id]);
 
   return (
     <>
@@ -284,7 +337,7 @@ function PersonEventsView({
           <IconChevronLeft size={14} />
           Back
         </button>
-        <div className="text-xs uppercase tracking-widest text-neutral-400">Person</div>
+        <div className="text-xs uppercase tracking-widest text-neutral-400">{NAV_LABELS[target.kind]}</div>
         <div className="w-14" />
       </div>
 
@@ -293,14 +346,12 @@ function PersonEventsView({
           <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
         ) : (
           <>
-            <h2 className="font-serif text-2xl text-neutral-900 mb-1">{personName}</h2>
+            <h2 className="font-serif text-2xl text-neutral-900 mb-1">{name}</h2>
             <p className="text-xs text-neutral-400 mb-5 uppercase tracking-widest">{events.length} event{events.length !== 1 ? "s" : ""}</p>
             <div className="space-y-2">
-              {events.length === 0 && (
-                <p className="text-sm text-neutral-400">No events found.</p>
-              )}
+              {events.length === 0 && <p className="text-sm text-neutral-400">No events found.</p>}
               {events.map((e) => {
-                const [, m, d] = e.date.split("-");
+                const [yr, m, d] = e.date.split("-");
                 return (
                   <button
                     key={e.id}
@@ -314,7 +365,7 @@ function PersonEventsView({
                       <div className="font-serif text-sm font-medium text-neutral-900 truncate">{e.title}</div>
                       <div className="text-xs text-neutral-400 mt-0.5">{e.venue_name}</div>
                     </div>
-                    <div className="text-xs text-neutral-400 flex-shrink-0">{parseInt(d)} {MONTH[parseInt(m)]} {e.date.slice(0, 4)}</div>
+                    <div className="text-xs text-neutral-400 flex-shrink-0">{parseInt(d)} {MONTH_NAMES[parseInt(m)]} {yr}</div>
                   </button>
                 );
               })}
@@ -331,14 +382,14 @@ export default function EventDetailPanel() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [personId, setPersonId] = useState<string | null>(null); // null = showing event
+  const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
 
-  const showPerson = useCallback((id: string) => setPersonId(id), []);
-  const backToEvent = useCallback(() => setPersonId(null), []);
+  const navigate = useCallback((kind: NavKind, id: string) => setNavTarget({ kind, id }), []);
+  const backToEvent = useCallback(() => setNavTarget(null), []);
 
   const close = useCallback(() => {
     setOpen(false);
-    setPersonId(null);
+    setNavTarget(null);
     if (window.location.pathname.startsWith("/events/")) {
       window.history.back();
     }
@@ -348,7 +399,7 @@ export default function EventDetailPanel() {
     function onOpenEvent(e: Event) {
       const id = (e as CustomEvent<string>).detail;
       setEventId(id);
-      setPersonId(null);
+      setNavTarget(null);
       setOpen(true);
     }
     function onPopState() {
@@ -383,7 +434,7 @@ export default function EventDetailPanel() {
 
   return (
     <>
-      {/* Backdrop — desktop only */}
+      {/* Backdrop */}
       <div
         onClick={close}
         className={`fixed inset-0 bg-black/10 z-40 transition-opacity duration-200 hidden md:block ${
@@ -397,7 +448,6 @@ export default function EventDetailPanel() {
           inset-0 md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[480px]
           ${open ? "translate-x-0" : "translate-x-full"}`}
       >
-        {/* Close button — always visible top-right */}
         <button
           onClick={close}
           className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors text-neutral-400 hover:text-neutral-700"
@@ -405,15 +455,14 @@ export default function EventDetailPanel() {
           <IconX size={16} />
         </button>
 
-        {personId ? (
-          <PersonEventsView
-            personId={personId}
+        {navTarget ? (
+          <NavEventsView
+            target={navTarget}
             onBack={backToEvent}
-            onEventClick={(id) => { setEventId(id); setEvent(null); setPersonId(null); }}
+            onEventClick={(id) => { setEventId(id); setEvent(null); setNavTarget(null); }}
           />
         ) : (
           <>
-            {/* Event header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 pr-14">
               <div className="flex items-center gap-2 text-neutral-400">
                 {event && (
@@ -427,7 +476,6 @@ export default function EventDetailPanel() {
               </div>
             </div>
 
-            {/* Body */}
             <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">
               {loading && (
                 <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">
@@ -448,7 +496,26 @@ export default function EventDetailPanel() {
                   </div>
 
                   <div className="flex items-start justify-between gap-4">
-                    <Field label="Venue">{event.venue.name}</Field>
+                    <div className="space-y-1">
+                      <Field label="Venue">
+                        <button
+                          onClick={() => navigate("venue", event.venue.id)}
+                          className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                        >
+                          {event.venue.name}
+                        </button>
+                      </Field>
+                      {event.venue_parent && (
+                        <div className="text-xs text-neutral-400">
+                          <button
+                            onClick={() => navigate("venue", event.venue_parent!.id)}
+                            className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
+                          >
+                            {event.venue_parent.name}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {event.rating && (
                       <div className="flex flex-col items-end gap-1">
                         <div className="text-[10px] uppercase tracking-widest text-neutral-400">Rating</div>
@@ -486,7 +553,12 @@ export default function EventDetailPanel() {
                   )}
 
                   {event.extension && (
-                    <ExtensionFields extension={event.extension} type={event.type} onPersonClick={showPerson} />
+                    <ExtensionFields
+                      extension={event.extension}
+                      type={event.type}
+                      onPersonClick={(id) => navigate("person", id)}
+                      onEnsembleClick={(id) => navigate("ensemble", id)}
+                    />
                   )}
                 </>
               )}
