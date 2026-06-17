@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Env / secrets
+.env
+*.env.local
+
+# Alembic
+# (versions are committed — don't ignore them)
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node (for Astro frontend, when added)
+node_modules/
+.astro/
+dist/
+
+# Postgres data (if ever run locally outside Docker)
+postgres_data/
