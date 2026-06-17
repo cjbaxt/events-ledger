@@ -78,6 +78,7 @@ class EventOpera(SQLModel, table=True):
     director_id: Optional[uuid.UUID] = Field(default=None, foreign_key="person.id")
     cast: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # role → person_id (str uuid)
     ensemble_id: Optional[uuid.UUID] = Field(default=None, foreign_key="ensemble.id")
+    composers: Optional[List[uuid.UUID]] = Field(default=None, sa_column=Column(ARRAY(PG_UUID(as_uuid=True))))  # music composers (for pasticcios/arrangements)
     libretto_language: Optional[str] = None
     surtitles_languages: Optional[List[str]] = Field(
         default=None, sa_column=Column(ARRAY(String))

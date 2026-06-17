@@ -75,23 +75,39 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     def by_fk(table: str, column: str) -> None:
         rows = session.execute(
-            text(f"SELECT event_id FROM {table} WHERE {column} = :pid::uuid"),
+            text(f"SELECT event_id FROM {table} WHERE {column} = cast(:pid AS uuid)"),
             {"pid": pid_str},
         ).all()
         event_ids.update(r[0] for r in rows)
 
     def by_array(table: str, column: str) -> None:
         rows = session.execute(
-            text(f"SELECT event_id FROM {table} WHERE :pid::uuid = ANY({column})"),
+            text(f"SELECT event_id FROM {table} WHERE cast(:pid AS uuid) = ANY({column})"),
+            {"pid": pid_str},
+        ).all()
+        event_ids.update(r[0] for r in rows)
+
+    def by_work_creator(table: str, fk_col: str = "work_id") -> None:
+        """Find events where a work linked from this extension table was created by pid."""
+        rows = session.execute(
+            text(
+                f"SELECT t.event_id FROM {table} t "
+                f"JOIN work w ON w.id = t.{fk_col} "
+                f"WHERE w.creator_id = cast(:pid AS uuid)"
+            ),
             {"pid": pid_str},
         ).all()
         event_ids.update(r[0] for r in rows)
 
     def by_json_cast(table: str) -> None:
+        # Match scalar values (role → uuid string) and array values (role → [uuid, ...])
+        # Guard with jsonb_typeof = 'object' to skip null/array top-level values
         rows = session.execute(
             text(
-                f"SELECT event_id FROM {table} WHERE cast IS NOT NULL "
-                f"AND EXISTS (SELECT 1 FROM jsonb_each_text(cast::jsonb) WHERE value = :pid)"
+                f'SELECT event_id FROM {table} WHERE "cast" IS NOT NULL AND jsonb_typeof("cast"::jsonb) = \'object\' AND ('
+                f'  EXISTS (SELECT 1 FROM jsonb_each("cast"::jsonb) kv WHERE jsonb_typeof(kv.value) = \'string\' AND kv.value #>> \'{{}}\' = :pid)'
+                f'  OR EXISTS (SELECT 1 FROM jsonb_each("cast"::jsonb) kv, jsonb_array_elements_text(CASE WHEN jsonb_typeof(kv.value) = \'array\' THEN kv.value ELSE \'[]\' END) v WHERE v = :pid)'
+                f')'
             ),
             {"pid": pid_str},
         ).all()
@@ -105,7 +121,9 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     by_fk("event_opera", "conductor_id")
     by_fk("event_opera", "director_id")
+    by_array("event_opera", "composers")
     by_json_cast("event_opera")
+    by_work_creator("event_opera")
 
     by_fk("event_ballet", "conductor_id")
     by_json_cast("event_ballet")
@@ -113,16 +131,20 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
     by_array("ballet_programme_item", "soloists")
 
     by_fk("event_dance", "choreographer_id")
+    by_work_creator("event_dance")
 
     by_fk("event_circus", "director_id")
+    by_work_creator("event_circus")
 
     by_fk("event_theatre", "director_id")
     by_fk("event_theatre", "playwright_id")
     by_json_cast("event_theatre")
+    by_work_creator("event_theatre")
 
     by_fk("event_cabaret", "headliner_id")
     by_fk("event_cabaret", "host_id")
     by_array("event_cabaret", "supporting_cast")
+    by_work_creator("event_cabaret")
 
     by_fk("event_comedy", "performer_id")
     by_array("event_comedy", "support_acts")
@@ -138,6 +160,7 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     by_fk("event_screening", "director_id")
     by_fk("event_screening", "conductor_id")
+    by_work_creator("event_screening")
 
     if not event_ids:
         return []

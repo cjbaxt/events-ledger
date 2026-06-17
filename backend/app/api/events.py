@@ -66,6 +66,45 @@ def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], mode
     return results or None
 
 
+def _resolve_work(session: Session, work_id: Optional[uuid.UUID]) -> Optional[dict]:
+    """Resolve a work_id to { id, title, creator } for display."""
+    if work_id is None:
+        return None
+    work = session.get(Work, work_id)
+    if not work:
+        return None
+    creator = None
+    if work.creator_id:
+        p = session.get(Person, work.creator_id)
+        if p:
+            creator = p.name
+    return {"id": str(work.id), "title": work.title, "creator": creator, "year": work.year, "notes": work.notes}
+
+
+def _resolve_cast(session: Session, cast: Optional[dict]) -> Optional[dict]:
+    """Resolve cast dict {role: UUID} → {role: person_name}."""
+    if not cast:
+        return None
+    resolved = {}
+    for role, val in cast.items():
+        if isinstance(val, list):
+            names = []
+            for v in val:
+                try:
+                    p = session.get(Person, uuid.UUID(str(v)))
+                    names.append(p.name if p else str(v))
+                except Exception:
+                    names.append(str(v))
+            resolved[role] = names
+        else:
+            try:
+                p = session.get(Person, uuid.UUID(str(val)))
+                resolved[role] = p.name if p else str(val)
+            except Exception:
+                resolved[role] = str(val)
+    return resolved or None
+
+
 def _build_extension(session: Session, event: Event) -> Optional[dict]:
     """Fetch and enrich the type-specific extension for an event."""
     t = event.type
@@ -122,14 +161,14 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             return None
         return {
             "subtype": ext.subtype,
-            "work_id": str(ext.work_id) if ext.work_id else None,
-            "production_id": str(ext.production_id) if ext.production_id else None,
+            "work": _resolve_work(session, ext.work_id),
+            "composers": _resolve_ids_to_names(session, ext.composers, Person),
             "conductor": _resolve_name(session, Person, ext.conductor_id),
             "director": _resolve_name(session, Person, ext.director_id),
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),
             "libretto_language": ext.libretto_language,
             "surtitles_languages": ext.surtitles_languages,
-            "cast": ext.cast,
+            "cast": _resolve_cast(session, ext.cast),
             "operabase_url": ext.operabase_url,
         }
 
@@ -165,7 +204,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "company": _resolve_name(session, Ensemble, ext.company_id),
             "orchestra": _resolve_name(session, Ensemble, ext.orchestra_id),
             "conductor": _resolve_name(session, Person, ext.conductor_id),
-            "cast": ext.cast,
+            "cast": _resolve_cast(session, ext.cast),
             "programme": programme,
         }
 
@@ -177,7 +216,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "subtype": ext.subtype,
             "company": _resolve_name(session, Ensemble, ext.company_id),
             "choreographer": _resolve_name(session, Person, ext.choreographer_id),
-            "work_id": str(ext.work_id) if ext.work_id else None,
+            "work": _resolve_work(session, ext.work_id),
             "music_notes": ext.music_notes,
         }
 
@@ -189,7 +228,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "subtype": ext.subtype,
             "company": _resolve_name(session, Ensemble, ext.company_id),
             "director": _resolve_name(session, Person, ext.director_id),
-            "work_id": str(ext.work_id) if ext.work_id else None,
+            "work": _resolve_work(session, ext.work_id),
         }
 
     if t == "theatre":
@@ -198,12 +237,11 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             return None
         return {
             "subtype": ext.subtype,
-            "work_id": str(ext.work_id) if ext.work_id else None,
-            "production_id": str(ext.production_id) if ext.production_id else None,
+            "work": _resolve_work(session, ext.work_id),
             "company": _resolve_name(session, Ensemble, ext.company_id),
             "director": _resolve_name(session, Person, ext.director_id),
             "playwright": _resolve_name(session, Person, ext.playwright_id),
-            "cast": ext.cast,
+            "cast": _resolve_cast(session, ext.cast),
         }
 
     if t == "cabaret":
@@ -217,7 +255,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "supporting_cast": _resolve_ids_to_names(session, ext.supporting_cast, Person),
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),
             "tour_name": ext.tour_name,
-            "work_id": str(ext.work_id) if ext.work_id else None,
+            "work": _resolve_work(session, ext.work_id),
         }
 
     if t == "comedy":
@@ -277,7 +315,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             return None
         return {
             "subtype": ext.subtype,
-            "work_id": str(ext.work_id) if ext.work_id else None,
+            "work": _resolve_work(session, ext.work_id),
             "director": _resolve_name(session, Person, ext.director_id),
             "conductor": _resolve_name(session, Person, ext.conductor_id),
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),

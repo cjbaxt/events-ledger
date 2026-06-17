@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconX, IconExternalLink, IconStar, IconStarFilled } from "@tabler/icons-react";
-import { fetchEvent } from "../lib/api";
-import type { EventDetail } from "../types/events";
+import { IconX, IconExternalLink, IconStar, IconStarFilled, IconChevronLeft } from "@tabler/icons-react";
+import { fetchEvent, fetchPerson, fetchPersonEvents } from "../lib/api";
+import type { EventListItem, EventDetail } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
 const MONTH_NAMES = [
@@ -48,9 +48,22 @@ function namedList(arr: NamedObj[]) {
   return arr.map(namedStr).filter(Boolean).join(", ");
 }
 
+function PersonLink({ person, onPersonClick }: { person: NamedObj; onPersonClick?: (id: string) => void }) {
+  const name = namedStr(person);
+  if (!onPersonClick) return <span>{name}</span>;
+  return (
+    <button
+      onClick={() => onPersonClick(person.id)}
+      className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+    >
+      {name}
+    </button>
+  );
+}
+
 // Render a ballet programme item:
 // "1. Empire Noir — David Dawson (Empire Noir (original score))"
-function BalletProgrammeItem({ item }: { item: Record<string, unknown> }) {
+function BalletProgrammeItem({ item, onPersonClick }: { item: Record<string, unknown>; onPersonClick: (id: string) => void }) {
   const work = item.work as NamedObj | null;
   const choreographer = item.choreographer as NamedObj | null;
   const music = item.music as NamedObj[] | null;
@@ -62,7 +75,7 @@ function BalletProgrammeItem({ item }: { item: Record<string, unknown> }) {
       <span className="text-neutral-400 mr-2">{order}.</span>
       <span className="text-neutral-800 font-medium">{work ? namedStr(work) : "—"}</span>
       {choreographer && (
-        <span className="text-neutral-500"> — {namedStr(choreographer)}</span>
+        <span className="text-neutral-500"> — <PersonLink person={choreographer} onPersonClick={onPersonClick} /></span>
       )}
       {music && music.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
@@ -71,7 +84,9 @@ function BalletProgrammeItem({ item }: { item: Record<string, unknown> }) {
       )}
       {soloists && soloists.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
-          Soloists: {namedList(soloists)}
+          Soloists: {soloists.map((s, i) => (
+            <span key={s.id}>{i > 0 && ", "}<PersonLink person={s} onPersonClick={onPersonClick} /></span>
+          ))}
         </div>
       )}
     </li>
@@ -80,12 +95,11 @@ function BalletProgrammeItem({ item }: { item: Record<string, unknown> }) {
 
 // Render a classical/choral programme item:
 // "1. Ubi Caritas  trad. Gregorian"
-function ClassicalProgrammeItem({ item }: { item: Record<string, unknown> }) {
+function ClassicalProgrammeItem({ item, onPersonClick }: { item: Record<string, unknown>; onPersonClick: (id: string) => void }) {
   const piece = item.piece as NamedObj | null;
   const notes = item.notes as string | null;
   const order = item.order as number;
   const soloists = item.soloists as NamedObj[] | null;
-  // Some classical events use work/composer instead of piece
   const work = item.work as NamedObj | null;
   const composer = item.composer as NamedObj | null;
 
@@ -95,28 +109,100 @@ function ClassicalProgrammeItem({ item }: { item: Record<string, unknown> }) {
     <li className="text-sm">
       <span className="text-neutral-400 mr-2">{order}.</span>
       <span className="text-neutral-800">{title ?? "—"}</span>
-      {composer && <span className="text-neutral-500"> — {namedStr(composer)}</span>}
+      {composer && <span className="text-neutral-500"> — <PersonLink person={composer} onPersonClick={onPersonClick} /></span>}
       {notes && <span className="text-neutral-400 text-xs ml-2">({notes})</span>}
       {soloists && soloists.length > 0 && (
         <div className="text-xs text-neutral-400 mt-0.5 ml-4">
-          Soloists: {namedList(soloists)}
+          Soloists: {soloists.map((s, i) => (
+            <span key={s.id}>{i > 0 && ", "}<PersonLink person={s} onPersonClick={onPersonClick} /></span>
+          ))}
         </div>
       )}
     </li>
   );
 }
 
-function ExtensionFields({ extension, type }: { extension: Record<string, unknown>; type: string }) {
+type WorkObj = { id: string; title: string; creator?: string | null; year?: number | null; notes?: string | null };
+type CastObj = Record<string, string | string[]>;
+
+function WorkField({ work }: { work: WorkObj }) {
+  return (
+    <div>
+      <Field label="Work">
+        <span className="text-neutral-800 font-medium">{work.title}</span>
+        {work.creator && <span className="text-neutral-500"> — {work.creator}</span>}
+        {work.year && <span className="text-neutral-400 text-xs ml-2">({work.year})</span>}
+      </Field>
+      {work.notes && <p className="text-xs text-neutral-400 mt-1">{work.notes}</p>}
+    </div>
+  );
+}
+
+function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick: (id: string) => void }) {
+  const entries = Object.entries(cast);
+  if (!entries.length) return null;
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Cast</div>
+      <dl className="space-y-1">
+        {entries.map(([role, name]) => (
+          <div key={role} className="flex gap-2 text-sm">
+            <dt className="text-neutral-400 min-w-0 shrink-0 w-40 truncate">{role}</dt>
+            <dd className="text-neutral-700">{Array.isArray(name) ? name.join(", ") : name}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function ExtensionFields({ extension, type, onPersonClick }: { extension: Record<string, unknown>; type: string; onPersonClick: (id: string) => void }) {
   const skip = new Set(["id", "event_id", "subtype"]);
   const programme = extension.programme as Record<string, unknown>[] | null;
-  const scalarEntries = Object.entries(extension).filter(([k, v]) => !skip.has(k) && k !== "programme" && v !== null);
+  const work = extension.work as WorkObj | null;
+  const cast = extension.cast as CastObj | null;
+  // Named-ref fields that should be clickable persons
+  const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
+  // Named-ref list fields that are persons
+  const personListFields = new Set(["composers", "soloists", "speakers", "performers", "support_acts", "supporting_cast", "artists"]);
+  const scalarEntries = Object.entries(extension).filter(
+    ([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null
+  );
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
+      {work && <WorkField work={work} />}
+
       {scalarEntries.map(([key, val]) => {
         if (val === null || val === undefined) return null;
-        let display: string | null = null;
 
+        // Clickable named-ref (single person)
+        if (personFields.has(key) && typeof val === "object" && !Array.isArray(val) && "id" in (val as object)) {
+          const obj = val as NamedObj;
+          return (
+            <Field key={key} label={key.replace(/_/g, " ")}>
+              <PersonLink person={obj} onPersonClick={onPersonClick} />
+            </Field>
+          );
+        }
+
+        // Clickable named-ref list (persons)
+        if (personListFields.has(key) && Array.isArray(val)) {
+          const items = val as NamedObj[];
+          if (!items.length) return null;
+          return (
+            <Field key={key} label={key.replace(/_/g, " ")}>
+              <span className="text-neutral-600">
+                {items.map((p, i) => (
+                  <span key={p.id}>{i > 0 && ", "}<PersonLink person={p} onPersonClick={onPersonClick} /></span>
+                ))}
+              </span>
+            </Field>
+          );
+        }
+
+        // Generic scalar / named-ref / string list
+        let display: string | null = null;
         if (typeof val === "string") display = val;
         else if (typeof val === "number") display = String(val);
         else if (typeof val === "object" && !Array.isArray(val)) {
@@ -147,15 +233,96 @@ function ExtensionFields({ extension, type }: { extension: Record<string, unknow
           <ol className="space-y-2">
             {programme.map((item, i) =>
               type === "ballet" ? (
-                <BalletProgrammeItem key={i} item={item} />
+                <BalletProgrammeItem key={i} item={item} onPersonClick={onPersonClick} />
               ) : (
-                <ClassicalProgrammeItem key={i} item={item} />
+                <ClassicalProgrammeItem key={i} item={item} onPersonClick={onPersonClick} />
               )
             )}
           </ol>
         </div>
       )}
+
+      {cast && <CastField cast={cast} onPersonClick={onPersonClick} />}
     </div>
+  );
+}
+
+// ── Person events sub-panel ────────────────────────────────────────────────
+
+function PersonEventsView({
+  personId,
+  onBack,
+  onEventClick,
+}: {
+  personId: string;
+  onBack: () => void;
+  onEventClick: (id: string) => void;
+}) {
+  const [personName, setPersonName] = useState<string>("");
+  const [events, setEvents] = useState<EventListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([fetchPerson(personId), fetchPersonEvents(personId)])
+      .then(([person, evts]) => {
+        setPersonName(person.name);
+        setEvents(evts);
+      })
+      .finally(() => setLoading(false));
+  }, [personId]);
+
+  const MONTH = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-700 transition-colors"
+        >
+          <IconChevronLeft size={14} />
+          Back
+        </button>
+        <div className="text-xs uppercase tracking-widest text-neutral-400">Person</div>
+        <div className="w-14" />
+      </div>
+
+      <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5">
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
+        ) : (
+          <>
+            <h2 className="font-serif text-2xl text-neutral-900 mb-1">{personName}</h2>
+            <p className="text-xs text-neutral-400 mb-5 uppercase tracking-widest">{events.length} event{events.length !== 1 ? "s" : ""}</p>
+            <div className="space-y-2">
+              {events.length === 0 && (
+                <p className="text-sm text-neutral-400">No events found.</p>
+              )}
+              {events.map((e) => {
+                const [, m, d] = e.date.split("-");
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => onEventClick(e.id)}
+                    className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 transition-colors group"
+                  >
+                    <div className="w-8 h-8 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
+                      <EventTypeIcon type={e.type} size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-serif text-sm font-medium text-neutral-900 truncate">{e.title}</div>
+                      <div className="text-xs text-neutral-400 mt-0.5">{e.venue_name}</div>
+                    </div>
+                    <div className="text-xs text-neutral-400 flex-shrink-0">{parseInt(d)} {MONTH[parseInt(m)]} {e.date.slice(0, 4)}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -164,9 +331,14 @@ export default function EventDetailPanel() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [personId, setPersonId] = useState<string | null>(null); // null = showing event
+
+  const showPerson = useCallback((id: string) => setPersonId(id), []);
+  const backToEvent = useCallback(() => setPersonId(null), []);
 
   const close = useCallback(() => {
     setOpen(false);
+    setPersonId(null);
     if (window.location.pathname.startsWith("/events/")) {
       window.history.back();
     }
@@ -176,6 +348,7 @@ export default function EventDetailPanel() {
     function onOpenEvent(e: Event) {
       const id = (e as CustomEvent<string>).detail;
       setEventId(id);
+      setPersonId(null);
       setOpen(true);
     }
     function onPopState() {
@@ -224,97 +397,102 @@ export default function EventDetailPanel() {
           inset-0 md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[480px]
           ${open ? "translate-x-0" : "translate-x-full"}`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <div className="flex items-center gap-2 text-neutral-400">
-            {event && (
-              <>
-                <EventTypeIcon type={event.type} size={16} />
-                <span className="text-xs uppercase tracking-widest capitalize">
-                  {event.subtype?.replace(/_/g, " ") ?? event.type.replace(/_/g, " ")}
-                </span>
-              </>
-            )}
-          </div>
-          <button
-            onClick={close}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors text-neutral-400 hover:text-neutral-700"
-          >
-            <IconX size={16} />
-          </button>
-        </div>
+        {/* Close button — always visible top-right */}
+        <button
+          onClick={close}
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors text-neutral-400 hover:text-neutral-700"
+        >
+          <IconX size={16} />
+        </button>
 
-        {/* Body */}
-        <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">
-          {loading && (
-            <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">
-              Loading…
-            </div>
-          )}
-
-          {!loading && event && (
-            <>
-              {/* Title + date */}
-              <div>
-                <h2 className="font-serif text-2xl text-neutral-900 leading-snug mb-1">
-                  {event.title}
-                </h2>
-                <div className="flex items-center gap-3 text-sm text-neutral-400">
-                  <span>{formatDate(event.date)}{event.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${event.date.slice(0, 4)}`}</span>
-                  {event.time && <span>{event.time.slice(0, 5)}</span>}
-                </div>
-              </div>
-
-              {/* Venue + rating row */}
-              <div className="flex items-start justify-between gap-4">
-                <Field label="Venue">{event.venue.name}</Field>
-                {event.rating && (
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="text-[10px] uppercase tracking-widest text-neutral-400">Rating</div>
-                    <RatingStars rating={event.rating} />
-                  </div>
+        {personId ? (
+          <PersonEventsView
+            personId={personId}
+            onBack={backToEvent}
+            onEventClick={(id) => { setEventId(id); setEvent(null); setPersonId(null); }}
+          />
+        ) : (
+          <>
+            {/* Event header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 pr-14">
+              <div className="flex items-center gap-2 text-neutral-400">
+                {event && (
+                  <>
+                    <EventTypeIcon type={event.type} size={16} />
+                    <span className="text-xs uppercase tracking-widest capitalize">
+                      {event.subtype?.replace(/_/g, " ") ?? event.type.replace(/_/g, " ")}
+                    </span>
+                  </>
                 )}
               </div>
+            </div>
 
-              {/* Festival */}
-              {event.festival && (
-                <Field label="Festival">{event.festival.name}</Field>
+            {/* Body */}
+            <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">
+              {loading && (
+                <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">
+                  Loading…
+                </div>
               )}
 
-              {/* Price */}
-              {event.price_paid && (
-                <Field label="Price paid">
-                  {event.currency ? `${event.currency} ${event.price_paid}` : event.price_paid}
-                </Field>
-              )}
+              {!loading && event && (
+                <>
+                  <div>
+                    <h2 className="font-serif text-2xl text-neutral-900 leading-snug mb-1">
+                      {event.title}
+                    </h2>
+                    <div className="flex items-center gap-3 text-sm text-neutral-400">
+                      <span>{formatDate(event.date)}{event.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${event.date.slice(0, 4)}`}</span>
+                      {event.time && <span>{event.time.slice(0, 5)}</span>}
+                    </div>
+                  </div>
 
-              {/* Notes */}
-              {event.notes && (
-                <Field label="Notes">
-                  <p className="text-neutral-600 leading-relaxed whitespace-pre-wrap">{event.notes}</p>
-                </Field>
-              )}
+                  <div className="flex items-start justify-between gap-4">
+                    <Field label="Venue">{event.venue.name}</Field>
+                    {event.rating && (
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="text-[10px] uppercase tracking-widest text-neutral-400">Rating</div>
+                        <RatingStars rating={event.rating} />
+                      </div>
+                    )}
+                  </div>
 
-              {/* Substack link */}
-              {event.substack_url && (
-                <a
-                  href={event.substack_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 hover:border-neutral-400 rounded-full px-3 py-1.5 transition-colors"
-                >
-                  <IconExternalLink size={12} />
-                  Read on Substack
-                </a>
-              )}
+                  {event.festival && (
+                    <Field label="Festival">{event.festival.name}</Field>
+                  )}
 
-              {/* Type-specific extension fields */}
-              {event.extension && (
-                <ExtensionFields extension={event.extension} type={event.type} />
+                  {event.price_paid && (
+                    <Field label="Price paid">
+                      {event.currency ? `${event.currency} ${event.price_paid}` : event.price_paid}
+                    </Field>
+                  )}
+
+                  {event.notes && (
+                    <Field label="Notes">
+                      <p className="text-neutral-600 leading-relaxed whitespace-pre-wrap">{event.notes}</p>
+                    </Field>
+                  )}
+
+                  {event.substack_url && (
+                    <a
+                      href={event.substack_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 hover:border-neutral-400 rounded-full px-3 py-1.5 transition-colors"
+                    >
+                      <IconExternalLink size={12} />
+                      Read on Substack
+                    </a>
+                  )}
+
+                  {event.extension && (
+                    <ExtensionFields extension={event.extension} type={event.type} onPersonClick={showPerson} />
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

@@ -545,6 +545,7 @@ def seed():
             conductor_id=uid("per-101"),
             director_id=uid("per-099"),
             ensemble_id=uid("ens-012"),
+            composers=[uid("per-098")],  # Georg Friedrich Handel
             libretto_language="Italian",
             surtitles_languages=["Dutch", "English"],
             cast={

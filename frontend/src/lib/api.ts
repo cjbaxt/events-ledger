@@ -25,3 +25,20 @@ export async function fetchEvent(id: string): Promise<EventDetail> {
   if (!res.ok) throw new Error(`Failed to fetch event: ${res.status}`);
   return res.json();
 }
+
+export interface PersonRef {
+  id: string;
+  name: string;
+}
+
+export async function fetchPerson(id: string): Promise<PersonRef> {
+  const res = await fetch(`${BASE}/api/persons/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
+  const res = await fetch(`${BASE}/api/persons/${id}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch person events: ${res.status}`);
+  return res.json();
+}
