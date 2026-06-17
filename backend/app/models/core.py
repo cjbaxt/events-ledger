@@ -67,4 +67,6 @@ class Event(SQLModel, table=True):
     substack_url: Optional[str] = None
     # complete / partial / stub
     data_completeness: Optional[str] = None
+    # attended / planned / cancelled
+    status: str = Field(default="attended")
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -298,6 +298,7 @@ def list_events(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     data_completeness: Optional[str] = None,
+    status: Optional[str] = None,
     q: Optional[str] = None,
     limit: int = Query(default=100, le=500),
     offset: int = 0,
@@ -314,6 +315,8 @@ def list_events(
         stmt = stmt.where(Event.date <= date_to)
     if data_completeness:
         stmt = stmt.where(Event.data_completeness == data_completeness)
+    if status:
+        stmt = stmt.where(Event.status == status)
     if q:
         stmt = stmt.where(Event.title.ilike(f"%{q}%"))
     stmt = stmt.offset(offset).limit(limit)
@@ -340,6 +343,7 @@ def list_events(
             rating=e.rating,
             data_completeness=e.data_completeness,
             substack_url=e.substack_url,
+            status=e.status,
         ))
     return result
 

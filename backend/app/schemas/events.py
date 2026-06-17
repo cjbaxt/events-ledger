@@ -26,6 +26,7 @@ class EventBase(BaseModel):
     festival_id: Optional[uuid.UUID] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
+    status: str = "attended"
 
 
 class EventUpdate(BaseModel):
@@ -42,6 +43,7 @@ class EventUpdate(BaseModel):
     festival_id: Optional[uuid.UUID] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
+    status: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +66,7 @@ class EventListItem(BaseModel):
     rating: Optional[int] = None
     data_completeness: Optional[str] = None
     substack_url: Optional[str] = None
+    status: str = "attended"
     model_config = {"from_attributes": True}
 
 
@@ -87,7 +90,8 @@ class EventDetail(BaseModel):
     notes: Optional[str] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
-    extension: Optional[dict] = None  # type-specific extension data, keys resolved where useful
+    status: str = "attended"
+    extension: Optional[dict] = None
     model_config = {"from_attributes": True}
 
 
