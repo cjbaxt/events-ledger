@@ -184,6 +184,8 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
     by_fk("event_screening", "conductor_id")
     by_work_creator("event_screening")
 
+    by_fk("event_credit", "person_id")
+
     if not event_ids:
         return []
 
@@ -431,9 +433,17 @@ def get_venue_events(venue_id: str, session: Session = Depends(get_session)):
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid UUID")
 
-    # Collect this venue + all children
+    # Collect this venue + all descendants (recursive)
     child_ids = session.execute(
-        text("SELECT id FROM venue WHERE parent_id = cast(:vid AS uuid)"),
+        text("""
+            WITH RECURSIVE descendants AS (
+                SELECT id FROM venue WHERE parent_id = cast(:vid AS uuid)
+                UNION ALL
+                SELECT v.id FROM venue v
+                JOIN descendants d ON v.parent_id = d.id
+            )
+            SELECT id FROM descendants
+        """),
         {"vid": str(vid)},
     ).scalars().all()
     venue_ids = {vid} | set(child_ids)

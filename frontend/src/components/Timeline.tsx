@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { fetchEvents, patchEventRating } from "../lib/api";
+import { fetchEvents, patchEventRating, fetchPaymentMethods } from "../lib/api";
+import type { PaymentMethod } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -103,16 +104,56 @@ function StarRating({
   );
 }
 
-function YearSummary({ events, year }: { events: EventListItem[]; year: string }) {
+const GBP_TO_EUR = 1.19;
+
+function toEur(amount: number, currency: string) {
+  return currency === "GBP" ? amount * GBP_TO_EUR : amount;
+}
+
+function totalSpendEur(events: EventListItem[], paymentMethods: PaymentMethod[], year: string): number {
+  // Individual surcharges / standalone prices
+  const eventTotal = events
+    .filter((e) => e.price_paid)
+    .reduce((sum, e) => sum + toEur(parseFloat(e.price_paid ?? "0"), e.currency ?? "EUR"), 0);
+
+  // Payment methods whose purchase_date falls in this year (counted once each, regardless of filter)
+  const pmIdsInEvents = new Set(events.map((e) => e.payment_method_id).filter(Boolean));
+  const pmTotal = paymentMethods
+    .filter((pm) => pm.purchase_date.startsWith(year) && pmIdsInEvents.has(pm.id))
+    .reduce((sum, pm) => sum + toEur(parseFloat(pm.total_cost), pm.currency), 0);
+
+  return eventTotal + pmTotal;
+}
+
+function SpendStat({ spend }: { spend: number }) {
+  if (spend <= 0) return null;
+  return (
+    <div className="text-right group cursor-default">
+      <div className="font-serif text-xl text-neutral-900 blur-sm group-hover:blur-none transition-all duration-300">
+        €{Math.round(spend)}
+      </div>
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Spent</div>
+    </div>
+  );
+}
+
+function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]; year: string; paymentMethods: PaymentMethod[] }) {
   const types = topTypes(events);
-  const avgRating =
-    events.filter((e) => e.rating).reduce((s, e) => s + (e.rating ?? 0), 0) /
-    (events.filter((e) => e.rating).length || 1);
+  const rated = events.filter((e) => e.rating);
+  const avgRating = rated.length
+    ? rated.reduce((s, e) => s + (e.rating ?? 0), 0) / rated.length
+    : null;
+  const spend = totalSpendEur(events, paymentMethods, year);
 
   return (
-    <div className="border-b border-neutral-100 mb-6 pb-4">
+    <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4 -mt-4">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="font-serif text-3xl text-neutral-900">{year}</h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="font-serif text-3xl text-neutral-900">{year}</h2>
+          {year !== new Date().getFullYear().toString() && (
+            <span className="text-[10px] uppercase tracking-widest text-neutral-300">memory gaps</span>
+          )}
+        </div>
         <div className="flex gap-6">
           <div className="text-right">
             <div className="font-serif text-xl text-neutral-900">{events.length}</div>
@@ -124,22 +165,22 @@ function YearSummary({ events, year }: { events: EventListItem[]; year: string }
             </div>
             <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Types</div>
           </div>
-          <div className="text-right">
-            <div className="font-serif text-xl text-neutral-900">
-              {avgRating.toFixed(1)}
+          {avgRating !== null && (
+            <div className="text-right">
+              <div className="font-serif text-xl text-neutral-900">{avgRating.toFixed(1)}</div>
+              <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Avg rating</div>
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Avg rating</div>
-          </div>
+          )}
+          <SpendStat spend={spend} />
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] uppercase tracking-widest text-neutral-400">Top attended</span>
-        {types.map(([type, count], i) => (
+        {types.map(([type, count]) => (
           <div
             key={type}
             className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-100 rounded-full px-2.5 py-1"
           >
-            <span className="text-[10px] text-neutral-300 w-3 text-center">{i + 1}</span>
             <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-500">
               <EventTypeIcon type={type} size={10} />
             </div>
@@ -182,7 +223,7 @@ function EventCard({
         <div className="font-serif text-sm font-medium text-neutral-900 truncate">
           {event.title}
         </div>
-        <div className="text-xs text-neutral-400 mt-0.5">{event.venue_name}</div>
+        <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
@@ -212,7 +253,7 @@ function MonthGroup({
         <div className="text-[10px] text-neutral-300 mt-0.5">{events.length}</div>
       </div>
       <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
-      <div className="flex-1 flex flex-col gap-2 pb-5">
+      <div className="flex-1 min-w-0 flex flex-col gap-2 pb-5">
         {events.map((e) => (
           <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} onRate={(r) => onRate(e.id, r)} />
         ))}
@@ -229,23 +270,25 @@ const ALL_TYPES = [
 
 export default function Timeline() {
   const [allEvents, setAllEvents] = useState<EventListItem[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(50);
-  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const typeMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchEvents({ status: "attended", limit: 500 })
-      .then((data) => {
-        setAllEvents(data);
-        if (data.length > 0) {
-          setSelectedYear(data[0].date.slice(0, 4));
-        }
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetchEvents({ status: "attended", limit: 500 }),
+      fetchPaymentMethods(),
+    ]).then(([events, pms]) => {
+      setAllEvents(events);
+      setPaymentMethods(pms);
+      if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));
+    }).finally(() => setLoading(false));
   }, []);
+
 
   const presentTypes = useMemo(
     () => new Set(allEvents.map((e) => e.type)),
@@ -325,7 +368,8 @@ export default function Timeline() {
       {selectedYear && (
         <YearSummary
           year={selectedYear}
-          events={allEvents.filter((e) => e.date.startsWith(selectedYear))}
+          events={yearEvents}
+          paymentMethods={paymentMethods}
         />
       )}
 
@@ -343,13 +387,14 @@ export default function Timeline() {
           ))}
 
       {/* Pagination bar */}
-      <div className="flex items-center justify-between pt-4 mt-2 border-t border-neutral-100">
-        <div className="flex gap-2 flex-wrap">
+      <div className="sticky bottom-16 md:bottom-0 z-10 mt-2 border-t border-neutral-100 bg-white">
+        {/* Year pills — scrollable on mobile */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 md:hidden">
           {years.map((y) => (
             <button
               key={y}
               onClick={() => setSelectedYear(y)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 y === selectedYear
                   ? "border-neutral-900 text-neutral-900 bg-neutral-50"
                   : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"
@@ -359,7 +404,24 @@ export default function Timeline() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 text-xs text-neutral-400">
+        <div className="flex items-center justify-between px-4 pb-3 md:py-3">
+          {/* Year pills — inline on desktop */}
+          <div className="hidden md:flex gap-2 flex-wrap">
+            {years.map((y) => (
+              <button
+                key={y}
+                onClick={() => setSelectedYear(y)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                  y === selectedYear
+                    ? "border-neutral-900 text-neutral-900 bg-neutral-50"
+                    : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-neutral-400">
           {/* Type filter */}
           <div className="relative" ref={typeMenuRef}>
             <button
@@ -429,6 +491,7 @@ export default function Timeline() {
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+        </div>
         </div>
       </div>
     </div>

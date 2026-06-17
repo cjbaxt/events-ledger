@@ -41,6 +41,7 @@ class EventUpdate(BaseModel):
     rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
+    payment_method_id: Optional[uuid.UUID] = None
     substack_url: Optional[str] = None
     data_completeness: Optional[str] = None
     status: Optional[str] = None
@@ -63,6 +64,7 @@ class EventListItem(BaseModel):
     festival_name: Optional[str] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
+    payment_method_id: Optional[uuid.UUID] = None
     rating: Optional[float] = None
     data_completeness: Optional[str] = None
     substack_url: Optional[str] = None
@@ -74,6 +76,14 @@ class EventListItem(BaseModel):
 # Detail response — full event with resolved extension
 # ---------------------------------------------------------------------------
 
+class PaymentMethodRef(BaseModel):
+    id: uuid.UUID
+    name: str
+    total_cost: Decimal
+    currency: str
+    purchase_date: date
+
+
 class EventDetail(BaseModel):
     id: uuid.UUID
     date: date
@@ -82,11 +92,12 @@ class EventDetail(BaseModel):
     subtype: Optional[str] = None
     title: str
     venue: NamedRef
-    venue_path: List[NamedRef] = []  # ancestors from immediate parent to root
+    venue_path: List[NamedRef] = []
     work_id: Optional[uuid.UUID] = None
     festival: Optional[NamedRef] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
+    payment_method: Optional[PaymentMethodRef] = None
     rating: Optional[float] = None
     notes: Optional[str] = None
     substack_url: Optional[str] = None
