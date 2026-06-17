@@ -1,8 +1,13 @@
 from fastapi import FastAPI
-from app.db import engine
 from sqlmodel import text
+from app.db import engine
+from app.api.reference import router as reference_router
+from app.api.events import router as events_router
 
 app = FastAPI(title="Events Ledger", version="0.1.0")
+
+app.include_router(reference_router, prefix="/api")
+app.include_router(events_router, prefix="/api")
 
 
 @app.get("/health")
