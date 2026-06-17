@@ -119,6 +119,16 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
 
     by_fk("event_classical", "conductor_id")
     by_array("classical_programme_item", "soloists")
+    # composer via musical_piece → classical_programme_item
+    rows = session.execute(
+        text(
+            "SELECT cpi.event_id FROM classical_programme_item cpi "
+            "JOIN musical_piece mp ON mp.id = cpi.musical_piece_id "
+            "WHERE mp.composer_id = cast(:pid AS uuid)"
+        ),
+        {"pid": pid_str},
+    ).all()
+    event_ids.update(r[0] for r in rows)
 
     by_fk("event_opera", "conductor_id")
     by_fk("event_opera", "director_id")
@@ -130,6 +140,17 @@ def get_person_events(person_id: str, session: Session = Depends(get_session)):
     by_json_cast("event_ballet")
     by_fk("ballet_programme_item", "choreographer_id")
     by_array("ballet_programme_item", "soloists")
+    # composer via musical_piece → ballet_programme_music → ballet_programme_item
+    rows = session.execute(
+        text(
+            "SELECT bpi.event_id FROM ballet_programme_item bpi "
+            "JOIN ballet_programme_music bpm ON bpm.programme_item_id = bpi.id "
+            "JOIN musical_piece mp ON mp.id = bpm.musical_piece_id "
+            "WHERE mp.composer_id = cast(:pid AS uuid)"
+        ),
+        {"pid": pid_str},
+    ).all()
+    event_ids.update(r[0] for r in rows)
 
     by_fk("event_dance", "choreographer_id")
     by_work_creator("event_dance")
