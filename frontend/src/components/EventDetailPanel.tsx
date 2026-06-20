@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconX, IconExternalLink, IconChevronLeft } from "@tabler/icons-react";
+import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose } from "@tabler/icons-react";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents,
   fetchEnsemble, fetchEnsembleEvents,
-  patchEventRating, patchEventPrice,
+  fetchFestival, fetchFestivalEvents,
+  patchEventRating, patchEventPrice, patchEventReview,
 } from "../lib/api";
 import type { EventListItem, EventDetail } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -249,7 +250,7 @@ function ExtensionFields({
 
   const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
   const personListFields = new Set(["composers", "soloists", "speakers", "performers", "support_acts", "supporting_cast", "artists"]);
-  const ensembleFields = new Set(["ensemble", "company", "orchestra"]);
+  const ensembleFields = new Set(["ensemble", "company", "orchestra", "headliner_ensemble"]);
   const ensembleListFields = new Set(["additional_companies"]);
 
   const scalarEntries = Object.entries(extension).filter(
@@ -409,7 +410,7 @@ function ExtensionFields({
 
 // ── Generic sub-panel for person/venue/ensemble event lists ────────────────
 
-type NavKind = "person" | "venue" | "ensemble";
+type NavKind = "person" | "venue" | "ensemble" | "festival";
 
 interface NavTarget {
   kind: NavKind;
@@ -420,17 +421,23 @@ const NAV_LABELS: Record<NavKind, string> = {
   person: "Person",
   venue: "Venue",
   ensemble: "Ensemble",
+  festival: "Festival",
 };
 
 async function fetchNavName(kind: NavKind, id: string): Promise<string> {
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") return (await fetchVenue(id)).name;
+  if (kind === "festival") {
+    const f = await fetchFestival(id);
+    return [f.name, f.edition].filter(Boolean).join(" ");
+  }
   return (await fetchEnsemble(id)).name;
 }
 
 async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {
   if (kind === "person") return fetchPersonEvents(id);
   if (kind === "venue") return fetchVenueEvents(id);
+  if (kind === "festival") return fetchFestivalEvents(id);
   return fetchEnsembleEvents(id);
 }
 
@@ -559,6 +566,115 @@ function PriceEditor({
   );
 }
 
+function ReviewSection({
+  review,
+  links,
+  rating,
+  onSaveReview,
+  onRate,
+}: {
+  review: string | null;
+  links: Array<{ url: string; label?: string }> | null;
+  rating: number | null;
+  onSaveReview: (text: string | null) => void;
+  onRate: (r: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(review ?? "");
+
+  function save() {
+    const trimmed = draft.trim() || null;
+    onSaveReview(trimmed);
+    setEditing(false);
+  }
+
+  function cancel() {
+    setDraft(review ?? "");
+    setEditing(false);
+  }
+
+  const hasContent = review || (links && links.length > 0);
+
+  return (
+    <div className="border-t border-b border-neutral-100 pt-4 pb-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
+        {!editing && (
+          <EditableRating rating={rating} onRate={onRate} />
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Write something…"
+            autoFocus
+            rows={4}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={save}
+              className="flex items-center gap-1 text-xs text-neutral-700 border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50"
+            >
+              <IconCheck size={12} /> Save
+            </button>
+            <button onClick={cancel} className="text-xs text-neutral-400 hover:text-neutral-600">
+              Cancel
+            </button>
+            {review && (
+              <button
+                onClick={() => { setDraft(""); onSaveReview(null); setEditing(false); }}
+                className="text-xs text-neutral-300 hover:text-red-400 ml-auto"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {review && (
+            <button
+              onClick={() => { setDraft(review); setEditing(true); }}
+              className="w-full text-left group mb-3"
+            >
+              <p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap group-hover:border-neutral-400 transition-colors">
+                {review}
+              </p>
+            </button>
+          )}
+          {links && links.map((link, i) => (
+            <a
+              key={i}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 border border-neutral-100 rounded-lg px-3 py-2.5 mb-2 hover:border-neutral-300 transition-colors group text-left no-underline"
+            >
+              <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-neutral-700 truncate">{link.label ?? link.url}</div>
+                <div className="text-xs text-neutral-400 truncate">{new URL(link.url).hostname}</div>
+              </div>
+            </a>
+          ))}
+          {!hasContent && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-sm text-neutral-300 italic hover:text-neutral-500 transition-colors"
+            >
+              Add a review…
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EventDetailPanel() {
   const [eventId, setEventId] = useState<string | null>(null);
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -683,43 +799,54 @@ export default function EventDetailPanel() {
                     )}
                   </div>
 
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-0.5">
-                      <Field label="Venue">
+                  <ReviewSection
+                    review={event.review}
+                    links={event.links}
+                    rating={event.rating}
+                    onSaveReview={(text) => {
+                      setEvent((prev) => prev ? { ...prev, review: text } : prev);
+                      patchEventReview(event.id, text).catch(() =>
+                        fetchEvent(event.id).then(setEvent)
+                      );
+                    }}
+                    onRate={(r) => {
+                      setEvent((prev) => prev ? { ...prev, rating: r } : prev);
+                      patchEventRating(event.id, r).catch(() =>
+                        fetchEvent(event.id).then(setEvent)
+                      );
+                    }}
+                  />
+
+                  <div className="space-y-0.5">
+                    <Field label="Venue">
+                      <button
+                        onClick={() => navigate("venue", event.venue.id)}
+                        className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {event.venue.name}
+                      </button>
+                    </Field>
+                    {event.venue_path.map((v) => (
+                      <div key={v.id} className="text-xs text-neutral-400">
                         <button
-                          onClick={() => navigate("venue", event.venue.id)}
-                          className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                          onClick={() => navigate("venue", v.id)}
+                          className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
                         >
-                          {event.venue.name}
+                          {v.name}
                         </button>
-                      </Field>
-                      {event.venue_path.map((v) => (
-                        <div key={v.id} className="text-xs text-neutral-400">
-                          <button
-                            onClick={() => navigate("venue", v.id)}
-                            className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
-                          >
-                            {v.name}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="text-[10px] uppercase tracking-widest text-neutral-400">Rating</div>
-                      <EditableRating
-                        rating={event.rating}
-                        onRate={(r) => {
-                          setEvent((prev) => prev ? { ...prev, rating: r } : prev);
-                          patchEventRating(event.id, r).catch(() =>
-                            fetchEvent(event.id).then(setEvent)
-                          );
-                        }}
-                      />
-                    </div>
+                      </div>
+                    ))}
                   </div>
 
                   {event.festival && (
-                    <Field label="Festival">{event.festival.name}</Field>
+                    <Field label="Festival">
+                      <button
+                        onClick={() => navigate("festival", event.festival!.id)}
+                        className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {event.festival.name}
+                      </button>
+                    </Field>
                   )}
 
                   {event.payment_method && (
@@ -773,18 +900,6 @@ export default function EventDetailPanel() {
                         })}
                       </div>
                     </div>
-                  )}
-
-                  {event.substack_url && (
-                    <a
-                      href={event.substack_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 hover:border-neutral-400 rounded-full px-3 py-1.5 transition-colors"
-                    >
-                      <IconExternalLink size={12} />
-                      Read on Substack
-                    </a>
                   )}
 
                   {event.extension && (

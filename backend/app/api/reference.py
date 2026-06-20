@@ -472,6 +472,17 @@ def get_festival(festival_id: str, session: Session = Depends(get_session)):
     return festival
 
 
+@router.get("/festivals/{festival_id}/events", response_model=List[EventListItem])
+def get_festival_events(festival_id: str, session: Session = Depends(get_session)):
+    festival = session.get(Festival, festival_id)
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival not found")
+    events = session.exec(
+        select(Event).where(Event.festival_id == festival_id).order_by(Event.date)
+    ).all()
+    return _events_to_list_items(session, events)
+
+
 @router.post("/festivals", response_model=FestivalRead, status_code=201)
 def create_festival(data: FestivalCreate, session: Session = Depends(get_session)):
     festival = Festival(**data.model_dump())

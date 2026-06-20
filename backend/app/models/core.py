@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from sqlmodel import Field, SQLModel, Column
 from sqlalchemy import Time, ARRAY
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 import uuid
 
 
@@ -77,7 +77,8 @@ class Event(SQLModel, table=True):
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = Field(default=None, foreign_key="festival.id")
     payment_method_id: Optional[uuid.UUID] = Field(default=None, foreign_key="payment_method.id")
-    substack_url: Optional[str] = None
+    review: Optional[str] = None
+    links: Optional[List[dict]] = Field(default=None, sa_column=Column(JSONB))
     # complete / partial / stub
     data_completeness: Optional[str] = None
     # attended / planned / cancelled

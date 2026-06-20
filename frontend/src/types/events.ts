@@ -26,6 +26,8 @@ export interface EventListItem {
   data_completeness: string | null;
   substack_url: string | null;
   status: EventStatus;
+  primary_entity_name: string | null;
+  primary_entity_id: string | null;
 }
 
 export interface NamedRef {
@@ -49,7 +51,8 @@ export interface EventDetail {
   payment_method: PaymentMethodRef | null;
   rating: number | null;
   notes: string | null;
-  substack_url: string | null;
+  review: string | null;
+  links: Array<{ url: string; label?: string }> | null;
   data_completeness: string | null;
   status: EventStatus;
   related_events: Array<{ id: string; title: string; date: string; type: string }>;

@@ -35,6 +35,24 @@ export async function patchEventRating(id: string, rating: number | null): Promi
   if (!res.ok) throw new Error(`Failed to patch rating: ${res.status}`);
 }
 
+export async function patchEventReview(id: string, review: string | null): Promise<void> {
+  const res = await fetch(`${BASE}/api/events/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ review }),
+  });
+  if (!res.ok) throw new Error(`Failed to patch review: ${res.status}`);
+}
+
+export async function patchEventLinks(id: string, links: Array<{ url: string; label?: string }>): Promise<void> {
+  const res = await fetch(`${BASE}/api/events/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ links }),
+  });
+  if (!res.ok) throw new Error(`Failed to patch links: ${res.status}`);
+}
+
 export async function patchEventPrice(id: string, price: string, currency: string): Promise<void> {
   const res = await fetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
@@ -96,6 +114,24 @@ export async function fetchEnsemble(id: string): Promise<EnsembleRef> {
 export async function fetchEnsembleEvents(id: string): Promise<EventListItem[]> {
   const res = await fetch(`${BASE}/api/ensembles/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch ensemble events: ${res.status}`);
+  return res.json();
+}
+
+export interface FestivalRef {
+  id: string;
+  name: string;
+  edition?: string | null;
+}
+
+export async function fetchFestival(id: string): Promise<FestivalRef> {
+  const res = await fetch(`${BASE}/api/festivals/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch festival: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchFestivalEvents(id: string): Promise<EventListItem[]> {
+  const res = await fetch(`${BASE}/api/festivals/${id}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch festival events: ${res.status}`);
   return res.json();
 }
 
