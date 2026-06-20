@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconX, IconExternalLink, IconStar, IconStarFilled, IconChevronLeft } from "@tabler/icons-react";
+import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose } from "@tabler/icons-react";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents,
   fetchEnsemble, fetchEnsembleEvents,
+  fetchFestival, fetchFestivalEvents,
+  patchEventRating, patchEventPrice, patchEventReview,
 } from "../lib/api";
 import type { EventListItem, EventDetail } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -18,17 +20,63 @@ function formatDate(dateStr: string) {
   return `${parseInt(d)} ${MONTH_NAMES[parseInt(m)]}`;
 }
 
-function RatingStars({ rating }: { rating: number | null }) {
-  if (!rating) return null;
+// SVG star with horizontal clip for half-star
+function StarSvg({ fill, size = 14 }: { fill: number; size?: number }) {
+  const id = `clip-panel-${Math.random().toString(36).slice(2)}`;
   return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) =>
-        n <= rating ? (
-          <IconStarFilled key={n} size={14} className="text-neutral-700" />
-        ) : (
-          <IconStar key={n} size={14} className="text-neutral-300" />
-        )
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
+      <defs>
+        <clipPath id={id}>
+          <rect x="0" y="0" width={14 * fill} height="14" />
+        </clipPath>
+      </defs>
+      <path
+        d="M7 1l1.545 3.09L12 4.635l-2.5 2.41.59 3.41L7 8.77l-3.09 1.685.59-3.41L2 4.635l3.455-.545L7 1z"
+        stroke="currentColor" strokeWidth="1" strokeLinejoin="round"
+        className="text-neutral-300"
+      />
+      {fill > 0 && (
+        <path
+          d="M7 1l1.545 3.09L12 4.635l-2.5 2.41.59 3.41L7 8.77l-3.09 1.685.59-3.41L2 4.635l3.455-.545L7 1z"
+          fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"
+          clipPath={`url(#${id})`}
+          className="text-neutral-700"
+        />
       )}
+    </svg>
+  );
+}
+
+function EditableRating({
+  rating,
+  onRate,
+}: {
+  rating: number | null;
+  onRate: (r: number | null) => void;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const displayed = hover ?? rating ?? 0;
+  return (
+    <div className="flex gap-0.5" onMouseLeave={() => setHover(null)}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fill = Math.min(1, Math.max(0, displayed - (star - 1)));
+        return (
+          <div
+            key={star}
+            className="cursor-pointer"
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setHover(e.clientX - rect.left < rect.width / 2 ? star - 0.5 : star);
+            }}
+            onClick={() => {
+              const next = hover ?? null;
+              onRate(next === rating ? null : next);
+            }}
+          >
+            <StarSvg fill={fill} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -192,18 +240,31 @@ function ExtensionFields({
   onPersonClick: (id: string) => void;
   onEnsembleClick: (id: string) => void;
 }) {
-  const skip = new Set(["id", "event_id", "subtype"]);
+  const skip = new Set(["id", "event_id", "subtype", "setlist", "setlist_fm_url", "credits"]);
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
   const cast = extension.cast as CastObj | null;
+  const credits = extension.credits as Array<{ role: string; person: NamedObj }> | null;
+  const setlist = extension.setlist as string[] | null;
+  const setlistFmUrl = extension.setlist_fm_url as string | null;
 
   const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
   const personListFields = new Set(["composers", "soloists", "speakers", "performers", "support_acts", "supporting_cast", "artists"]);
-  const ensembleFields = new Set(["ensemble", "company", "orchestra"]);
+  const ensembleFields = new Set(["ensemble", "company", "orchestra", "headliner_ensemble"]);
+  const ensembleListFields = new Set(["additional_companies"]);
 
   const scalarEntries = Object.entries(extension).filter(
     ([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null
   );
+
+  // Group credits by role, preserving order of first appearance
+  const creditsByRole: Map<string, NamedObj[]> = new Map();
+  if (credits) {
+    for (const c of credits) {
+      if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []);
+      creditsByRole.get(c.role)!.push(c.person);
+    }
+  }
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -226,6 +287,21 @@ function ExtensionFields({
           return (
             <Field key={key} label={key.replace(/_/g, " ")}>
               <ClickableRef obj={val as NamedObj} onClick={onEnsembleClick} />
+            </Field>
+          );
+        }
+
+        // Clickable ensembles (list)
+        if (ensembleListFields.has(key) && Array.isArray(val)) {
+          const items = val as NamedObj[];
+          if (!items.length) return null;
+          return (
+            <Field key={key} label={key.replace(/_/g, " ")}>
+              <span className="text-neutral-600">
+                {items.map((e, i) => (
+                  <span key={e.id}>{i > 0 && ", "}<ClickableRef obj={e} onClick={onEnsembleClick} /></span>
+                ))}
+              </span>
             </Field>
           );
         }
@@ -286,6 +362,47 @@ function ExtensionFields({
         </div>
       )}
 
+      {setlist && setlist.length > 0 && (
+        <div>
+          <div className="flex items-baseline justify-between mb-2">
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400">Setlist</div>
+            {setlistFmUrl && (
+              <a
+                href={setlistFmUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-neutral-400 hover:text-neutral-700 flex items-center gap-1"
+              >
+                <IconExternalLink size={10} />
+                setlist.fm
+              </a>
+            )}
+          </div>
+          <ol className="space-y-0.5">
+            {setlist.map((song, i) => (
+              <li key={i} className="flex items-baseline gap-2 text-sm">
+                <span className="text-neutral-300 text-xs w-5 text-right flex-shrink-0">{i + 1}</span>
+                <span className="text-neutral-700">{song}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {creditsByRole.size > 0 && (
+        <div className="space-y-3">
+          {[...creditsByRole.entries()].map(([role, persons]) => (
+            <Field key={role} label={role}>
+              <span className="text-neutral-600">
+                {persons.map((p, i) => (
+                  <span key={p.id}>{i > 0 && ", "}<ClickableRef obj={p} onClick={onPersonClick} /></span>
+                ))}
+              </span>
+            </Field>
+          ))}
+        </div>
+      )}
+
       {cast && <CastField cast={cast} />}
     </div>
   );
@@ -293,7 +410,7 @@ function ExtensionFields({
 
 // ── Generic sub-panel for person/venue/ensemble event lists ────────────────
 
-type NavKind = "person" | "venue" | "ensemble";
+type NavKind = "person" | "venue" | "ensemble" | "festival";
 
 interface NavTarget {
   kind: NavKind;
@@ -304,17 +421,23 @@ const NAV_LABELS: Record<NavKind, string> = {
   person: "Person",
   venue: "Venue",
   ensemble: "Ensemble",
+  festival: "Festival",
 };
 
 async function fetchNavName(kind: NavKind, id: string): Promise<string> {
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") return (await fetchVenue(id)).name;
+  if (kind === "festival") {
+    const f = await fetchFestival(id);
+    return [f.name, f.edition].filter(Boolean).join(" ");
+  }
   return (await fetchEnsemble(id)).name;
 }
 
 async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {
   if (kind === "person") return fetchPersonEvents(id);
   if (kind === "venue") return fetchVenueEvents(id);
+  if (kind === "festival") return fetchFestivalEvents(id);
   return fetchEnsembleEvents(id);
 }
 
@@ -388,15 +511,176 @@ function NavEventsView({
   );
 }
 
+function PriceEditor({
+  price,
+  currency,
+  onSave,
+}: {
+  price: string | null;
+  currency: string | null;
+  onSave: (price: string, currency: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(price ?? "");
+  const [cur, setCur] = useState(currency ?? "EUR");
+
+  if (!editing) {
+    return (
+      <Field label="Price paid">
+        <button
+          onClick={() => setEditing(true)}
+          className="hover:underline underline-offset-2 text-neutral-600"
+        >
+          {price ? `${cur} ${price}` : <span className="text-neutral-300 italic">Add price…</span>}
+        </button>
+      </Field>
+    );
+  }
+  return (
+    <Field label="Price paid">
+      <div className="flex items-center gap-2">
+        <select
+          value={cur}
+          onChange={(e) => setCur(e.target.value)}
+          className="border border-neutral-200 rounded px-1.5 py-1 text-xs text-neutral-700 bg-white"
+        >
+          {["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}
+        </select>
+        <input
+          type="number"
+          step="0.01"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className="border border-neutral-200 rounded px-2 py-1 text-xs w-24 text-neutral-700"
+          autoFocus
+        />
+        <button
+          onClick={() => { onSave(val, cur); setEditing(false); }}
+          className="text-xs text-neutral-700 border border-neutral-300 rounded px-2 py-1 hover:bg-neutral-50"
+        >
+          Save
+        </button>
+        <button onClick={() => setEditing(false)} className="text-xs text-neutral-400">Cancel</button>
+      </div>
+    </Field>
+  );
+}
+
+function ReviewSection({
+  review,
+  links,
+  rating,
+  onSaveReview,
+  onRate,
+}: {
+  review: string | null;
+  links: Array<{ url: string; label?: string }> | null;
+  rating: number | null;
+  onSaveReview: (text: string | null) => void;
+  onRate: (r: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(review ?? "");
+
+  function save() {
+    const trimmed = draft.trim() || null;
+    onSaveReview(trimmed);
+    setEditing(false);
+  }
+
+  function cancel() {
+    setDraft(review ?? "");
+    setEditing(false);
+  }
+
+  const hasContent = review || (links && links.length > 0);
+
+  return (
+    <div className="border-t border-b border-neutral-100 pt-4 pb-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
+        {!editing && (
+          <EditableRating rating={rating} onRate={onRate} />
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Write something…"
+            autoFocus
+            rows={4}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={save}
+              className="flex items-center gap-1 text-xs text-neutral-700 border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50"
+            >
+              <IconCheck size={12} /> Save
+            </button>
+            <button onClick={cancel} className="text-xs text-neutral-400 hover:text-neutral-600">
+              Cancel
+            </button>
+            {review && (
+              <button
+                onClick={() => { setDraft(""); onSaveReview(null); setEditing(false); }}
+                className="text-xs text-neutral-300 hover:text-red-400 ml-auto"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {review && (
+            <button
+              onClick={() => { setDraft(review); setEditing(true); }}
+              className="w-full text-left group mb-3"
+            >
+              <p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap group-hover:border-neutral-400 transition-colors">
+                {review}
+              </p>
+            </button>
+          )}
+          {links && links.map((link, i) => (
+            <a
+              key={i}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 border border-neutral-100 rounded-lg px-3 py-2.5 mb-2 hover:border-neutral-300 transition-colors group text-left no-underline"
+            >
+              <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-neutral-700 truncate">{link.label ?? link.url}</div>
+                <div className="text-xs text-neutral-400 truncate">{new URL(link.url).hostname}</div>
+              </div>
+            </a>
+          ))}
+          {!hasContent && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-sm text-neutral-300 italic hover:text-neutral-500 transition-colors"
+            >
+              Add a review…
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EventDetailPanel() {
   const [eventId, setEventId] = useState<string | null>(null);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
-
-  const navigate = useCallback((kind: NavKind, id: string) => setNavTarget({ kind, id }), []);
-  const backToEvent = useCallback(() => setNavTarget(null), []);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -405,6 +689,10 @@ export default function EventDetailPanel() {
       window.history.back();
     }
   }, []);
+
+  const navigate = useCallback((kind: NavKind, id: string) => setNavTarget({ kind, id }), []);
+  const backToEvent = useCallback(() => setNavTarget(null), []);
+
 
   useEffect(() => {
     function onOpenEvent(e: Event) {
@@ -504,45 +792,84 @@ export default function EventDetailPanel() {
                       <span>{formatDate(event.date)}{event.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${event.date.slice(0, 4)}`}</span>
                       {event.time && <span>{event.time.slice(0, 5)}</span>}
                     </div>
-                  </div>
-
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-0.5">
-                      <Field label="Venue">
-                        <button
-                          onClick={() => navigate("venue", event.venue.id)}
-                          className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
-                        >
-                          {event.venue.name}
-                        </button>
-                      </Field>
-                      {event.venue_path.map((v) => (
-                        <div key={v.id} className="text-xs text-neutral-400">
-                          <button
-                            onClick={() => navigate("venue", v.id)}
-                            className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
-                          >
-                            {v.name}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {event.rating && (
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="text-[10px] uppercase tracking-widest text-neutral-400">Rating</div>
-                        <RatingStars rating={event.rating} />
+                    {parseInt(event.date.slice(0, 4)) < new Date().getFullYear() && (
+                      <div className="mt-1.5 text-[10px] uppercase tracking-widest text-amber-500">
+                        Data may be incomplete for pre-{new Date().getFullYear()} events
                       </div>
                     )}
                   </div>
 
+                  <ReviewSection
+                    review={event.review}
+                    links={event.links}
+                    rating={event.rating}
+                    onSaveReview={(text) => {
+                      setEvent((prev) => prev ? { ...prev, review: text } : prev);
+                      patchEventReview(event.id, text).catch(() =>
+                        fetchEvent(event.id).then(setEvent)
+                      );
+                    }}
+                    onRate={(r) => {
+                      setEvent((prev) => prev ? { ...prev, rating: r } : prev);
+                      patchEventRating(event.id, r).catch(() =>
+                        fetchEvent(event.id).then(setEvent)
+                      );
+                    }}
+                  />
+
+                  <div className="space-y-0.5">
+                    <Field label="Venue">
+                      <button
+                        onClick={() => navigate("venue", event.venue.id)}
+                        className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {event.venue.name}
+                      </button>
+                    </Field>
+                    {event.venue_path.map((v) => (
+                      <div key={v.id} className="text-xs text-neutral-400">
+                        <button
+                          onClick={() => navigate("venue", v.id)}
+                          className="hover:text-neutral-700 hover:underline underline-offset-2 transition-colors"
+                        >
+                          {v.name}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
                   {event.festival && (
-                    <Field label="Festival">{event.festival.name}</Field>
+                    <Field label="Festival">
+                      <button
+                        onClick={() => navigate("festival", event.festival!.id)}
+                        className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+                      >
+                        {event.festival.name}
+                      </button>
+                    </Field>
                   )}
 
-                  {event.price_paid && (
-                    <Field label="Price paid">
-                      {event.currency ? `${event.currency} ${event.price_paid}` : event.price_paid}
+                  {event.payment_method && (
+                    <Field label="Payment method">
+                      <span className="text-neutral-700">{event.payment_method.name}</span>
+                      {event.price_paid && (
+                        <span className="text-neutral-400 text-xs ml-2">
+                          + {event.currency ?? "EUR"} {event.price_paid} surcharge
+                        </span>
+                      )}
                     </Field>
+                  )}
+                  {!event.payment_method && (
+                    <PriceEditor
+                      price={event.price_paid}
+                      currency={event.currency}
+                      onSave={(price, currency) => {
+                        setEvent((prev) => prev ? { ...prev, price_paid: price, currency } : prev);
+                        patchEventPrice(event.id, price, currency).catch(() =>
+                          fetchEvent(event.id).then(setEvent)
+                        );
+                      }}
+                    />
                   )}
 
                   {event.notes && (
@@ -575,18 +902,6 @@ export default function EventDetailPanel() {
                     </div>
                   )}
 
-                  {event.substack_url && (
-                    <a
-                      href={event.substack_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 hover:border-neutral-400 rounded-full px-3 py-1.5 transition-colors"
-                    >
-                      <IconExternalLink size={12} />
-                      Read on Substack
-                    </a>
-                  )}
-
                   {event.extension && (
                     <ExtensionFields
                       extension={event.extension}
@@ -595,6 +910,8 @@ export default function EventDetailPanel() {
                       onEnsembleClick={(id) => navigate("ensemble", id)}
                     />
                   )}
+
+
                 </>
               )}
             </div>

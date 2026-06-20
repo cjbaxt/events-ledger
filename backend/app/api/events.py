@@ -8,14 +8,14 @@ import uuid
 
 from app.db import get_session
 from app.models import (
-    Event, Venue, Festival, Person, Ensemble, Work,
+    Event, Venue, Festival, Person, Ensemble, Work, PaymentMethod,
     EventMusic, EventClassical, ClassicalProgrammeItem,
     EventOpera, EventBallet, BalletProgrammeItem, BalletProgrammeMusic,
     EventDance, EventCircus, EventTheatre, EventCabaret,
     EventComedy, EventSpokenWord, EventTalk, EventExhibition, EventScreening,
 )
 from app.schemas.events import (
-    EventListItem, EventDetail, EventUpdate,
+    EventListItem, EventDetail, EventUpdate, PaymentMethodRef,
     EventMusicCreate, EventClassicalCreate, EventOperaCreate,
     EventBalletCreate, EventDanceCreate, EventCircusCreate,
     EventTheatreCreate, EventCabaretCreate, EventComedyCreate,
@@ -53,6 +53,78 @@ def _ensemble_name(session: Session, id) -> Optional[str]:
         return None
     e = session.get(Ensemble, id)
     return e.name if e else None
+
+
+def _primary_entity(session: Session, event) -> tuple[Optional[str], Optional[uuid.UUID]]:
+    """Return (name, id) of the primary person/ensemble for an event, for stats."""
+    t = event.type
+    if t == "comedy":
+        ext = session.get(EventComedy, event.id)
+        if ext:
+            if ext.performer_id:
+                p = session.get(Person, ext.performer_id)
+                return (p.name, p.id) if p else (None, None)
+            if ext.ensemble_id:
+                e = session.get(Ensemble, ext.ensemble_id)
+                return (e.name, e.id) if e else (None, None)
+    elif t == "music":
+        ext = session.get(EventMusic, event.id)
+        if ext:
+            if ext.headliner_ensemble_id:
+                e = session.get(Ensemble, ext.headliner_ensemble_id)
+                return (e.name, e.id) if e else (None, None)
+            if ext.headliner_person_id:
+                p = session.get(Person, ext.headliner_person_id)
+                return (p.name, p.id) if p else (None, None)
+    elif t == "circus":
+        ext = session.get(EventCircus, event.id)
+        if ext and ext.company_id:
+            e = session.get(Ensemble, ext.company_id)
+            return (e.name, e.id) if e else (None, None)
+    elif t == "theatre":
+        ext = session.get(EventTheatre, event.id)
+        if ext:
+            if ext.company_id:
+                e = session.get(Ensemble, ext.company_id)
+                return (e.name, e.id) if e else (None, None)
+            if ext.director_id:
+                p = session.get(Person, ext.director_id)
+                return (p.name, p.id) if p else (None, None)
+    elif t == "cabaret":
+        ext = session.get(EventCabaret, event.id)
+        if ext:
+            if ext.ensemble_id:
+                e = session.get(Ensemble, ext.ensemble_id)
+                return (e.name, e.id) if e else (None, None)
+            if ext.headliner_id:
+                p = session.get(Person, ext.headliner_id)
+                return (p.name, p.id) if p else (None, None)
+    elif t == "ballet":
+        ext = session.get(EventBallet, event.id)
+        if ext and ext.company_id:
+            e = session.get(Ensemble, ext.company_id)
+            return (e.name, e.id) if e else (None, None)
+    elif t == "classical":
+        ext = session.get(EventClassical, event.id)
+        if ext and ext.ensemble_id:
+            e = session.get(Ensemble, ext.ensemble_id)
+            return (e.name, e.id) if e else (None, None)
+    elif t == "opera":
+        ext = session.get(EventOpera, event.id)
+        if ext and ext.ensemble_id:
+            e = session.get(Ensemble, ext.ensemble_id)
+            return (e.name, e.id) if e else (None, None)
+    elif t == "dance":
+        ext = session.get(EventDance, event.id)
+        if ext and ext.company_id:
+            e = session.get(Ensemble, ext.company_id)
+            return (e.name, e.id) if e else (None, None)
+    elif t == "talk":
+        ext = session.get(EventTalk, event.id)
+        if ext and ext.speaker_ids:
+            p = session.get(Person, ext.speaker_ids[0])
+            return (p.name, p.id) if p else (None, None)
+    return (None, None)
 
 
 def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], model) -> Optional[List[dict]]:
@@ -105,6 +177,24 @@ def _resolve_work(session: Session, work_id: Optional[uuid.UUID]) -> Optional[di
     return {"id": str(work.id), "title": work.title, "creator": creator, "year": work.year, "notes": work.notes}
 
 
+def _resolve_credits(session: Session, event_id: uuid.UUID) -> Optional[list]:
+    """Return credits as [{role, person: {id, name}}] ordered by sort_order."""
+    from app.models import EventCredit
+    rows = session.exec(
+        select(EventCredit)
+        .where(EventCredit.event_id == event_id)
+        .order_by(EventCredit.sort_order)
+    ).all()
+    if not rows:
+        return None
+    result = []
+    for row in rows:
+        p = session.get(Person, row.person_id)
+        if p:
+            result.append({"role": row.role, "person": {"id": str(p.id), "name": p.name}})
+    return result or None
+
+
 def _resolve_cast(session: Session, cast: Optional[dict]) -> Optional[dict]:
     """Resolve cast dict {role: UUID} → {role: person_name}."""
     if not cast:
@@ -139,10 +229,8 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             return None
         return {
             "subtype": ext.subtype,
-            "headliner": (
-                _resolve_name(session, Person, ext.headliner_person_id)
-                or _resolve_name(session, Ensemble, ext.headliner_ensemble_id)
-            ),
+            "headliner": _resolve_name(session, Person, ext.headliner_person_id),
+            "headliner_ensemble": _resolve_name(session, Ensemble, ext.headliner_ensemble_id),
             "support_acts": (
                 (_resolve_ids_to_names(session, ext.support_act_person_ids, Person) or []) +
                 (_resolve_ids_to_names(session, ext.support_act_ensemble_ids, Ensemble) or [])
@@ -177,6 +265,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "subtype": ext.subtype,
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),
             "conductor": _resolve_name(session, Person, ext.conductor_id),
+            "credits": _resolve_credits(session, event.id),
             "notes_on_performance": ext.notes_on_performance,
             "programme": programme,
         }
@@ -189,12 +278,11 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "subtype": ext.subtype,
             "work": _resolve_work(session, ext.work_id),
             "composers": _resolve_ids_to_names(session, ext.composers, Person),
-            "conductor": _resolve_name(session, Person, ext.conductor_id),
-            "director": _resolve_name(session, Person, ext.director_id),
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),
             "libretto_language": ext.libretto_language,
             "surtitles_languages": ext.surtitles_languages,
             "cast": _resolve_cast(session, ext.cast),
+            "credits": _resolve_credits(session, event.id),
             "operabase_url": ext.operabase_url,
         }
 
@@ -230,12 +318,18 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
                     for m in music
                 ],
             })
+        additional_companies = [
+            _resolve_name(session, Ensemble, cid)
+            for cid in (ext.additional_company_ids or [])
+            if cid
+        ]
         return {
             "subtype": ext.subtype,
             "company": _resolve_name(session, Ensemble, ext.company_id),
+            "additional_companies": additional_companies if additional_companies else None,
             "orchestra": _resolve_name(session, Ensemble, ext.orchestra_id),
-            "conductor": _resolve_name(session, Person, ext.conductor_id),
             "cast": _resolve_cast(session, ext.cast),
+            "credits": _resolve_credits(session, event.id),
             "programme": programme,
         }
 
@@ -273,6 +367,7 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "director": _resolve_name(session, Person, ext.director_id),
             "playwright": _resolve_name(session, Person, ext.playwright_id),
             "cast": _resolve_cast(session, ext.cast),
+            "credits": _resolve_credits(session, event.id),
         }
 
     if t == "cabaret":
@@ -396,6 +491,7 @@ def list_events(
     for e in events:
         venue, _parent, venue_display = _venue_display(session, e.venue_id)
         festival = session.get(Festival, e.festival_id) if e.festival_id else None
+        entity_name, entity_id = _primary_entity(session, e)
         result.append(EventListItem(
             id=e.id,
             date=e.date,
@@ -409,10 +505,12 @@ def list_events(
             festival_name=f"{festival.name} {festival.edition}".strip() if festival else None,
             price_paid=e.price_paid,
             currency=e.currency,
+            payment_method_id=e.payment_method_id,
             rating=e.rating,
             data_completeness=e.data_completeness,
-            substack_url=e.substack_url,
             status=e.status,
+            primary_entity_name=entity_name,
+            primary_entity_id=entity_id,
         ))
     return result
 
@@ -429,6 +527,7 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 
     venue, venue_path, venue_display = _venue_display(session, event.venue_id)
     festival = session.get(Festival, event.festival_id) if event.festival_id else None
+    pm = session.get(PaymentMethod, event.payment_method_id) if event.payment_method_id else None
 
     related_events = []
     if event.related_event_ids:
@@ -450,9 +549,14 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
         festival=NamedRef(id=festival.id, name=f"{festival.name} {festival.edition}".strip()) if festival else None,
         price_paid=event.price_paid,
         currency=event.currency,
+        payment_method=PaymentMethodRef(
+            id=pm.id, name=pm.name, total_cost=pm.total_cost,
+            currency=pm.currency, purchase_date=pm.purchase_date,
+        ) if pm else None,
         rating=event.rating,
         notes=event.notes,
-        substack_url=event.substack_url,
+        review=event.review,
+        links=event.links,
         data_completeness=event.data_completeness,
         related_events=related_events,
         extension=_build_extension(session, event),
@@ -463,14 +567,34 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 # Update base event fields
 # ---------------------------------------------------------------------------
 
+_EXTENSION_MODELS = {
+    "music": EventMusic, "classical": EventClassical, "opera": EventOpera,
+    "ballet": EventBallet, "dance": EventDance, "circus": EventCircus,
+    "theatre": EventTheatre, "cabaret": EventCabaret, "comedy": EventComedy,
+    "spoken_word": EventSpokenWord, "talk": EventTalk,
+    "exhibition": EventExhibition, "screening": EventScreening,
+}
+
+
 @router.patch("/{event_id}", response_model=EventDetail)
 def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depends(get_session)):
     event = session.get(Event, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    dumped = data.model_dump(exclude_unset=True)
+    extension_data = dumped.pop("extension", None)
+    for field, value in dumped.items():
         setattr(event, field, value)
     session.add(event)
+    if extension_data:
+        ext_model = _EXTENSION_MODELS.get(event.type)
+        if ext_model:
+            ext = session.get(ext_model, event_id)
+            if ext:
+                for field, value in extension_data.items():
+                    if hasattr(ext, field):
+                        setattr(ext, field, value)
+                session.add(ext)
     session.commit()
     session.refresh(event)
     return get_event(event_id, session)
@@ -512,7 +636,7 @@ def delete_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 def _make_event(data, type: str) -> Event:
     base_fields = {
         "date", "time", "venue_id", "title", "work_id", "price_paid",
-        "currency", "rating", "notes", "festival_id", "substack_url", "data_completeness",
+        "currency", "rating", "notes", "festival_id", "review", "links", "data_completeness",
     }
     return Event(type=type, **{k: v for k, v in data.model_dump().items() if k in base_fields})
 

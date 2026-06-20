@@ -1,6 +1,8 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import Stats from "../components/Stats";
+import EventDetailPanel from "../components/EventDetailPanel";
 ---
 
 <html lang="en">
@@ -13,8 +15,9 @@ import Nav from "../components/Nav";
   <body class="bg-white min-h-screen">
     <Nav current="/stats" client:load />
     <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
-      <p class="font-serif text-2xl text-neutral-900 mt-4">Stats</p>
-      <p class="text-sm text-neutral-400 mt-2">Coming soon.</p>
+      <p class="font-serif text-2xl text-neutral-900 mt-4 mb-6">Stats</p>
+      <Stats client:load />
     </main>
+    <EventDetailPanel client:load />
   </body>
 </html>

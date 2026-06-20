@@ -24,13 +24,14 @@ class EventBase(BaseModel):
     rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
-    substack_url: Optional[str] = None
+    review: Optional[str] = None
+    links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
     status: str = "attended"
 
 
 class EventUpdate(BaseModel):
-    """Partial update of base Event fields."""
+    """Partial update of base Event fields and/or extension fields."""
     date: Optional[date] = None
     time: Optional[time_type] = None
     venue_id: Optional[uuid.UUID] = None
@@ -41,9 +42,12 @@ class EventUpdate(BaseModel):
     rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
-    substack_url: Optional[str] = None
+    payment_method_id: Optional[uuid.UUID] = None
+    review: Optional[str] = None
+    links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
     status: Optional[str] = None
+    extension: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------
@@ -63,16 +67,26 @@ class EventListItem(BaseModel):
     festival_name: Optional[str] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
+    payment_method_id: Optional[uuid.UUID] = None
     rating: Optional[float] = None
     data_completeness: Optional[str] = None
-    substack_url: Optional[str] = None
     status: str = "attended"
+    primary_entity_name: Optional[str] = None
+    primary_entity_id: Optional[uuid.UUID] = None
     model_config = {"from_attributes": True}
 
 
 # ---------------------------------------------------------------------------
 # Detail response — full event with resolved extension
 # ---------------------------------------------------------------------------
+
+class PaymentMethodRef(BaseModel):
+    id: uuid.UUID
+    name: str
+    total_cost: Decimal
+    currency: str
+    purchase_date: date
+
 
 class EventDetail(BaseModel):
     id: uuid.UUID
@@ -82,14 +96,16 @@ class EventDetail(BaseModel):
     subtype: Optional[str] = None
     title: str
     venue: NamedRef
-    venue_path: List[NamedRef] = []  # ancestors from immediate parent to root
+    venue_path: List[NamedRef] = []
     work_id: Optional[uuid.UUID] = None
     festival: Optional[NamedRef] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
+    payment_method: Optional[PaymentMethodRef] = None
     rating: Optional[float] = None
     notes: Optional[str] = None
-    substack_url: Optional[str] = None
+    review: Optional[str] = None
+    links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
     status: str = "attended"
     related_events: List[dict] = []

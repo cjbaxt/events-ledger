@@ -7,6 +7,46 @@
 
 ---
 
+## Music Events — Setlist Lookup
+
+For every **music** event (gig, concert, festival set), always look up the setlist on [setlist.fm](https://www.setlist.fm) and populate:
+- `setlist[]` — ordered list of song titles as performed (include encore songs, note covers in parentheses)
+- `setlist_fm_url` — direct link to the setlist page
+
+Search setlist.fm for: `{Artist} {venue} {date}`. If no exact setlist exists, leave both fields null rather than guessing.
+
+---
+
+## Credits System (Opera, Ballet, Classical — any event)
+
+Production credits (conductor, director, designers, choreographer, cembalo continuo, etc.) are stored in the `event_credit` table as `(event_id, role, person_id, sort_order)` rows. Role names are free-text strings — use whatever the venue programme uses.
+
+**Preferred sort order convention:**
+1. Conductor
+2. Stage Director / Director
+3. Musical Director / Repetiteur / Cembalo continuo
+4. Choreographer
+5. Set Design
+6. Costume Design
+7. Lighting Design
+8. Video Design / Projection Design
+9. Dramaturgy
+10. Other creative roles
+
+**Adding credits via API:**
+```
+POST /api/events/{event_id}/credits
+{ "role": "Set Design", "person_id": "<uuid>", "sort_order": 5 }
+```
+
+**Cast** (singers/actors with character roles) is stored separately as a JSON dict on the extension table:
+- `role → person_id` (UUID string)
+- Enter roles exactly as listed in the programme (e.g. "Il Conte Almaviva", not "Count Almaviva")
+
+**Note:** The old `conductor_id` and `director_id` FK fields on EventOpera/EventBallet still exist in the DB and are migrated automatically into `event_credit` on entry. When entering new events, populate credits via the `/credits` endpoint instead — these FK fields are no longer shown in the UI.
+
+---
+
 ## Festivals
 
 | id | name | edition | city | website_url |
@@ -579,29 +619,44 @@
 - subtype: opera
 - work_id: work-004
 - production_id: prod-001
-- conductor_id: per-064 (Francesco Corti)
-- director_id: per-065 (Kirill Serebrennikov)
-- ensemble_id: ens-005 (Netherlands Chamber Orchestra)
+- ensemble_id: ens-005 (Netherlands Philharmonic Orchestra)
 - libretto_language: Italian
 - surtitles_languages: ["Dutch", "English"]
 - operabase_url: https://www.operabase.com/productions/le-nozze-di-figaro-476319/10-may-2026/en
 
+**Credits (event_credit rows, 20 May)**
+| sort_order | role | person |
+|---|---|---|
+| 0 | Conductor | Francesco Corti |
+| 1 | Stage Director | Kirill Serebrennikov |
+| 1 | Stage Director | Evgeny Kulagin |
+| 2 | Cembalo continuo | Pedro Beriso |
+| 3 | Costume Design | Kirill Serebrennikov |
+| 3 | Costume Design | Tatiana Dolmatovskaya |
+| 4 | Set Design | Olga Pavlyuk |
+| 4 | Set Design | Kirill Serebrennikov |
+| 5 | Lighting Design | Sergey Kucher |
+| 6 | Video Design | Ilya Shagalov |
+| 7 | Dramaturgy | Daniil Orlov |
+| 8 | Choreographer | Evgeny Kulagin |
+
 **Cast (20 May)**
-| role | person_id |
+| role | person |
 |---|---|
-| Il Conte Almaviva | per-067 (Björn Bürger) |
-| La Contessa Almaviva | per-068 (Olga Kulchynska) |
-| Susanna | per-069 (Emily Pogorelc) |
-| Figaro | per-070 (Michael Nagl) |
-| Cherubina (singing) | per-071 (Cecilia Molinari) |
-| Marcellina | per-072 (Véronique Gens) |
-| Bartolo | per-073 (Anthony Robin Schneider) |
-| Basilio | per-074 (Steven van der Linden) |
-| Antonio | per-075 (Frederik Bergman) |
-| Cherubino (silent actor) | per-076 (Georgy Kudrenko) |
-| The Old Woman | per-077 (Marieke Reuten) |
-| The Count's Henchman | per-078 (Nikita Elenev) |
-| The Young Man | per-079 (Rowan Kievits) |
+| Count Almaviva | Björn Bürger |
+| Countess Almaviva | Olga Kulchynska |
+| Susanna | Emily Pogorelc |
+| Figaro | Michael Nagl |
+| Marcellina | Véronique Gens |
+| Cherubina | Cecilia Molinari |
+| Bartolo | Anthony Robin Schneider |
+| Basilio | Steven van der Linden |
+| Antonio | Frederik Bergman |
+| Cherubino | Georgy Kudrenko |
+| The Count's Henchman | Nikita Kukushkin |
+| The Young Man (1) | Nikita Elenev |
+| The Young Man (2) | Rowan Kievits |
+| The Old Woman | Marieke Reuten |
 
 ---
 
@@ -966,6 +1021,23 @@
 - host_id: per-129 (Catherine Bohart)
 - topic: Women and power
 - host_organisation: BBC Radio 4
+
+---
+
+### Event 25 — Mumford & Sons (music)
+| field | value |
+|---|---|
+| date | 2025-11-17 |
+| venue_id | venue-014 (Ziggo Dome) |
+| type | music |
+| title | Mumford & Sons |
+| price_paid | 77.15 |
+| currency | EUR |
+| data_completeness | complete |
+
+**EventMusic**
+- setlist[]: Run Together · Babel · Rushmere · Little Lion Man · Hopeless Wanderer · Lover of the Light · Believe · Truth · Here · Ghosts That We Knew · Guiding Light · Caroline · White Blank Page · Ditmas · The Cave · Roll Away Your Stone · Delta · The Wolf · Timshel · Rubber Band Man · Awake My Soul · I Will Wait · Conversation With My Son (Gangsters & Angels)
+- setlist_fm_url: https://www.setlist.fm/setlist/mumford-and-sons/2025/ziggo-dome-amsterdam-netherlands-2b58949a.html
 
 ---
 

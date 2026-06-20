@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from sqlmodel import Field, SQLModel, Column
 from sqlalchemy import Time, ARRAY
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 import uuid
 
 
@@ -47,6 +47,17 @@ class Festival(SQLModel, table=True):
     notes: Optional[str] = None
 
 
+class PaymentMethod(SQLModel, table=True):
+    __tablename__ = "payment_method"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str  # e.g. "Museumkaart 2026-2027", "Lowlands 2026 Weekend"
+    total_cost: Decimal
+    currency: str = "EUR"
+    purchase_date: date  # determines which year this appears in stats
+    notes: Optional[str] = None
+
+
 class Event(SQLModel, table=True):
     __tablename__ = "event"
 
@@ -65,7 +76,9 @@ class Event(SQLModel, table=True):
     rating: Optional[float] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = Field(default=None, foreign_key="festival.id")
-    substack_url: Optional[str] = None
+    payment_method_id: Optional[uuid.UUID] = Field(default=None, foreign_key="payment_method.id")
+    review: Optional[str] = None
+    links: Optional[List[dict]] = Field(default=None, sa_column=Column(JSONB))
     # complete / partial / stub
     data_completeness: Optional[str] = None
     # attended / planned / cancelled

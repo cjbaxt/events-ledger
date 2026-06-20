@@ -5,9 +5,23 @@ JSON fields (cast, setlist) are stored as JSONB.
 """
 from typing import Optional, List
 from sqlmodel import Field, SQLModel, Column
-from sqlalchemy import ARRAY, String, JSON
+from sqlalchemy import ARRAY, String, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 import uuid
+
+
+# ---------------------------------------------------------------------------
+# Credits (any event type)
+# ---------------------------------------------------------------------------
+
+class EventCredit(SQLModel, table=True):
+    __tablename__ = "event_credit"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    event_id: uuid.UUID = Field(foreign_key="event.id", index=True)
+    role: str  # free-text e.g. "Stage Director", "Set Design", "Cembalo continuo"
+    person_id: uuid.UUID = Field(foreign_key="person.id")
+    sort_order: int = Field(default=0, sa_column=Column(Integer))
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +113,9 @@ class EventBallet(SQLModel, table=True):
     work_id: Optional[uuid.UUID] = Field(default=None, foreign_key="work.id")
     production_id: Optional[uuid.UUID] = Field(default=None, foreign_key="production.id")
     company_id: Optional[uuid.UUID] = Field(default=None, foreign_key="ensemble.id")
+    additional_company_ids: Optional[List[uuid.UUID]] = Field(
+        default=None, sa_column=Column(ARRAY(PG_UUID(as_uuid=True)))
+    )
     orchestra_id: Optional[uuid.UUID] = Field(default=None, foreign_key="ensemble.id")
     conductor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="person.id")
     cast: Optional[dict] = Field(default=None, sa_column=Column(JSON))
