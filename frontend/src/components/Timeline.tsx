@@ -126,14 +126,23 @@ function totalSpendEur(events: EventListItem[], paymentMethods: PaymentMethod[],
 }
 
 function SpendStat({ spend }: { spend: number }) {
+  const [revealed, setRevealed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (spend <= 0) return null;
+
+  function handleClick() {
+    setRevealed(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setRevealed(false), 3000);
+  }
+
   return (
-    <div className="text-right group cursor-default">
-      <div className="font-serif text-xl text-neutral-900 blur-sm group-hover:blur-none transition-all duration-300">
+    <button onClick={handleClick} className="text-right">
+      <div className={`font-serif text-xl text-neutral-900 transition-all duration-300 ${revealed ? "blur-none" : "blur-sm"}`}>
         €{Math.round(spend)}
       </div>
       <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Spent</div>
-    </div>
+    </button>
   );
 }
 
