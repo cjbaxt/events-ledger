@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import EditorUnlock from "../components/EditorUnlock";
 import AddEvent from "../components/AddEvent";
 ---
 
@@ -18,6 +19,7 @@ import AddEvent from "../components/AddEvent";
     />
   </head>
   <body class="bg-white min-h-screen">
+    <EditorUnlock client:load />
     <Nav current="/add" client:load />
     <main class="max-w-lg mx-auto px-4 pt-20 pb-32 md:pb-12">
       <AddEvent client:load />

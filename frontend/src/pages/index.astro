@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import EditorUnlock from "../components/EditorUnlock";
 import Timeline from "../components/Timeline";
 import EventDetailPanel from "../components/EventDetailPanel";
 ---
@@ -19,6 +20,7 @@ import EventDetailPanel from "../components/EventDetailPanel";
     />
   </head>
   <body class="bg-white min-h-screen">
+    <EditorUnlock client:load />
     <Nav current="/" client:load />
     <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
       <Timeline client:load />

@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import EditorUnlock from "../components/EditorUnlock";
 import Stats from "../components/Stats";
 import EventDetailPanel from "../components/EventDetailPanel";
 ---
@@ -13,6 +14,7 @@ import EventDetailPanel from "../components/EventDetailPanel";
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-white min-h-screen">
+    <EditorUnlock client:load />
     <Nav current="/stats" client:load />
     <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
       <p class="font-serif text-2xl text-neutral-900 mt-4 mb-6">Stats</p>
