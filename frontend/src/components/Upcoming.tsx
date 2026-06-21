@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { fetchEvents } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -16,17 +16,27 @@ function toEur(amount: number, currency: string) {
 }
 
 function SpendStat({ events }: { events: EventListItem[] }) {
+  const [revealed, setRevealed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const total = events
     .filter((e) => e.price_paid)
     .reduce((sum, e) => sum + toEur(parseFloat(e.price_paid ?? "0"), e.currency ?? "EUR"), 0);
   if (total <= 0) return null;
+
+  function handleClick() {
+    setRevealed(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setRevealed(false), 3000);
+  }
+
   return (
-    <div className="text-right group cursor-default">
-      <div className="font-serif text-xl text-neutral-900 blur-sm group-hover:blur-none transition-all duration-300">
+    <button onClick={handleClick} className="text-right cursor-pointer">
+      <div className={`font-serif text-xl text-neutral-900 transition-all duration-300 ${revealed ? "blur-none" : "blur-sm"}`}>
         €{Math.round(total)}
       </div>
       <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">Committed</div>
-    </div>
+    </button>
   );
 }
 

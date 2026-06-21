@@ -440,7 +440,7 @@ export default function Timeline() {
               )}
             </button>
             {typeMenuOpen && (
-              <div className="absolute bottom-full right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 min-w-[160px] z-20">
+              <div className="absolute bottom-full right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 w-48 z-20">
                 {ALL_TYPES.filter((t) => presentTypes.has(t)).map((type) => {
                   const hidden = hiddenTypes.has(type);
                   return (
