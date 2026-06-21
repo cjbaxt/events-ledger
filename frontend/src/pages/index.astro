@@ -1,9 +1,9 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import EditorUnlock from "../components/EditorUnlock";
 import Timeline from "../components/Timeline";
 import EventDetailPanel from "../components/EventDetailPanel";
-import LoginGate from "../components/LoginGate";
 ---
 
 <html lang="en">
@@ -20,7 +20,7 @@ import LoginGate from "../components/LoginGate";
     />
   </head>
   <body class="bg-white min-h-screen">
-    <LoginGate client:load />
+    <EditorUnlock client:load />
     <Nav current="/" client:load />
     <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
       <Timeline client:load />

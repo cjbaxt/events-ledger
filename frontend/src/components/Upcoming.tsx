@@ -65,7 +65,7 @@ function UpcomingEventCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 transition-colors group"
+      className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 active:bg-neutral-50 transition-colors group"
     >
       {/* Date badge — large on desktop, compact on mobile */}
       <div className="flex-shrink-0 text-center hidden sm:block w-10">
@@ -94,6 +94,7 @@ function UpcomingEventCard({
         </div>
         <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
       </div>
+      <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
     </button>
   );
 }
@@ -131,16 +132,22 @@ export default function Upcoming() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    fetchEvents({ limit: 500 })
-      .then((evts) =>
-        setEvents(
-          [...evts]
-            .filter((e) => e.date >= today)
-            .sort((a, b) => a.date.localeCompare(b.date))
+    function load() {
+      const today = new Date().toISOString().slice(0, 10);
+      fetchEvents({ limit: 500 })
+        .then((evts) =>
+          setEvents(
+            [...evts]
+              .filter((e) => e.date >= today)
+              .sort((a, b) => a.date.localeCompare(b.date))
+          )
         )
-      )
-      .finally(() => setLoading(false));
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+    load();
+    window.addEventListener("auth-change", load);
+    return () => window.removeEventListener("auth-change", load);
   }, []);
 
   function handleEventClick(id: string) {

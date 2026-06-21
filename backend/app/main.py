@@ -3,8 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import text
 from app.db import engine
-from app.auth import auth_middleware
-from app.api.auth import router as auth_router
 from app.api.reference import router as reference_router
 from app.api.events import router as events_router
 from app.api.payment_methods import router as payment_methods_router
@@ -24,9 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.middleware("http")(auth_middleware)
-
-app.include_router(auth_router)
 app.include_router(reference_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(payment_methods_router)
