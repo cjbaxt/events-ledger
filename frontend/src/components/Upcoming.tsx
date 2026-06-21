@@ -100,33 +100,14 @@ function MonthGroup({
   onEventClick: (id: string) => void;
 }) {
   return (
-    <div className="mb-5">
-      {/* Mobile: header row above cards */}
-      <div className="flex items-center gap-3 mb-2 sm:hidden">
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
           {MONTH_NAMES[parseInt(month)]} {year}
         </span>
         <div className="flex-1 h-px bg-neutral-100" />
       </div>
-
-      {/* Desktop: side column layout */}
-      <div className="hidden sm:flex gap-0">
-        <div className="w-24 flex-shrink-0 pt-3.5">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
-            {MONTH_NAMES[parseInt(month)]}
-          </div>
-          <div className="text-[10px] text-neutral-300 mt-0.5">{year}</div>
-        </div>
-        <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
-        <div className="flex-1 min-w-0 flex flex-col gap-2 pb-5">
-          {events.map((e) => (
-            <UpcomingEventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile: full-width cards */}
-      <div className="flex flex-col gap-2 sm:hidden">
+      <div className="flex flex-col gap-2">
         {events.map((e) => (
           <UpcomingEventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
         ))}
