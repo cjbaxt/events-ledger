@@ -583,7 +583,7 @@ export default function AddEvent() {
 
             <Field label="Status">
               <div className="flex gap-2">
-                {["attended", "upcoming", "planned"].map((s) => (
+                {["attended", "cancelled"].map((s) => (
                   <button
                     key={s}
                     type="button"

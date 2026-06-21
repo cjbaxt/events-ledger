@@ -55,76 +55,76 @@ def _ensemble_name(session: Session, id) -> Optional[str]:
     return e.name if e else None
 
 
-def _primary_entity(session: Session, event) -> tuple[Optional[str], Optional[uuid.UUID]]:
-    """Return (name, id) of the primary person/ensemble for an event, for stats."""
+def _primary_entity(session: Session, event) -> tuple[Optional[str], Optional[uuid.UUID], Optional[str]]:
+    """Return (name, id, kind) where kind is 'person' or 'ensemble'."""
     t = event.type
     if t == "comedy":
         ext = session.get(EventComedy, event.id)
         if ext:
             if ext.performer_id:
                 p = session.get(Person, ext.performer_id)
-                return (p.name, p.id) if p else (None, None)
+                return (p.name, p.id, "person") if p else (None, None, None)
             if ext.ensemble_id:
                 e = session.get(Ensemble, ext.ensemble_id)
-                return (e.name, e.id) if e else (None, None)
+                return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "music":
         ext = session.get(EventMusic, event.id)
         if ext:
             if ext.headliner_ensemble_id:
                 e = session.get(Ensemble, ext.headliner_ensemble_id)
-                return (e.name, e.id) if e else (None, None)
+                return (e.name, e.id, "ensemble") if e else (None, None, None)
             if ext.headliner_person_id:
                 p = session.get(Person, ext.headliner_person_id)
-                return (p.name, p.id) if p else (None, None)
+                return (p.name, p.id, "person") if p else (None, None, None)
     elif t == "circus":
         ext = session.get(EventCircus, event.id)
         if ext and ext.company_id:
             e = session.get(Ensemble, ext.company_id)
-            return (e.name, e.id) if e else (None, None)
+            return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "theatre":
         ext = session.get(EventTheatre, event.id)
         if ext:
             if ext.company_id:
                 e = session.get(Ensemble, ext.company_id)
-                return (e.name, e.id) if e else (None, None)
+                return (e.name, e.id, "ensemble") if e else (None, None, None)
             if ext.director_id:
                 p = session.get(Person, ext.director_id)
-                return (p.name, p.id) if p else (None, None)
+                return (p.name, p.id, "person") if p else (None, None, None)
     elif t == "cabaret":
         ext = session.get(EventCabaret, event.id)
         if ext:
             if ext.ensemble_id:
                 e = session.get(Ensemble, ext.ensemble_id)
-                return (e.name, e.id) if e else (None, None)
+                return (e.name, e.id, "ensemble") if e else (None, None, None)
             if ext.headliner_id:
                 p = session.get(Person, ext.headliner_id)
-                return (p.name, p.id) if p else (None, None)
+                return (p.name, p.id, "person") if p else (None, None, None)
     elif t == "ballet":
         ext = session.get(EventBallet, event.id)
         if ext and ext.company_id:
             e = session.get(Ensemble, ext.company_id)
-            return (e.name, e.id) if e else (None, None)
+            return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "classical":
         ext = session.get(EventClassical, event.id)
         if ext and ext.ensemble_id:
             e = session.get(Ensemble, ext.ensemble_id)
-            return (e.name, e.id) if e else (None, None)
+            return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "opera":
         ext = session.get(EventOpera, event.id)
         if ext and ext.ensemble_id:
             e = session.get(Ensemble, ext.ensemble_id)
-            return (e.name, e.id) if e else (None, None)
+            return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "dance":
         ext = session.get(EventDance, event.id)
         if ext and ext.company_id:
             e = session.get(Ensemble, ext.company_id)
-            return (e.name, e.id) if e else (None, None)
+            return (e.name, e.id, "ensemble") if e else (None, None, None)
     elif t == "talk":
         ext = session.get(EventTalk, event.id)
         if ext and ext.speaker_ids:
             p = session.get(Person, ext.speaker_ids[0])
-            return (p.name, p.id) if p else (None, None)
-    return (None, None)
+            return (p.name, p.id, "person") if p else (None, None, None)
+    return (None, None, None)
 
 
 def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], model) -> Optional[List[dict]]:
@@ -174,7 +174,8 @@ def _resolve_work(session: Session, work_id: Optional[uuid.UUID]) -> Optional[di
         p = session.get(Person, work.creator_id)
         if p:
             creator = p.name
-    return {"id": str(work.id), "title": work.title, "creator": creator, "year": work.year, "notes": work.notes}
+    creator_id = str(work.creator_id) if work.creator_id else None
+    return {"id": str(work.id), "title": work.title, "creator": creator, "creator_id": creator_id, "year": work.year, "notes": work.notes}
 
 
 def _resolve_credits(session: Session, event_id: uuid.UUID) -> Optional[list]:
@@ -206,14 +207,14 @@ def _resolve_cast(session: Session, cast: Optional[dict]) -> Optional[dict]:
             for v in val:
                 try:
                     p = session.get(Person, uuid.UUID(str(v)))
-                    names.append(p.name if p else str(v))
+                    names.append({"id": str(p.id), "name": p.name} if p else str(v))
                 except Exception:
                     names.append(str(v))
             resolved[role] = names
         else:
             try:
                 p = session.get(Person, uuid.UUID(str(val)))
-                resolved[role] = p.name if p else str(val)
+                resolved[role] = {"id": str(p.id), "name": p.name} if p else str(val)
             except Exception:
                 resolved[role] = str(val)
     return resolved or None
@@ -491,7 +492,7 @@ def list_events(
     for e in events:
         venue, _parent, venue_display = _venue_display(session, e.venue_id)
         festival = session.get(Festival, e.festival_id) if e.festival_id else None
-        entity_name, entity_id = _primary_entity(session, e)
+        entity_name, entity_id, entity_kind = _primary_entity(session, e)
         result.append(EventListItem(
             id=e.id,
             date=e.date,
@@ -511,6 +512,7 @@ def list_events(
             status=e.status,
             primary_entity_name=entity_name,
             primary_entity_id=entity_id,
+            primary_entity_kind=entity_kind,
         ))
     return result
 

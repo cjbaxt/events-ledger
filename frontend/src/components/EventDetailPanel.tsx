@@ -196,15 +196,21 @@ function ClassicalProgrammeItem({
   );
 }
 
-type WorkObj = { id: string; title: string; creator?: string | null; year?: number | null; notes?: string | null };
-type CastObj = Record<string, string | string[]>;
+type WorkObj = { id: string; title: string; creator?: string | null; creator_id?: string | null; year?: number | null; notes?: string | null };
+type CastEntry = { id: string; name: string } | string;
+type CastObj = Record<string, CastEntry | CastEntry[]>;
 
-function WorkField({ work }: { work: WorkObj }) {
+function WorkField({ work, onPersonClick }: { work: WorkObj; onPersonClick?: (id: string) => void }) {
   return (
     <div>
       <Field label="Work">
         <span className="text-neutral-800 font-medium">{work.title}</span>
-        {work.creator && <span className="text-neutral-500"> — {work.creator}</span>}
+        {work.creator && (
+          <span className="text-neutral-500"> — {work.creator_id && onPersonClick
+            ? <button onClick={() => onPersonClick(work.creator_id!)} className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors">{work.creator}</button>
+            : work.creator}
+          </span>
+        )}
         {work.year && <span className="text-neutral-400 text-xs ml-2">({work.year})</span>}
       </Field>
       {work.notes && <p className="text-xs text-neutral-400 mt-1">{work.notes}</p>}
@@ -212,17 +218,36 @@ function WorkField({ work }: { work: WorkObj }) {
   );
 }
 
-function CastField({ cast }: { cast: CastObj }) {
+function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick?: (id: string) => void }) {
   const entries = Object.entries(cast);
   if (!entries.length) return null;
+
+  function renderEntry(entry: CastEntry) {
+    if (typeof entry === "object" && onPersonClick) {
+      return (
+        <button
+          onClick={() => onPersonClick(entry.id)}
+          className="hover:text-neutral-900 hover:underline underline-offset-2 transition-colors"
+        >
+          {entry.name}
+        </button>
+      );
+    }
+    return <span>{typeof entry === "object" ? entry.name : entry}</span>;
+  }
+
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Cast</div>
       <dl className="space-y-1">
-        {entries.map(([role, name]) => (
+        {entries.map(([role, val]) => (
           <div key={role} className="flex gap-2 text-sm">
             <dt className="text-neutral-400 min-w-0 shrink-0 w-40 truncate">{role}</dt>
-            <dd className="text-neutral-700">{Array.isArray(name) ? name.join(", ") : name}</dd>
+            <dd className="text-neutral-700">
+              {Array.isArray(val)
+                ? val.map((entry, i) => <span key={i}>{i > 0 && ", "}{renderEntry(entry)}</span>)
+                : renderEntry(val)}
+            </dd>
           </div>
         ))}
       </dl>
@@ -241,7 +266,11 @@ function ExtensionFields({
   onPersonClick: (id: string) => void;
   onEnsembleClick: (id: string) => void;
 }) {
-  const skip = new Set(["id", "event_id", "subtype", "setlist", "setlist_fm_url", "credits"]);
+  const typesThatHideNotes = new Set(["opera", "circus"]);
+  const skip = new Set(["id", "event_id", "subtype", "setlist", "setlist_fm_url", "credits",
+    ...(typesThatHideNotes.has(type) ? ["notes", "notes_on_performance"] : []),
+  ]);
+
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
   const cast = extension.cast as CastObj | null;
@@ -269,7 +298,7 @@ function ExtensionFields({
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
-      {work && <WorkField work={work} />}
+      {work && <WorkField work={work} onPersonClick={onPersonClick} />}
 
       {scalarEntries.map(([key, val]) => {
         if (val === null || val === undefined) return null;
@@ -404,7 +433,7 @@ function ExtensionFields({
         </div>
       )}
 
-      {cast && <CastField cast={cast} />}
+      {cast && <CastField cast={cast} onPersonClick={onPersonClick} />}
     </div>
   );
 }
@@ -724,10 +753,30 @@ export default function EventDetailPanel() {
         setOpen(false);
       }
     }
+    function makeNavOpener(kind: NavKind) {
+      return (e: Event) => {
+        const id = (e as CustomEvent<string>).detail;
+        setEventId(null);
+        setNavTarget({ kind, id });
+        setOpen(true);
+      };
+    }
+    const onOpenPerson = makeNavOpener("person");
+    const onOpenEnsemble = makeNavOpener("ensemble");
+    const onOpenVenue = makeNavOpener("venue");
+    const onOpenFestival = makeNavOpener("festival");
     window.addEventListener("open-event", onOpenEvent);
+    window.addEventListener("open-person", onOpenPerson);
+    window.addEventListener("open-ensemble", onOpenEnsemble);
+    window.addEventListener("open-venue", onOpenVenue);
+    window.addEventListener("open-festival", onOpenFestival);
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("open-event", onOpenEvent);
+      window.removeEventListener("open-person", onOpenPerson);
+      window.removeEventListener("open-ensemble", onOpenEnsemble);
+      window.removeEventListener("open-venue", onOpenVenue);
+      window.removeEventListener("open-festival", onOpenFestival);
       window.removeEventListener("popstate", onPopState);
     };
   }, []);
@@ -868,7 +917,7 @@ export default function EventDetailPanel() {
                     </Field>
                   )}
 
-                  {event.payment_method && (
+                  {event.payment_method ? (
                     <Field label="Payment method">
                       <span className="text-neutral-700">{event.payment_method.name}</span>
                       {event.price_paid && (
@@ -877,8 +926,7 @@ export default function EventDetailPanel() {
                         </span>
                       )}
                     </Field>
-                  )}
-                  {!event.payment_method && editor && (
+                  ) : editor ? (
                     <PriceEditor
                       price={event.price_paid}
                       currency={event.currency}
@@ -889,7 +937,11 @@ export default function EventDetailPanel() {
                         );
                       }}
                     />
-                  )}
+                  ) : event.price_paid ? (
+                    <Field label="Price paid">
+                      <span className="text-neutral-700">{event.currency ?? "EUR"} {event.price_paid}</span>
+                    </Field>
+                  ) : null}
 
                   {event.notes && (
                     <Field label="Notes">
