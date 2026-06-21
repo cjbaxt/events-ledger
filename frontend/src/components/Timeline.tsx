@@ -216,7 +216,7 @@ function EventCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 transition-colors group"
+      className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 active:bg-neutral-50 transition-colors group"
     >
       <div className="w-8 h-8 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
         <EventTypeIcon type={event.type} size={16} />
@@ -238,6 +238,7 @@ function EventCard({
           <div className="text-xs text-neutral-400">{event.rating}★</div>
         )}
       </div>
+      <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
     </button>
   );
 }
