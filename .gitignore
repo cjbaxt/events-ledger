@@ -31,3 +31,4 @@ dist/
 # Postgres data (if ever run locally outside Docker)
 postgres_data/
 .env.secrets
+*.sql
