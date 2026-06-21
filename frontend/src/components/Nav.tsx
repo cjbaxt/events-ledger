@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
 import {
   IconTimeline,
   IconCalendarEvent,
   IconChartBar,
   IconPlus,
 } from "@tabler/icons-react";
-import { isAdmin, isLoggedIn, logout } from "../lib/auth";
 
 const links = [
   { href: "/", label: "Timeline", icon: IconTimeline },
@@ -14,16 +12,6 @@ const links = [
 ];
 
 export default function Nav({ current }: { current: string }) {
-  const [admin, setAdmin] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  useEffect(() => {
-    function sync() { setAdmin(isAdmin()); setLoggedIn(isLoggedIn()); }
-    sync();
-    window.addEventListener("auth-change", sync);
-    return () => window.removeEventListener("auth-change", sync);
-  }, []);
-
   return (
     <>
       {/* Desktop top bar */}
@@ -49,25 +37,13 @@ export default function Nav({ current }: { current: string }) {
             );
           })}
         </nav>
-        <div className="flex items-center gap-4">
-          {admin && (
-            <a
-              href="/add"
-              className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
-              <IconPlus size={16} />
-              Add event
-            </a>
-          )}
-          {loggedIn && (
-            <button
-              onClick={logout}
-              className="text-xs text-neutral-300 hover:text-neutral-600 transition-colors"
-            >
-              Log out
-            </button>
-          )}
-        </div>
+        <a
+          href="/add"
+          className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors"
+        >
+          <IconPlus size={16} />
+          Add event
+        </a>
       </header>
 
       {/* Mobile bottom tab bar */}
@@ -87,15 +63,13 @@ export default function Nav({ current }: { current: string }) {
             </a>
           );
         })}
-        {admin && (
-          <a
-            href="/add"
-            className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors"
-          >
-            <IconPlus size={22} strokeWidth={1.5} />
-            <span className="text-[10px] uppercase tracking-wider">Add</span>
-          </a>
-        )}
+        <a
+          href="/add"
+          className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors"
+        >
+          <IconPlus size={22} strokeWidth={1.5} />
+          <span className="text-[10px] uppercase tracking-wider">Add</span>
+        </a>
       </nav>
     </>
   );

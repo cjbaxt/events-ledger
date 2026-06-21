@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose } from "@tabler/icons-react";
-import { isAdmin } from "../lib/auth";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents,
@@ -693,15 +692,6 @@ export default function EventDetailPanel() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
-  const [admin, setAdmin] = useState(false);
-
-  useEffect(() => {
-    function sync() { setAdmin(isAdmin()); }
-    sync();
-    window.addEventListener("auth-change", sync);
-    return () => window.removeEventListener("auth-change", sync);
-  }, []);
-
   const close = useCallback(() => {
     setOpen(false);
     setNavTarget(null);
@@ -823,7 +813,7 @@ export default function EventDetailPanel() {
                     review={event.review}
                     links={event.links}
                     rating={event.rating}
-                    editable={admin}
+                    editable={true}
                     onSaveReview={(text) => {
                       setEvent((prev) => prev ? { ...prev, review: text } : prev);
                       patchEventReview(event.id, text).catch(() =>
@@ -880,7 +870,7 @@ export default function EventDetailPanel() {
                       )}
                     </Field>
                   )}
-                  {!event.payment_method && admin && (
+                  {!event.payment_method && (
                     <PriceEditor
                       price={event.price_paid}
                       currency={event.currency}
