@@ -286,16 +286,21 @@ export default function Timeline() {
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    Promise.all([
-      fetchEvents({ limit: 500 }),
-      fetchPaymentMethods(),
-    ]).then(([all, pms]) => {
-      const events = all.filter((e) => e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
-      setAllEvents(events);
-      setPaymentMethods(pms);
-      if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));
-    }).finally(() => setLoading(false));
+    function load() {
+      const today = new Date().toISOString().slice(0, 10);
+      Promise.all([
+        fetchEvents({ limit: 500 }),
+        fetchPaymentMethods(),
+      ]).then(([all, pms]) => {
+        const events = all.filter((e) => e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
+        setAllEvents(events);
+        setPaymentMethods(pms);
+        if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));
+      }).catch(() => {}).finally(() => setLoading(false));
+    }
+    load();
+    window.addEventListener("auth-change", load);
+    return () => window.removeEventListener("auth-change", load);
   }, []);
 
 

@@ -131,16 +131,22 @@ export default function Upcoming() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    fetchEvents({ limit: 500 })
-      .then((evts) =>
-        setEvents(
-          [...evts]
-            .filter((e) => e.date >= today)
-            .sort((a, b) => a.date.localeCompare(b.date))
+    function load() {
+      const today = new Date().toISOString().slice(0, 10);
+      fetchEvents({ limit: 500 })
+        .then((evts) =>
+          setEvents(
+            [...evts]
+              .filter((e) => e.date >= today)
+              .sort((a, b) => a.date.localeCompare(b.date))
+          )
         )
-      )
-      .finally(() => setLoading(false));
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+    load();
+    window.addEventListener("auth-change", load);
+    return () => window.removeEventListener("auth-change", load);
   }, []);
 
   function handleEventClick(id: string) {
