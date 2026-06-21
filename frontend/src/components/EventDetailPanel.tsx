@@ -724,10 +724,18 @@ export default function EventDetailPanel() {
         setOpen(false);
       }
     }
+    function onOpenPerson(e: Event) {
+      const id = (e as CustomEvent<string>).detail;
+      setEventId(null);
+      setNavTarget({ kind: "person", id });
+      setOpen(true);
+    }
     window.addEventListener("open-event", onOpenEvent);
+    window.addEventListener("open-person", onOpenPerson);
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("open-event", onOpenEvent);
+      window.removeEventListener("open-person", onOpenPerson);
       window.removeEventListener("popstate", onPopState);
     };
   }, []);
