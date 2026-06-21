@@ -2,13 +2,12 @@ import { useState, useEffect } from "react";
 import { isLoggedIn, login, getRole } from "../lib/auth";
 
 export default function LoginGate() {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(() => isLoggedIn());
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setAuthed(isLoggedIn());
     function onAuthChange() { setAuthed(isLoggedIn()); }
     window.addEventListener("auth-change", onAuthChange);
     return () => window.removeEventListener("auth-change", onAuthChange);

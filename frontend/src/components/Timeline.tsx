@@ -286,10 +286,14 @@ export default function Timeline() {
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
 
   useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
     Promise.all([
       fetchEvents({ status: "attended", limit: 500 }),
+      fetchEvents({ status: "upcoming", limit: 500 }),
       fetchPaymentMethods(),
-    ]).then(([events, pms]) => {
+    ]).then(([attended, upcoming, pms]) => {
+      const pastUpcoming = upcoming.filter((e) => e.date < today);
+      const events = [...attended, ...pastUpcoming].sort((a, b) => b.date.localeCompare(a.date));
       setAllEvents(events);
       setPaymentMethods(pms);
       if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));
