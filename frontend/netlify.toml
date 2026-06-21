@@ -4,6 +4,6 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://REPLACE_WITH_RENDER_URL/api/:splat"
+  to = "https://events-ledger-api.onrender.com/api/:splat"
   status = 200
   force = true
