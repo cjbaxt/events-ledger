@@ -57,16 +57,20 @@ function UpcomingEventCard({
       onClick={onClick}
       className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 transition-colors group"
     >
-      {/* Date badge */}
-      <div className="flex-shrink-0 w-10 text-center">
+      {/* Date badge — large on desktop, compact on mobile */}
+      <div className="flex-shrink-0 text-center hidden sm:block w-10">
         <div className="font-serif text-2xl leading-none text-neutral-900">{day}</div>
         <div className="text-[9px] uppercase tracking-widest text-neutral-400 mt-0.5">{dayName}</div>
+      </div>
+      <div className="flex-shrink-0 text-center sm:hidden">
+        <div className="text-[10px] uppercase tracking-widest text-neutral-400">{dayName}</div>
+        <div className="font-serif text-lg leading-tight text-neutral-900">{day}</div>
       </div>
 
       <div className="w-px bg-neutral-100 self-stretch flex-shrink-0" />
 
-      <div className="w-7 h-7 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
-        <EventTypeIcon type={event.type} size={14} />
+      <div className="w-6 h-6 sm:w-7 sm:h-7 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
+        <EventTypeIcon type={event.type} size={13} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -96,15 +100,33 @@ function MonthGroup({
   onEventClick: (id: string) => void;
 }) {
   return (
-    <div className="flex gap-0 mb-1">
-      <div className="w-24 flex-shrink-0 pt-3.5">
-        <div className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
-          {MONTH_NAMES[parseInt(month)]}
-        </div>
-        <div className="text-[10px] text-neutral-300 mt-0.5">{year}</div>
+    <div className="mb-5">
+      {/* Mobile: header row above cards */}
+      <div className="flex items-center gap-3 mb-2 sm:hidden">
+        <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
+          {MONTH_NAMES[parseInt(month)]} {year}
+        </span>
+        <div className="flex-1 h-px bg-neutral-100" />
       </div>
-      <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
-      <div className="flex-1 min-w-0 flex flex-col gap-2 pb-5">
+
+      {/* Desktop: side column layout */}
+      <div className="hidden sm:flex gap-0">
+        <div className="w-24 flex-shrink-0 pt-3.5">
+          <div className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
+            {MONTH_NAMES[parseInt(month)]}
+          </div>
+          <div className="text-[10px] text-neutral-300 mt-0.5">{year}</div>
+        </div>
+        <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
+        <div className="flex-1 min-w-0 flex flex-col gap-2 pb-5">
+          {events.map((e) => (
+            <UpcomingEventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile: full-width cards */}
+      <div className="flex flex-col gap-2 sm:hidden">
         {events.map((e) => (
           <UpcomingEventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
         ))}
