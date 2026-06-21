@@ -27,7 +27,7 @@ function SpendStat({ events }: { events: EventListItem[] }) {
   function handleClick() {
     setRevealed(true);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setRevealed(false), 3000);
+    timer.current = setTimeout(() => setRevealed(false), 1000);
   }
 
   return (
