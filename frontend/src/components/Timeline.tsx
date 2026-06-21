@@ -288,12 +288,10 @@ export default function Timeline() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     Promise.all([
-      fetchEvents({ status: "attended", limit: 500 }),
-      fetchEvents({ status: "upcoming", limit: 500 }),
+      fetchEvents({ limit: 500 }),
       fetchPaymentMethods(),
-    ]).then(([attended, upcoming, pms]) => {
-      const pastUpcoming = upcoming.filter((e) => e.date < today);
-      const events = [...attended, ...pastUpcoming].sort((a, b) => b.date.localeCompare(a.date));
+    ]).then(([all, pms]) => {
+      const events = all.filter((e) => e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
       setAllEvents(events);
       setPaymentMethods(pms);
       if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));

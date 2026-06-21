@@ -132,7 +132,7 @@ export default function Upcoming() {
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    fetchEvents({ status: "upcoming", limit: 500 })
+    fetchEvents({ limit: 500 })
       .then((evts) =>
         setEvents(
           [...evts]
