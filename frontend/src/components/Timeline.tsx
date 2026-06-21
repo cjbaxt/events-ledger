@@ -254,15 +254,15 @@ function MonthGroup({
   onRate: (id: string, r: number | null) => void;
 }) {
   return (
-    <div className="flex gap-0 mb-1">
-      <div className="w-24 flex-shrink-0 pt-3.5">
-        <div className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
           {MONTH_NAMES[parseInt(month)]}
-        </div>
-        <div className="text-[10px] text-neutral-300 mt-0.5">{events.length}</div>
+        </span>
+        <span className="text-[10px] text-neutral-300">{events.length}</span>
+        <div className="flex-1 h-px bg-neutral-100" />
       </div>
-      <div className="w-px bg-neutral-100 flex-shrink-0 mt-3 mr-4 self-stretch" />
-      <div className="flex-1 min-w-0 flex flex-col gap-2 pb-5">
+      <div className="flex flex-col gap-2">
         {events.map((e) => (
           <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} onRate={(r) => onRate(e.id, r)} />
         ))}
