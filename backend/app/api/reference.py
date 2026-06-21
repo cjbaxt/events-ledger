@@ -216,7 +216,6 @@ def _events_to_list_items(session: Session, events) -> List[EventListItem]:
             currency=e.currency,
             rating=e.rating,
             data_completeness=e.data_completeness,
-            substack_url=e.substack_url,
             status=e.status,
         ))
     return result
@@ -460,8 +459,11 @@ def get_venue_events(venue_id: str, session: Session = Depends(get_session)):
 # ---------------------------------------------------------------------------
 
 @router.get("/festivals", response_model=List[FestivalRead])
-def list_festivals(session: Session = Depends(get_session)):
-    return session.exec(select(Festival).order_by(Festival.name, Festival.edition)).all()
+def list_festivals(q: Optional[str] = None, session: Session = Depends(get_session)):
+    stmt = select(Festival).order_by(Festival.name, Festival.edition)
+    if q:
+        stmt = stmt.where(Festival.name.ilike(f"%{q}%"))
+    return session.exec(stmt).all()
 
 
 @router.get("/festivals/{festival_id}", response_model=FestivalRead)
@@ -607,10 +609,13 @@ def update_musical_piece(piece_id: str, data: MusicalPieceUpdate, session: Sessi
 
 @router.get("/productions", response_model=List[ProductionRead])
 def list_productions(
+    q: Optional[str] = None,
     work_id: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     stmt = select(Production).order_by(Production.title)
+    if q:
+        stmt = stmt.where(Production.title.ilike(f"%{q}%"))
     if work_id:
         stmt = stmt.where(Production.work_id == work_id)
     return session.exec(stmt).all()

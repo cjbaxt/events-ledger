@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose } from "@tabler/icons-react";
+import { isAdmin } from "../lib/auth";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents,
@@ -572,12 +573,14 @@ function ReviewSection({
   rating,
   onSaveReview,
   onRate,
+  editable = true,
 }: {
   review: string | null;
   links: Array<{ url: string; label?: string }> | null;
   rating: number | null;
   onSaveReview: (text: string | null) => void;
   onRate: (r: number | null) => void;
+  editable?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(review ?? "");
@@ -599,12 +602,15 @@ function ReviewSection({
     <div className="border-t border-b border-neutral-100 pt-4 pb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
-        {!editing && (
+        {!editing && editable && (
           <EditableRating rating={rating} onRate={onRate} />
+        )}
+        {!editing && !editable && rating && (
+          <div className="text-xs text-neutral-400">{rating} ★</div>
         )}
       </div>
 
-      {editing ? (
+      {editing && editable ? (
         <div className="space-y-2">
           <textarea
             value={draft}
@@ -637,14 +643,20 @@ function ReviewSection({
       ) : (
         <>
           {review && (
-            <button
-              onClick={() => { setDraft(review); setEditing(true); }}
-              className="w-full text-left group mb-3"
-            >
-              <p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap group-hover:border-neutral-400 transition-colors">
+            editable ? (
+              <button
+                onClick={() => { setDraft(review); setEditing(true); }}
+                className="w-full text-left group mb-3"
+              >
+                <p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap group-hover:border-neutral-400 transition-colors">
+                  {review}
+                </p>
+              </button>
+            ) : (
+              <p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap mb-3">
                 {review}
               </p>
-            </button>
+            )
           )}
           {links && links.map((link, i) => (
             <a
@@ -661,7 +673,7 @@ function ReviewSection({
               </div>
             </a>
           ))}
-          {!hasContent && (
+          {!hasContent && editable && (
             <button
               onClick={() => setEditing(true)}
               className="text-sm text-neutral-300 italic hover:text-neutral-500 transition-colors"
@@ -681,6 +693,14 @@ export default function EventDetailPanel() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    function sync() { setAdmin(isAdmin()); }
+    sync();
+    window.addEventListener("auth-change", sync);
+    return () => window.removeEventListener("auth-change", sync);
+  }, []);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -803,6 +823,7 @@ export default function EventDetailPanel() {
                     review={event.review}
                     links={event.links}
                     rating={event.rating}
+                    editable={admin}
                     onSaveReview={(text) => {
                       setEvent((prev) => prev ? { ...prev, review: text } : prev);
                       patchEventReview(event.id, text).catch(() =>
@@ -859,7 +880,7 @@ export default function EventDetailPanel() {
                       )}
                     </Field>
                   )}
-                  {!event.payment_method && (
+                  {!event.payment_method && admin && (
                     <PriceEditor
                       price={event.price_paid}
                       currency={event.currency}

@@ -1,6 +1,14 @@
 import type { EventListItem, EventDetail } from "../types/events";
+import { authHeaders } from "./auth";
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? "";
+
+async function authFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    headers: { ...authHeaders(), ...(init.headers as Record<string, string> ?? {}) },
+  });
+}
 
 export async function fetchEvents(params: {
   status?: string;
@@ -15,19 +23,19 @@ export async function fetchEvents(params: {
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.offset) qs.set("offset", String(params.offset));
-  const res = await fetch(`${BASE}/api/events?${qs}`);
+  const res = await authFetch(`${BASE}/api/events?${qs}`);
   if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
   return res.json();
 }
 
 export async function fetchEvent(id: string): Promise<EventDetail> {
-  const res = await fetch(`${BASE}/api/events/${id}`);
+  const res = await authFetch(`${BASE}/api/events/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch event: ${res.status}`);
   return res.json();
 }
 
 export async function patchEventRating(id: string, rating: number | null): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rating }),
@@ -36,7 +44,7 @@ export async function patchEventRating(id: string, rating: number | null): Promi
 }
 
 export async function patchEventReview(id: string, review: string | null): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ review }),
@@ -45,7 +53,7 @@ export async function patchEventReview(id: string, review: string | null): Promi
 }
 
 export async function patchEventLinks(id: string, links: Array<{ url: string; label?: string }>): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ links }),
@@ -54,12 +62,31 @@ export async function patchEventLinks(id: string, links: Array<{ url: string; la
 }
 
 export async function patchEventPrice(id: string, price: string, currency: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ price_paid: price, currency }),
   });
   if (!res.ok) throw new Error(`Failed to patch price: ${res.status}`);
+}
+
+export async function createEvent(type: string, payload: Record<string, unknown>): Promise<EventDetail> {
+  const res = await authFetch(`${BASE}/api/events/${type}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Failed to create event: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function searchEntities(endpoint: string, q: string): Promise<Array<{ id: string; name?: string; title?: string; edition?: string }>> {
+  const res = await authFetch(`${BASE}/api/${endpoint}?q=${encodeURIComponent(q)}&limit=10`);
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export interface PersonRef {
@@ -68,13 +95,13 @@ export interface PersonRef {
 }
 
 export async function fetchPerson(id: string): Promise<PersonRef> {
-  const res = await fetch(`${BASE}/api/persons/${id}`);
+  const res = await authFetch(`${BASE}/api/persons/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
-  const res = await fetch(`${BASE}/api/persons/${id}/events`);
+  const res = await authFetch(`${BASE}/api/persons/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch person events: ${res.status}`);
   return res.json();
 }
@@ -88,13 +115,13 @@ export interface VenueRef {
 }
 
 export async function fetchVenue(id: string): Promise<VenueRef> {
-  const res = await fetch(`${BASE}/api/venues/${id}`);
+  const res = await authFetch(`${BASE}/api/venues/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);
   return res.json();
 }
 
 export async function fetchVenueEvents(id: string): Promise<EventListItem[]> {
-  const res = await fetch(`${BASE}/api/venues/${id}/events`);
+  const res = await authFetch(`${BASE}/api/venues/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch venue events: ${res.status}`);
   return res.json();
 }
@@ -106,13 +133,13 @@ export interface EnsembleRef {
 }
 
 export async function fetchEnsemble(id: string): Promise<EnsembleRef> {
-  const res = await fetch(`${BASE}/api/ensembles/${id}`);
+  const res = await authFetch(`${BASE}/api/ensembles/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
   return res.json();
 }
 
 export async function fetchEnsembleEvents(id: string): Promise<EventListItem[]> {
-  const res = await fetch(`${BASE}/api/ensembles/${id}/events`);
+  const res = await authFetch(`${BASE}/api/ensembles/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch ensemble events: ${res.status}`);
   return res.json();
 }
@@ -124,19 +151,19 @@ export interface FestivalRef {
 }
 
 export async function fetchFestival(id: string): Promise<FestivalRef> {
-  const res = await fetch(`${BASE}/api/festivals/${id}`);
+  const res = await authFetch(`${BASE}/api/festivals/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch festival: ${res.status}`);
   return res.json();
 }
 
 export async function fetchFestivalEvents(id: string): Promise<EventListItem[]> {
-  const res = await fetch(`${BASE}/api/festivals/${id}/events`);
+  const res = await authFetch(`${BASE}/api/festivals/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch festival events: ${res.status}`);
   return res.json();
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, { method: "DELETE" });
+  const res = await authFetch(`${BASE}/api/events/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete event: ${res.status}`);
 }
 
@@ -150,13 +177,13 @@ export interface PaymentMethod {
 }
 
 export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
-  const res = await fetch(`${BASE}/api/payment-methods`);
+  const res = await authFetch(`${BASE}/api/payment-methods`);
   if (!res.ok) throw new Error(`Failed to fetch payment methods: ${res.status}`);
   return res.json();
 }
 
 export async function patchEventPaymentMethod(id: string, payment_method_id: string | null): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payment_method_id }),
