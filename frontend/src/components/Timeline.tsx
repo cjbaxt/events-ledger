@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { fetchEvents, patchEventRating, fetchPaymentMethods } from "../lib/api";
+import { fetchEvents, fetchPaymentMethods } from "../lib/api";
 import type { PaymentMethod } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -205,11 +205,9 @@ function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]
 function EventCard({
   event,
   onClick,
-  onRate,
 }: {
   event: EventListItem;
   onClick: () => void;
-  onRate: (r: number | null) => void;
 }) {
   const dateObj = new Date(event.date + "T00:00:00");
   const day = dateObj.getDate();
@@ -236,7 +234,9 @@ function EventCard({
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
-        <StarRating rating={event.rating} onRate={onRate} />
+        {event.rating && (
+          <div className="text-xs text-neutral-400">{event.rating}★</div>
+        )}
       </div>
     </button>
   );
@@ -246,12 +246,10 @@ function MonthGroup({
   month,
   events,
   onEventClick,
-  onRate,
 }: {
   month: string;
   events: EventListItem[];
   onEventClick: (id: string) => void;
-  onRate: (id: string, r: number | null) => void;
 }) {
   return (
     <div className="mb-6">
@@ -264,7 +262,7 @@ function MonthGroup({
       </div>
       <div className="flex flex-col gap-2">
         {events.map((e) => (
-          <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} onRate={(r) => onRate(e.id, r)} />
+          <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />
         ))}
       </div>
     </div>
@@ -284,8 +282,8 @@ export default function Timeline() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(50);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-  const typeMenuRef = useRef<HTMLDivElement>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
 
   useEffect(() => {
     Promise.all([
@@ -304,18 +302,18 @@ export default function Timeline() {
     [allEvents]
   );
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) {
-        setTypeMenuOpen(false);
-      }
-    }
-    if (typeMenuOpen) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [typeMenuOpen]);
+  function openFilter() {
+    setPendingHidden(new Set(hiddenTypes));
+    setFilterOpen(true);
+  }
 
-  function toggleType(type: string) {
-    setHiddenTypes((prev) => {
+  function applyFilter() {
+    setHiddenTypes(new Set(pendingHidden));
+    setFilterOpen(false);
+  }
+
+  function togglePending(type: string) {
+    setPendingHidden((prev) => {
       const next = new Set(prev);
       next.has(type) ? next.delete(type) : next.add(type);
       return next;
@@ -345,16 +343,6 @@ export default function Timeline() {
     window.dispatchEvent(new CustomEvent("open-event", { detail: id }));
   }
 
-  function handleRate(id: string, rating: number | null) {
-    // Optimistic update
-    setAllEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, rating } : e))
-    );
-    patchEventRating(id, rating).catch(() => {
-      // revert on failure — refetch
-      fetchEvents({ status: "attended", limit: 500 }).then(setAllEvents);
-    });
-  }
 
   if (loading) {
     return (
@@ -373,6 +361,7 @@ export default function Timeline() {
   }
 
   return (
+    <>
     <div>
       {selectedYear && (
         <YearSummary
@@ -391,7 +380,6 @@ export default function Timeline() {
               month={month}
               events={pagedMonthGrouped[month]}
               onEventClick={handleEventClick}
-              onRate={handleRate}
             />
           ))}
 
@@ -431,64 +419,22 @@ export default function Timeline() {
             ))}
           </div>
           <div className="flex items-center gap-3 text-xs text-neutral-400">
-          {/* Type filter */}
-          <div className="relative" ref={typeMenuRef}>
-            <button
-              onClick={() => setTypeMenuOpen((o) => !o)}
-              className={`flex items-center gap-1.5 border rounded-md px-2.5 py-1 text-xs transition-colors ${
-                hiddenTypes.size > 0
-                  ? "border-neutral-900 text-neutral-900 bg-neutral-50"
-                  : "border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
-              }`}
-            >
-              Types
-              {hiddenTypes.size > 0 && (
-                <span className="text-[10px] bg-neutral-900 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                  {hiddenTypes.size}
-                </span>
-              )}
-            </button>
-            {typeMenuOpen && (
-              <div className="absolute bottom-full right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 w-48 z-20">
-                {ALL_TYPES.filter((t) => presentTypes.has(t)).map((type) => {
-                  const hidden = hiddenTypes.has(type);
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => toggleType(type)}
-                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className={`w-3.5 h-3.5 rounded border flex-shrink-0 transition-colors ${
-                        hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"
-                      }`}>
-                        {!hidden && (
-                          <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none">
-                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </div>
-                      <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400">
-                        <EventTypeIcon type={type} size={10} />
-                      </div>
-                      <span className={`capitalize transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>
-                        {type.replace(/_/g, " ")}
-                      </span>
-                    </button>
-                  );
-                })}
-                {hiddenTypes.size > 0 && (
-                  <div className="border-t border-neutral-100 mt-1 pt-1">
-                    <button
-                      onClick={() => setHiddenTypes(new Set())}
-                      className="w-full text-left px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition-colors"
-                    >
-                      Show all
-                    </button>
-                  </div>
-                )}
-              </div>
+          {/* Type filter button */}
+          <button
+            onClick={openFilter}
+            className={`flex items-center gap-1.5 border rounded-md px-2.5 py-1 text-xs transition-colors ${
+              hiddenTypes.size > 0
+                ? "border-neutral-900 text-neutral-900 bg-neutral-50"
+                : "border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
+            }`}
+          >
+            Filter
+            {hiddenTypes.size > 0 && (
+              <span className="text-[10px] bg-neutral-900 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                {hiddenTypes.size}
+              </span>
             )}
-          </div>
+          </button>
 
           <span>Per page</span>
           <select
@@ -504,5 +450,65 @@ export default function Timeline() {
         </div>
       </div>
     </div>
+
+    {/* Filter panel overlay */}
+    {filterOpen && (
+      <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setFilterOpen(false)}>
+        <div
+          className="bg-white rounded-t-2xl border-t border-neutral-200 px-5 pt-5 pb-8 max-h-[80vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-serif text-lg text-neutral-900">Filter by type</h3>
+            <button onClick={() => setFilterOpen(false)} className="text-neutral-400 hover:text-neutral-700 text-sm">✕</button>
+          </div>
+
+          <div className="space-y-1 mb-6">
+            {ALL_TYPES.filter((t) => presentTypes.has(t)).map((type) => {
+              const hidden = pendingHidden.has(type);
+              return (
+                <button
+                  key={type}
+                  onClick={() => togglePending(type)}
+                  className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-neutral-50 transition-colors"
+                >
+                  <div className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${
+                    hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"
+                  }`}>
+                    {!hidden && (
+                      <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div className="w-6 h-6 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 flex-shrink-0">
+                    <EventTypeIcon type={type} size={12} />
+                  </div>
+                  <span className={`text-sm capitalize flex-1 text-left transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>
+                    {type.replace(/_/g, " ")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setPendingHidden(new Set())}
+              className="flex-1 border border-neutral-200 text-neutral-600 text-sm rounded-xl py-3 hover:border-neutral-400 transition-colors"
+            >
+              Show all
+            </button>
+            <button
+              onClick={applyFilter}
+              className="flex-1 bg-neutral-900 text-white text-sm rounded-xl py-3 hover:bg-neutral-700 transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
