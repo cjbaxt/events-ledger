@@ -32,3 +32,4 @@ dist/
 postgres_data/
 .env.secrets
 *.sql
+frontend/.env

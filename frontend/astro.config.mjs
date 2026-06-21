@@ -12,7 +12,10 @@ export default defineConfig({
     plugins: [tailwindcss()],
     server: {
       proxy: {
-        "/api": "http://localhost:8000",
+        "/api": {
+          target: "https://events-ledger-api.onrender.com",
+          changeOrigin: true,
+        },
       },
     },
   }
