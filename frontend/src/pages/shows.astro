@@ -1,0 +1,25 @@
+---
+import "../styles/global.css";
+import Nav from "../components/Nav";
+import EditorUnlock from "../components/EditorUnlock";
+import Shows from "../components/Shows";
+import EventDetailPanel from "../components/EventDetailPanel";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shows — Events Ledger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-white min-h-screen">
+    <EditorUnlock client:load />
+    <Nav current="/shows" client:load />
+    <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
+      <p class="font-serif text-2xl text-neutral-900 mt-4 mb-6">Shows</p>
+      <Shows client:load />
+    </main>
+    <EventDetailPanel client:load />
+  </body>
+</html>

@@ -40,8 +40,12 @@ function MiniStars({ rating }: { rating: number }) {
 function openEvent(id: string) {
   window.dispatchEvent(new CustomEvent("open-event", { detail: id }));
 }
-function openPerson(id: string) {
-  window.dispatchEvent(new CustomEvent("open-person", { detail: id }));
+function openEntity(id: string, kind: "person" | "ensemble" | null) {
+  const name = kind === "ensemble" ? "open-ensemble" : "open-person";
+  window.dispatchEvent(new CustomEvent(name, { detail: id }));
+}
+function openVenue(id: string) {
+  window.dispatchEvent(new CustomEvent("open-venue", { detail: id }));
 }
 
 // ── Tab: By Type ─────────────────────────────────────────────────────────────
@@ -57,11 +61,11 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {types.map(([type, evts]) => {
-        const counts = new Map<string, { name: string; id: string; n: number }>();
+        const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number }>();
         for (const e of evts) {
           if (e.primary_entity_name && e.primary_entity_id) {
             const prev = counts.get(e.primary_entity_id);
-            counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, n: (prev?.n ?? 0) + 1 });
+            counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: (prev?.n ?? 0) + 1 });
           }
         }
         const top = [...counts.values()].sort((a, b) => b.n - a.n)[0];
@@ -79,7 +83,7 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
               <div className="min-h-[2rem]">
                 <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Most seen</div>
                 <button
-                  onClick={() => openPerson(top.id)}
+                  onClick={() => openEntity(top.id, top.kind)}
                   className="text-xs text-neutral-600 font-serif leading-snug text-left hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60"
                 >
                   {top.name}
@@ -111,23 +115,23 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
 // ── Tab: Artists ──────────────────────────────────────────────────────────────
 
 function ArtistsTab({ events }: { events: EventListItem[] }) {
-  const counts = new Map<string, { name: string; id: string; n: number; types: Set<string> }>();
+  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> }>();
   for (const e of events) {
     if (e.primary_entity_name && e.primary_entity_id) {
       const prev = counts.get(e.primary_entity_id);
       if (prev) { prev.n++; prev.types.add(e.type); }
-      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, n: 1, types: new Set([e.type]) });
+      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
     }
   }
-  const ranked = [...counts.values()].sort((a, b) => b.n - a.n);
-  if (!ranked.length) return <p className="text-sm text-neutral-400">No artist data yet.</p>;
+  const ranked = [...counts.values()].filter(a => a.n > 1).sort((a, b) => b.n - a.n);
+  if (!ranked.length) return <p className="text-sm text-neutral-400">No repeat artists yet.</p>;
 
   return (
     <div className="space-y-1">
       {ranked.map((a, i) => (
         <button
           key={a.id}
-          onClick={() => openPerson(a.id)}
+          onClick={() => openEntity(a.id, a.kind)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group"
         >
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
@@ -153,17 +157,21 @@ function VenuesTab({ events }: { events: EventListItem[] }) {
       else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1 });
     }
   }
-  const ranked = [...counts.values()].sort((a, b) => b.n - a.n);
-  if (!ranked.length) return <p className="text-sm text-neutral-400">No venue data yet.</p>;
+  const ranked = [...counts.values()].filter(v => v.n > 1).sort((a, b) => b.n - a.n);
+  if (!ranked.length) return <p className="text-sm text-neutral-400">No repeat venues yet.</p>;
 
   return (
     <div className="space-y-1">
       {ranked.map((v, i) => (
-        <div key={v.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
+        <button
+          key={v.id}
+          onClick={() => openVenue(v.id)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group"
+        >
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
-          <span className="flex-1 text-sm text-neutral-900 truncate">{v.name}</span>
+          <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -220,7 +228,7 @@ export default function Stats() {
 
   useEffect(() => {
     fetchEvents({ limit: 500 })
-      .then(evts => setEvents(evts.filter(e => e.status === "attended")))
+      .then(evts => setEvents(evts.filter(e => e.date <= new Date().toISOString().slice(0, 10))))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

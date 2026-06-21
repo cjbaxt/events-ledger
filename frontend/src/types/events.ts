@@ -1,4 +1,4 @@
-export type EventStatus = "attended" | "planned" | "cancelled";
+export type EventStatus = "attended" | "cancelled";
 
 export interface PaymentMethodRef {
   id: string;
@@ -28,6 +28,7 @@ export interface EventListItem {
   status: EventStatus;
   primary_entity_name: string | null;
   primary_entity_id: string | null;
+  primary_entity_kind: "person" | "ensemble" | null;
 }
 
 export interface NamedRef {

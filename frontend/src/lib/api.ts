@@ -24,6 +24,20 @@ export async function fetchEvents(params: {
   return res.json();
 }
 
+const PAGE_SIZE = 500;
+
+export async function fetchAllEvents(params: Omit<Parameters<typeof fetchEvents>[0], "limit" | "offset"> = {}): Promise<EventListItem[]> {
+  const all: EventListItem[] = [];
+  let offset = 0;
+  while (true) {
+    const page = await fetchEvents({ ...params, limit: PAGE_SIZE, offset });
+    all.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return all;
+}
+
 export async function fetchEvent(id: string): Promise<EventDetail> {
   const res = await authFetch(`${BASE}/api/events/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch event: ${res.status}`);

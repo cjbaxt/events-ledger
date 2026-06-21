@@ -4,12 +4,14 @@ import {
   IconCalendarEvent,
   IconChartBar,
   IconPlus,
+  IconSearch,
 } from "@tabler/icons-react";
 import { isEditor } from "../lib/editor";
 
 const links = [
   { href: "/", label: "Timeline", icon: IconTimeline },
   { href: "/upcoming", label: "Upcoming", icon: IconCalendarEvent },
+  { href: "/search", label: "Search", icon: IconSearch },
   { href: "/stats", label: "Stats", icon: IconChartBar },
 ];
 
