@@ -138,7 +138,7 @@ function SpendStat({ spend }: { spend: number }) {
   }
 
   return (
-    <button onClick={handleClick} className="text-right">
+    <button onClick={handleClick} className="text-right cursor-pointer">
       <div className={`font-serif text-xl text-neutral-900 transition-all duration-300 ${revealed ? "blur-none" : "blur-sm"}`}>
         €{Math.round(spend)}
       </div>
