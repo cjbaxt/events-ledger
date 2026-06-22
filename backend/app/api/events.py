@@ -513,7 +513,8 @@ def list_events(
             primary_entity_name=entity_name,
             primary_entity_id=entity_id,
             primary_entity_kind=entity_kind,
-            has_review=bool(e.review) or bool(
+            has_review=bool(e.review),
+            has_essay=bool(
                 e.links and any("substack" in (lnk.get("url") or "") for lnk in e.links)
             ),
         ))

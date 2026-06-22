@@ -3,7 +3,7 @@ import { fetchEvents, fetchPaymentMethods } from "../lib/api";
 import type { PaymentMethod } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
-import { IconWriting } from "@tabler/icons-react";
+import { IconWriting, IconArticle } from "@tabler/icons-react";
 
 const PAGE_SIZES = [25, 50, 100];
 
@@ -252,8 +252,11 @@ function EventCard({
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
-        {event.has_review && (
-          <IconWriting size={13} className="text-neutral-500" aria-label="Review written" />
+        {(event.has_review || event.has_essay) && (
+          <div className="flex gap-1">
+            {event.has_review && <IconWriting size={13} className="text-neutral-500" aria-label="Note written" />}
+            {event.has_essay && <IconArticle size={13} className="text-neutral-500" aria-label="Essay written" />}
+          </div>
         )}
       </div>
       <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
