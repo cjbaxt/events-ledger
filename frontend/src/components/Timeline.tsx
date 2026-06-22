@@ -146,7 +146,7 @@ function SpendStat({ spend }: { spend: number }) {
   );
 }
 
-function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]; year: string; paymentMethods: PaymentMethod[] }) {
+function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: { events: EventListItem[]; year: string; paymentMethods: PaymentMethod[]; hiddenTypes: Set<string>; onFilter: () => void }) {
   const types = topTypes(events);
   const rated = events.filter((e) => e.rating);
   const avgRating = rated.length
@@ -183,6 +183,7 @@ function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]
           <SpendStat spend={spend} />
         </div>
       </div>
+      <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] uppercase tracking-widest text-neutral-400">Top attended</span>
         {types.map(([type, count]) => (
@@ -197,6 +198,22 @@ function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]
             <span className="text-xs text-neutral-300">· {count}</span>
           </div>
         ))}
+      </div>
+      <button
+        onClick={onFilter}
+        className={`flex-shrink-0 flex items-center gap-1.5 border rounded-md px-2.5 py-1 text-xs transition-colors ${
+          hiddenTypes.size > 0
+            ? "border-neutral-900 text-neutral-900 bg-neutral-50"
+            : "border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
+        }`}
+      >
+        Filter
+        {hiddenTypes.size > 0 && (
+          <span className="text-[10px] bg-neutral-900 text-white rounded-full w-4 h-4 flex items-center justify-center">
+            {hiddenTypes.size}
+          </span>
+        )}
+      </button>
       </div>
     </div>
   );
@@ -376,6 +393,8 @@ export default function Timeline() {
           year={selectedYear}
           events={yearEvents}
           paymentMethods={paymentMethods}
+          hiddenTypes={hiddenTypes}
+          onFilter={openFilter}
         />
       )}
 
@@ -427,22 +446,6 @@ export default function Timeline() {
             ))}
           </div>
           <div className="flex items-center gap-3 text-xs text-neutral-400">
-          {/* Type filter button */}
-          <button
-            onClick={openFilter}
-            className={`flex items-center gap-1.5 border rounded-md px-2.5 py-1 text-xs transition-colors ${
-              hiddenTypes.size > 0
-                ? "border-neutral-900 text-neutral-900 bg-neutral-50"
-                : "border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
-            }`}
-          >
-            Filter
-            {hiddenTypes.size > 0 && (
-              <span className="text-[10px] bg-neutral-900 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                {hiddenTypes.size}
-              </span>
-            )}
-          </button>
 
           <span>Per page</span>
           <select
