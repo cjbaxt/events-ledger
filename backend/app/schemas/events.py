@@ -74,6 +74,7 @@ class EventListItem(BaseModel):
     primary_entity_name: Optional[str] = None
     primary_entity_id: Optional[uuid.UUID] = None
     primary_entity_kind: Optional[str] = None  # "person" or "ensemble"
+    has_review: bool = False
     model_config = {"from_attributes": True}
 
 

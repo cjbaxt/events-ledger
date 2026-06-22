@@ -251,8 +251,8 @@ function EventCard({
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
-        {event.rating && (
-          <div className="text-xs text-neutral-400">{event.rating}★</div>
+        {event.has_review && (
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300" aria-label="Review written"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-11a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1m3 0v18"/><path d="M13 8l2 0"/><path d="M13 12l2 0"/></svg>
         )}
       </div>
       <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>

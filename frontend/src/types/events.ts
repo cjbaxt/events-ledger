@@ -29,6 +29,7 @@ export interface EventListItem {
   primary_entity_name: string | null;
   primary_entity_id: string | null;
   primary_entity_kind: "person" | "ensemble" | null;
+  has_review: boolean;
 }
 
 export interface NamedRef {
