@@ -50,13 +50,49 @@ function openVenue(id: string) {
 
 // ── Tab: By Type ─────────────────────────────────────────────────────────────
 
+function TypeDrillDown({ type, evts, onBack }: { type: string; evts: EventListItem[]; onBack: () => void }) {
+  const sorted = [...evts].sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <div>
+      <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition-colors mb-5">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        Back
+      </button>
+      <div className="flex items-center gap-2 mb-5">
+        <EventTypeIcon type={type} size={14} />
+        <span className="font-serif text-xl text-neutral-900">{TYPE_LABELS[type] ?? type}</span>
+        <span className="text-sm text-neutral-300">{evts.length}</span>
+      </div>
+      <div className="space-y-0.5">
+        {sorted.map(e => (
+          <button
+            key={e.id}
+            onClick={() => openEvent(e.id)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group"
+          >
+            <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(0, 4)}</span>
+            <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{e.title}</span>
+            <span className="text-[10px] text-neutral-300 flex-shrink-0 truncate max-w-[30%]">{e.venue_name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ByTypeTab({ events }: { events: EventListItem[] }) {
+  const [drillType, setDrillType] = useState<string | null>(null);
+
   const byType = new Map<string, EventListItem[]>();
   for (const e of events) {
     if (!byType.has(e.type)) byType.set(e.type, []);
     byType.get(e.type)!.push(e);
   }
   const types = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  if (drillType) {
+    return <TypeDrillDown type={drillType} evts={byType.get(drillType) ?? []} onBack={() => setDrillType(null)} />;
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -72,7 +108,11 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
         const favourite = [...evts].filter(e => e.rating !== null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null;
 
         return (
-          <div key={type} className="border border-neutral-100 rounded-xl p-4 flex flex-col gap-3">
+          <div
+            key={type}
+            onClick={() => setDrillType(type)}
+            className="border border-neutral-100 rounded-xl p-4 flex flex-col gap-3 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all"
+          >
             <div className="flex items-center gap-1.5 text-neutral-400">
               <EventTypeIcon type={type} size={13} />
               <span className="text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span>
@@ -83,7 +123,7 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
               <div className="min-h-[2rem]">
                 <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Most seen</div>
                 <button
-                  onClick={() => openEntity(top.id, top.kind)}
+                  onClick={(e) => { e.stopPropagation(); openEntity(top.id, top.kind); }}
                   className="text-xs text-neutral-600 font-serif leading-snug text-left hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60"
                 >
                   {top.name}
@@ -94,7 +134,7 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
 
             <div className="min-h-[2.5rem]">
               {favourite ? (
-                <button onClick={() => openEvent(favourite.id)} className="text-left w-full group">
+                <button onClick={(e) => { e.stopPropagation(); openEvent(favourite.id); }} className="text-left w-full group">
                   <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Top rated</div>
                   <MiniStars rating={favourite.rating!} />
                   <div className="text-xs text-neutral-500 font-serif mt-1 leading-snug group-hover:text-neutral-900 group-hover:underline underline-offset-2 transition-colors line-clamp-2">
