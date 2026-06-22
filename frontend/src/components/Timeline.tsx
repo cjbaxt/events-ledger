@@ -159,7 +159,7 @@ function YearSummary({ events, year, paymentMethods }: { events: EventListItem[]
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-baseline gap-3">
           <h2 className="font-serif text-3xl text-neutral-900">{year}</h2>
-          {year !== new Date().getFullYear().toString() && (
+          {parseInt(year) < 2025 && (
             <span className="text-[10px] uppercase tracking-widest text-orange-300">memory gaps</span>
           )}
         </div>

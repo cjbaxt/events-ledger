@@ -187,7 +187,7 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
     const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1) : 0;
     byYear.set(y, { count: prev.count + 1, spend: prev.spend + price });
   }
-  const years = [...byYear.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const years = [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const maxCount = Math.max(...years.map(([, v]) => v.count));
 
   return (
@@ -195,20 +195,27 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
       <div>
         <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-4">Events per year</div>
         <div className="space-y-2">
-          {years.map(([year, { count, spend }]) => (
-            <div key={year} className="flex items-center gap-3">
-              <span className="text-xs text-neutral-400 w-10 flex-shrink-0">{year}</span>
-              <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-neutral-200 rounded-full transition-all"
-                  style={{ width: `${(count / maxCount) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-neutral-500 w-6 text-right flex-shrink-0">{count}</span>
-              {spend > 0 && (
-                <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">€{Math.round(spend)}</span>
+          {years.map(([year, { count, spend }], i) => (
+            <>
+              {i > 0 && years[i - 1][0] === "2025" && parseInt(year) < 2025 && (
+                <div key="gap-divider" className="flex items-center gap-3 py-1">
+                  <span className="text-[10px] uppercase tracking-widest text-orange-300 w-full">memory gaps below</span>
+                </div>
               )}
-            </div>
+              <div key={year} className="flex items-center gap-3">
+                <span className={`text-xs w-10 flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
+                <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${parseInt(year) < 2025 ? "bg-neutral-100" : "bg-neutral-200"}`}
+                    style={{ width: `${(count / maxCount) * 100}%` }}
+                  />
+                </div>
+                <span className={`text-xs w-6 text-right flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-500"}`}>{count}</span>
+                {spend > 0 && (
+                  <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">€{Math.round(spend)}</span>
+                )}
+              </div>
+            </>
           ))}
         </div>
       </div>

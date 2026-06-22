@@ -859,9 +859,9 @@ export default function EventDetailPanel() {
                       <span>{formatDate(event.date)}{event.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${event.date.slice(0, 4)}`}</span>
                       {event.time && <span>{event.time.slice(0, 5)}</span>}
                     </div>
-                    {parseInt(event.date.slice(0, 4)) < new Date().getFullYear() && (
+                    {parseInt(event.date.slice(0, 4)) < 2025 && (
                       <div className="mt-1.5 text-[10px] uppercase tracking-widest text-amber-500">
-                        Data may be incomplete for pre-{new Date().getFullYear()} events
+                        Data may be incomplete for pre-2025 events
                       </div>
                     )}
                   </div>
