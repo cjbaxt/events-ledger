@@ -34,7 +34,6 @@ jobs:
         working-directory: frontend
         env:
           PUBLIC_STATIC_DATA: "true"
-          PUBLIC_BASE_PATH: "/events-ledger"
         run: npm run build
 
       - uses: actions/configure-pages@v4

@@ -2,7 +2,7 @@ import type { EventListItem, EventDetail } from "../types/events";
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? "";
 const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
-const DATA = import.meta.env.PUBLIC_BASE_PATH ?? "";
+const DATA = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
 async function authFetch(url: string, init: RequestInit = {}): Promise<Response> {
   return fetch(url, init);
