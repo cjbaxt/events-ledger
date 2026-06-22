@@ -8,5 +8,6 @@ echo "Committing and pushing..."
 git add frontend/public/data
 git commit -m "Update data $(date '+%Y-%m-%d')"
 git push origin dev
+git push origin dev:main
 
 echo "Done! GitHub Actions will deploy in a minute or two."
