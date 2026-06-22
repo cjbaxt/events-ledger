@@ -310,14 +310,17 @@ export default function Timeline() {
   useEffect(() => {
     function load() {
       const today = new Date().toISOString().slice(0, 10);
-      Promise.all([
+      const paramYear = new URLSearchParams(window.location.search).get("year");
+    Promise.all([
         fetchEvents({ limit: 500 }),
         fetchPaymentMethods(),
       ]).then(([all, pms]) => {
         const events = all.filter((e) => e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
         setAllEvents(events);
         setPaymentMethods(pms);
-        if (events.length > 0) setSelectedYear(events[0].date.slice(0, 4));
+        const years = [...new Set(events.map(e => e.date.slice(0, 4)))];
+        const initial = paramYear && years.includes(paramYear) ? paramYear : events[0]?.date.slice(0, 4);
+        if (initial) setSelectedYear(initial);
       }).catch(() => {}).finally(() => setLoading(false));
     }
     load();

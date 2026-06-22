@@ -202,7 +202,11 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
                   <span className="text-[10px] uppercase tracking-widest text-orange-300 w-full">memory gaps below</span>
                 </div>
               )}
-              <div key={year} className="flex items-center gap-3">
+              <button
+                key={year}
+                className="flex items-center gap-3 w-full text-left hover:opacity-70 transition-opacity"
+                onClick={() => window.location.href = `/?year=${year}`}
+              >
                 <span className={`text-xs w-10 flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
                 <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
                   <div
@@ -211,10 +215,10 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
                   />
                 </div>
                 <span className={`text-xs w-6 text-right flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-500"}`}>{count}</span>
-                {spend > 0 && (
-                  <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">€{Math.round(spend)}</span>
-                )}
-              </div>
+                <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">
+                  {spend > 0 ? `€${Math.round(spend)}` : ""}
+                </span>
+              </button>
             </>
           ))}
         </div>
