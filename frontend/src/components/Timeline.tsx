@@ -410,8 +410,8 @@ export default function Timeline() {
           ))}
         </div>
         <div className="flex items-center justify-between px-4 pb-3 md:py-3">
-          {/* Year pills — inline on desktop */}
-          <div className="hidden md:flex gap-2 flex-wrap">
+          {/* Year pills — scrollable on desktop */}
+          <div className="hidden md:flex gap-2 overflow-x-auto no-scrollbar">
             {years.map((y) => (
               <button
                 key={y}
