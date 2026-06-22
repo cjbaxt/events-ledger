@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { isEditor } from "../lib/editor";
-import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose } from "@tabler/icons-react";
+import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose, IconWriting } from "@tabler/icons-react";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents,
@@ -630,7 +630,10 @@ function ReviewSection({
   return (
     <div className="border-t border-b border-neutral-100 pt-4 pb-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-400">
+          <IconWriting size={12} className="text-neutral-400" />
+          My take
+        </div>
         {!editing && editable && (
           <EditableRating rating={rating} onRate={onRate} />
         )}
