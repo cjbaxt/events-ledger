@@ -223,6 +223,7 @@ export interface PaymentMethod {
 }
 
 export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
+  if (STATIC) return [];
   const res = await authFetch(`${BASE}/api/payment-methods`);
   if (!res.ok) throw new Error(`Failed to fetch payment methods: ${res.status}`);
   return res.json();
