@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createEvent, searchEntities } from "../lib/api";
+import { url } from "../lib/base";
 import EventTypeIcon from "./EventTypeIcon";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -503,7 +504,7 @@ export default function AddEvent() {
     try {
       const payload = buildPayload(type, base, ext);
       const event = await createEvent(type, payload);
-      window.location.href = `/`;
+      window.location.href = url("/");
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent("open-event", { detail: event.id }));
       }, 400);

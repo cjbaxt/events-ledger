@@ -8,13 +8,14 @@ import {
   IconInfoCircle,
 } from "@tabler/icons-react";
 import { isEditor } from "../lib/editor";
+import { url } from "../lib/base";
 
 const links = [
-  { href: "/", label: "Timeline", icon: IconTimeline },
-  { href: "/upcoming", label: "Upcoming", icon: IconCalendarEvent },
-  { href: "/search", label: "Search", icon: IconSearch },
-  { href: "/stats", label: "Stats", icon: IconChartBar },
-  { href: "/about", label: "About", icon: IconInfoCircle },
+  { path: "/", href: url("/"), label: "Timeline", icon: IconTimeline },
+  { path: "/upcoming", href: url("/upcoming"), label: "Upcoming", icon: IconCalendarEvent },
+  { path: "/search", href: url("/search"), label: "Search", icon: IconSearch },
+  { path: "/stats", href: url("/stats"), label: "Stats", icon: IconChartBar },
+  { path: "/about", href: url("/about"), label: "About", icon: IconInfoCircle },
 ];
 
 export default function Nav({ current }: { current: string }) {
@@ -33,8 +34,8 @@ export default function Nav({ current }: { current: string }) {
           events ledger
         </span>
         <nav className="flex gap-8 flex-1">
-          {links.map(({ href, label }) => {
-            const active = current === href;
+          {links.map(({ path, href, label }) => {
+            const active = current === path;
             return (
               <a
                 key={href}
@@ -51,7 +52,7 @@ export default function Nav({ current }: { current: string }) {
           })}
         </nav>
         {editor && (
-          <a href="/add" className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
+          <a href={url("/add")} className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
             <IconPlus size={16} />
             Add event
           </a>
@@ -60,8 +61,8 @@ export default function Nav({ current }: { current: string }) {
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-16 border-t border-neutral-100 bg-white/95 backdrop-blur-sm flex items-center">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active = current === href;
+        {links.map(({ path, href, label, icon: Icon }) => {
+          const active = current === path;
           return (
             <a
               key={href}
@@ -76,7 +77,7 @@ export default function Nav({ current }: { current: string }) {
           );
         })}
         {editor && (
-          <a href="/add" className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
+          <a href={url("/add")} className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
             <IconPlus size={22} strokeWidth={1.5} />
             <span className="text-[10px] uppercase tracking-wider">Add</span>
           </a>

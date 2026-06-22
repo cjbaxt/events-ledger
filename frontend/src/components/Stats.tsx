@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { url } from "../lib/base";
 import { fetchEvents } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -245,7 +246,7 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
               <button
                 key={year}
                 className="flex items-center gap-3 w-full text-left hover:opacity-70 transition-opacity"
-                onClick={() => window.location.href = `/?year=${year}`}
+                onClick={() => window.location.href = url(`/?year=${year}`)}
               >
                 <span className={`text-xs w-10 flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
                 <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
