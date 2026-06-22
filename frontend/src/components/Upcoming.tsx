@@ -142,7 +142,7 @@ export default function Upcoming() {
               .sort((a, b) => a.date.localeCompare(b.date))
           )
         )
-        .catch(() => {})
+        .catch((e) => console.error("Upcoming fetch failed", e))
         .finally(() => setLoading(false));
     }
     load();
