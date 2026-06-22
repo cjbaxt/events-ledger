@@ -134,7 +134,7 @@ def _resolve_ids_to_names(session: Session, ids: Optional[List[uuid.UUID]], mode
     for id in ids:
         obj = session.get(model, id)
         if obj:
-            results.append({"id": str(obj.id), "name": obj.name})
+            results.append({"id": str(obj.id), "name": getattr(obj, "name", None) or getattr(obj, "title", None)})
     return results or None
 
 
@@ -199,6 +199,8 @@ def _resolve_credits(session: Session, event_id: uuid.UUID) -> Optional[list]:
 def _resolve_cast(session: Session, cast: Optional[dict]) -> Optional[dict]:
     """Resolve cast dict {role: UUID} → {role: person_name}."""
     if not cast:
+        return None
+    if isinstance(cast, list):
         return None
     resolved = {}
     for role, val in cast.items():

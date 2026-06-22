@@ -1,10 +1,20 @@
 import type { EventListItem, EventDetail } from "../types/events";
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? "";
+const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
+const DATA = import.meta.env.PUBLIC_BASE_PATH ?? "";
 
 async function authFetch(url: string, init: RequestInit = {}): Promise<Response> {
   return fetch(url, init);
 }
+
+async function staticFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${DATA}${path}`);
+  if (!res.ok) throw new Error(`Static fetch failed: ${path}`);
+  return res.json();
+}
+
+let _eventsCache: EventListItem[] | null = null;
 
 export async function fetchEvents(params: {
   status?: string;
@@ -13,6 +23,19 @@ export async function fetchEvents(params: {
   limit?: number;
   offset?: number;
 } = {}): Promise<EventListItem[]> {
+  if (STATIC) {
+    if (!_eventsCache) _eventsCache = await staticFetch<EventListItem[]>("/data/events.json");
+    let results = _eventsCache;
+    if (params.status) results = results.filter(e => e.status === params.status);
+    if (params.type) results = results.filter(e => e.type === params.type);
+    if (params.q) {
+      const q = params.q.toLowerCase();
+      results = results.filter(e => e.title.toLowerCase().includes(q));
+    }
+    if (params.offset) results = results.slice(params.offset);
+    if (params.limit) results = results.slice(0, params.limit);
+    return results;
+  }
   const qs = new URLSearchParams();
   if (params.status) qs.set("status", params.status);
   if (params.type) qs.set("type", params.type);
@@ -39,12 +62,14 @@ export async function fetchAllEvents(params: Omit<Parameters<typeof fetchEvents>
 }
 
 export async function fetchEvent(id: string): Promise<EventDetail> {
+  if (STATIC) return staticFetch<EventDetail>(`/data/events/${id}.json`);
   const res = await authFetch(`${BASE}/api/events/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch event: ${res.status}`);
   return res.json();
 }
 
 export async function patchEventRating(id: string, rating: number | null): Promise<void> {
+  if (STATIC) return;
   const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -54,6 +79,7 @@ export async function patchEventRating(id: string, rating: number | null): Promi
 }
 
 export async function patchEventReview(id: string, review: string | null): Promise<void> {
+  if (STATIC) return;
   const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -63,6 +89,7 @@ export async function patchEventReview(id: string, review: string | null): Promi
 }
 
 export async function patchEventLinks(id: string, links: Array<{ url: string; label?: string }>): Promise<void> {
+  if (STATIC) return;
   const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -72,6 +99,7 @@ export async function patchEventLinks(id: string, links: Array<{ url: string; la
 }
 
 export async function patchEventPrice(id: string, price: string, currency: string): Promise<void> {
+  if (STATIC) return;
   const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -105,12 +133,14 @@ export interface PersonRef {
 }
 
 export async function fetchPerson(id: string): Promise<PersonRef> {
+  if (STATIC) return staticFetch<PersonRef>(`/data/persons/${id}.json`);
   const res = await authFetch(`${BASE}/api/persons/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
   return res.json();
 }
 
 export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
+  if (STATIC) return staticFetch<EventListItem[]>(`/data/persons/${id}/events.json`);
   const res = await authFetch(`${BASE}/api/persons/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch person events: ${res.status}`);
   return res.json();
@@ -125,12 +155,14 @@ export interface VenueRef {
 }
 
 export async function fetchVenue(id: string): Promise<VenueRef> {
+  if (STATIC) return staticFetch<VenueRef>(`/data/venues/${id}.json`);
   const res = await authFetch(`${BASE}/api/venues/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);
   return res.json();
 }
 
 export async function fetchVenueEvents(id: string): Promise<EventListItem[]> {
+  if (STATIC) return staticFetch<EventListItem[]>(`/data/venues/${id}/events.json`);
   const res = await authFetch(`${BASE}/api/venues/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch venue events: ${res.status}`);
   return res.json();
@@ -143,12 +175,14 @@ export interface EnsembleRef {
 }
 
 export async function fetchEnsemble(id: string): Promise<EnsembleRef> {
+  if (STATIC) return staticFetch<EnsembleRef>(`/data/ensembles/${id}.json`);
   const res = await authFetch(`${BASE}/api/ensembles/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
   return res.json();
 }
 
 export async function fetchEnsembleEvents(id: string): Promise<EventListItem[]> {
+  if (STATIC) return staticFetch<EventListItem[]>(`/data/ensembles/${id}/events.json`);
   const res = await authFetch(`${BASE}/api/ensembles/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch ensemble events: ${res.status}`);
   return res.json();
@@ -161,12 +195,14 @@ export interface FestivalRef {
 }
 
 export async function fetchFestival(id: string): Promise<FestivalRef> {
+  if (STATIC) return staticFetch<FestivalRef>(`/data/festivals/${id}.json`);
   const res = await authFetch(`${BASE}/api/festivals/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch festival: ${res.status}`);
   return res.json();
 }
 
 export async function fetchFestivalEvents(id: string): Promise<EventListItem[]> {
+  if (STATIC) return staticFetch<EventListItem[]>(`/data/festivals/${id}/events.json`);
   const res = await authFetch(`${BASE}/api/festivals/${id}/events`);
   if (!res.ok) throw new Error(`Failed to fetch festival events: ${res.status}`);
   return res.json();
