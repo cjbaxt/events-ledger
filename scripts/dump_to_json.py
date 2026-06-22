@@ -54,22 +54,30 @@ def main():
             write(OUT / "events" / f"{e.id}.json", dump(detail))
 
         print("Persons…")
-        for p in session_all(s, Person):
+        persons = session_all(s, Person)
+        write(OUT / "persons.json", [dump(get_person(str(p.id), session=s)) for p in persons])
+        for p in persons:
             write(OUT / "persons" / f"{p.id}.json", dump(get_person(str(p.id), session=s)))
             write(OUT / "persons" / f"{p.id}" / "events.json", [dump(e) for e in get_person_events(str(p.id), session=s)])
 
         print("Venues…")
-        for v in session_all(s, Venue):
+        venues = session_all(s, Venue)
+        write(OUT / "venues.json", [dump(get_venue(str(v.id), session=s)) for v in venues])
+        for v in venues:
             write(OUT / "venues" / f"{v.id}.json", dump(get_venue(str(v.id), session=s)))
             write(OUT / "venues" / f"{v.id}" / "events.json", [dump(e) for e in get_venue_events(str(v.id), session=s)])
 
         print("Ensembles…")
-        for e in session_all(s, Ensemble):
+        ensembles = session_all(s, Ensemble)
+        write(OUT / "ensembles.json", [dump(get_ensemble(str(e.id), session=s)) for e in ensembles])
+        for e in ensembles:
             write(OUT / "ensembles" / f"{e.id}.json", dump(get_ensemble(str(e.id), session=s)))
             write(OUT / "ensembles" / f"{e.id}" / "events.json", [dump(ev) for ev in get_ensemble_events(str(e.id), session=s)])
 
         print("Festivals…")
-        for f in session_all(s, Festival):
+        festivals = session_all(s, Festival)
+        write(OUT / "festivals.json", [dump(get_festival(str(f.id), session=s)) for f in festivals])
+        for f in festivals:
             write(OUT / "festivals" / f"{f.id}.json", dump(get_festival(str(f.id), session=s)))
             write(OUT / "festivals" / f"{f.id}" / "events.json", [dump(e) for e in get_festival_events(str(f.id), session=s)])
 

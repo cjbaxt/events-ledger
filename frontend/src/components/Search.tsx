@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchAllEvents } from "../lib/api";
+import { fetchAllEvents, DATA, STATIC } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -127,7 +127,7 @@ function PeopleTab({ query }: { query: string }) {
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
-    fetch("/api/persons?limit=2000")
+    fetch(STATIC ? `${DATA}/data/persons.json` : "/api/persons?limit=2000")
       .then(r => r.json()).then(setPeople).catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -184,7 +184,7 @@ function EnsemblesTab({ query }: { query: string }) {
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
-    fetch("/api/ensembles?limit=2000")
+    fetch(STATIC ? `${DATA}/data/ensembles.json` : "/api/ensembles?limit=2000")
       .then(r => r.json()).then(setEnsembles).catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -244,7 +244,7 @@ function VenuesTab({ query }: { query: string }) {
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
-    fetch("/api/venues?limit=2000")
+    fetch(STATIC ? `${DATA}/data/venues.json` : "/api/venues?limit=2000")
       .then(r => r.json()).then(setVenues).catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -304,7 +304,7 @@ function FestivalsTab({ query }: { query: string }) {
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
-    fetch("/api/festivals?limit=2000")
+    fetch(STATIC ? `${DATA}/data/festivals.json` : "/api/festivals?limit=2000")
       .then(r => r.json()).then(setFestivals).catch(() => {})
       .finally(() => setLoading(false));
   }, []);
