@@ -5,6 +5,7 @@ import {
   IconChartBar,
   IconPlus,
   IconSearch,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { isEditor } from "../lib/editor";
 
@@ -13,6 +14,7 @@ const links = [
   { href: "/upcoming", label: "Upcoming", icon: IconCalendarEvent },
   { href: "/search", label: "Search", icon: IconSearch },
   { href: "/stats", label: "Stats", icon: IconChartBar },
+  { href: "/about", label: "About", icon: IconInfoCircle },
 ];
 
 export default function Nav({ current }: { current: string }) {
