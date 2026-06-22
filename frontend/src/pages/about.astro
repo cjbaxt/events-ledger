@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import Nav from "../components/Nav";
 import EventDetailPanel from "../components/EventDetailPanel";
+import IconLegend from "../components/IconLegend";
 import fs from "fs";
 import path from "path";
 
@@ -23,6 +24,7 @@ const paragraphs = raw.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
       <div class="space-y-5 text-sm text-neutral-700 leading-relaxed">
         {paragraphs.map(p => <p>{p}</p>)}
       </div>
+      <IconLegend client:load />
     </main>
     <EventDetailPanel client:load />
   </body>
