@@ -21,12 +21,12 @@ else
 fi
 
 echo ""
-echo "▶ Pushing to dev..."
-git push origin dev 2>&1 && echo "✓ Pushed to dev" || echo "  (dev already up to date)"
-
-echo ""
 echo "▶ Pushing to main (triggers GitHub Actions)..."
-git push origin dev:main 2>&1 && echo "✓ Pushed to main" || echo "  (main already up to date)"
+if git push origin main 2>/dev/null; then
+  echo "✓ Pushed to main"
+else
+  echo "  (already up to date)"
+fi
 
 echo ""
 echo "▶ Waiting for GitHub Actions to start..."
