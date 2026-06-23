@@ -746,6 +746,30 @@ export default function EventDetailPanel() {
   const backToEvent = useCallback(() => setNavTarget(null), []);
 
 
+  // Open event from direct URL on initial load (e.g. linked from cultural dispatch)
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+    // Direct path: /events-ledger/events/<id>
+    const pathMatch = window.location.pathname.match(/\/events\/([a-f0-9-]{36})/);
+    if (pathMatch) {
+      setEventId(pathMatch[1]);
+      setOpen(true);
+      return;
+    }
+
+    // Redirected via 404.html: ?redirect=/events/<id>
+    const redirectParam = new URLSearchParams(window.location.search).get("redirect");
+    if (redirectParam) {
+      const redirectMatch = redirectParam.match(/\/events\/([a-f0-9-]{36})/);
+      if (redirectMatch) {
+        setEventId(redirectMatch[1]);
+        setOpen(true);
+        window.history.replaceState({}, "", `${base}/events/${redirectMatch[1]}`);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     function onOpenEvent(e: Event) {
       const id = (e as CustomEvent<string>).detail;
