@@ -13,15 +13,18 @@ export default defineConfig({
   } : {}),
   vite: {
     plugins: [tailwindcss()],
-    ...(!isStatic ? {
-      server: {
+    server: {
+      watch: {
+        ignored: ["**/public/data/**"],
+      },
+      ...(!isStatic ? {
         proxy: {
           "/api": {
             target: "http://localhost:8001",
             changeOrigin: true,
           },
         },
-      },
-    } : {}),
+      } : {}),
+    },
   },
 });
