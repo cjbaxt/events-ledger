@@ -7,7 +7,10 @@ import {
   IconSearch,
   IconInfoCircle,
 } from "@tabler/icons-react";
-import { isEditor } from "../lib/editor";
+import { isEditor, lock } from "../lib/editor";
+
+const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
+if (STATIC && typeof localStorage !== "undefined") lock();
 import { url } from "../lib/base";
 
 const links = [
