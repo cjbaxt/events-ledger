@@ -3,7 +3,10 @@ import { isEditor, unlock, lock } from "../lib/editor";
 
 type PublishState = "idle" | "running" | "done" | "error";
 
+const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
+
 export default function EditorUnlock() {
+  if (STATIC) return null;
   const [editor, setEditor] = useState(() => isEditor());
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
