@@ -64,7 +64,7 @@ You need two terminals.
 ```bash
 cd backend
 source .venv/bin/activate
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8001
 ```
 
 This runs on `http://localhost:8000`. Leave it running.
