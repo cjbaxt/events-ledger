@@ -13,18 +13,20 @@ echo "  $CHANGED file(s) staged"
 
 echo ""
 echo "▶ Committing..."
-git commit -m "Update data $(date '+%Y-%m-%d')" || echo "  (nothing to commit, data unchanged)"
-echo "✓ Committed"
+if git diff --cached --quiet; then
+  echo "  (nothing to commit, data unchanged)"
+else
+  git commit -m "Update data $(date '+%Y-%m-%d')"
+  echo "✓ Committed"
+fi
 
 echo ""
 echo "▶ Pushing to dev..."
-git push origin dev
-echo "✓ Pushed to dev"
+git push origin dev 2>&1 && echo "✓ Pushed to dev" || echo "  (dev already up to date)"
 
 echo ""
 echo "▶ Pushing to main (triggers GitHub Actions)..."
-git push origin dev:main
-echo "✓ Pushed to main"
+git push origin dev:main 2>&1 && echo "✓ Pushed to main" || echo "  (main already up to date)"
 
 echo ""
 echo "▶ Waiting for GitHub Actions to start..."
