@@ -9,7 +9,7 @@ export default defineConfig({
   integrations: [react()],
   ...(isStatic ? {
     site: "https://cjbaxt.github.io",
-    base: "/events-ledger",
+    base: "/events-ledger/",
   } : {}),
   vite: {
     plugins: [tailwindcss()],
