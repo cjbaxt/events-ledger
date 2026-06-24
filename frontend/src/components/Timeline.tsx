@@ -156,7 +156,7 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: { 
   const spend = totalSpendEur(events, paymentMethods, year);
 
   return (
-    <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4 -mt-4">
+    <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-baseline gap-3">
           <h2 className="font-serif text-3xl text-neutral-900">{year}</h2>
