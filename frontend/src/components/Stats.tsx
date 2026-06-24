@@ -57,10 +57,10 @@ const PASTEL_COLORS = [
   "#e8e8d5", "#d5e8e8", "#e2d5e8", "#d5e4e8", "#e8d8d5",
 ];
 
-function subtypeColor(subtype: string): string {
-  let hash = 0;
-  for (let i = 0; i < subtype.length; i++) hash = (hash * 31 + subtype.charCodeAt(i)) >>> 0;
-  return PASTEL_COLORS[hash % PASTEL_COLORS.length];
+function strHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
 }
 
 const SUBTYPE_LABEL = (s: string) => s.replace(/_/g, " ");
@@ -149,10 +149,10 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
             {subtypes.length > 0 && (
               <div className="relative">
                 <div className="flex h-3 rounded-full overflow-hidden gap-px">
-                  {subtypes.map(([sub, count]) => (
+                  {subtypes.map(([sub, count], i) => (
                     <button
                       key={sub}
-                      style={{ width: `${(count / evts.length) * 100}%`, background: subtypeColor(sub), filter: hovered?.type === type && hovered?.subtype === sub ? "brightness(0.9)" : "none" }}
+                      style={{ width: `${(count / evts.length) * 100}%`, background: PASTEL_COLORS[(strHash(type) + i) % PASTEL_COLORS.length], filter: hovered?.type === type && hovered?.subtype === sub ? "brightness(0.9)" : "none" }}
                       className="h-full focus:outline-none transition-all"
                       onMouseEnter={e => { e.stopPropagation(); setHovered({ type, subtype: sub, count }); }}
                       onMouseLeave={() => setHovered(null)}
