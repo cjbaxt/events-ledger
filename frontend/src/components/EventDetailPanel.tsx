@@ -863,8 +863,8 @@ export default function EventDetailPanel() {
                 {event && (
                   <>
                     <EventTypeIcon type={event.type} size={16} />
-                    <span className="text-xs uppercase tracking-widest capitalize">
-                      {event.subtype?.replace(/_/g, " ") ?? event.type.replace(/_/g, " ")}
+                    <span className="text-xs uppercase tracking-widest">
+                      {event.type.replace(/_/g, " ")}{event.subtype ? ` — ${event.subtype.replace(/_/g, " ")}` : ""}
                     </span>
                   </>
                 )}
