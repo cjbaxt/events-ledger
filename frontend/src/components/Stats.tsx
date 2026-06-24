@@ -57,6 +57,12 @@ const PASTEL_COLORS = [
   "#e8e8d5", "#d5e8e8", "#e2d5e8", "#d5e4e8", "#e8d8d5",
 ];
 
+function subtypeColor(subtype: string): string {
+  let hash = 0;
+  for (let i = 0; i < subtype.length; i++) hash = (hash * 31 + subtype.charCodeAt(i)) >>> 0;
+  return PASTEL_COLORS[hash % PASTEL_COLORS.length];
+}
+
 const SUBTYPE_LABEL = (s: string) => s.replace(/_/g, " ");
 
 function TypeDrillDown({ type, evts, subtype, onBack }: { type: string; evts: EventListItem[]; subtype?: string; onBack: () => void }) {
@@ -104,9 +110,6 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
   }
   const types = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
 
-  const allSubtypes = new Set<string>();
-  byType.forEach(evts => evts.forEach(e => { if ((e as any).subtype) allSubtypes.add((e as any).subtype); }));
-  const subtypeColorMap = new Map([...allSubtypes].map((s, i) => [s, PASTEL_COLORS[i % PASTEL_COLORS.length]]));
 
   if (drill) {
     return <TypeDrillDown type={drill.type} evts={byType.get(drill.type) ?? []} subtype={drill.subtype} onBack={() => setDrill(null)} />;
@@ -149,7 +152,7 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
                   {subtypes.map(([sub, count]) => (
                     <button
                       key={sub}
-                      style={{ width: `${(count / evts.length) * 100}%`, background: hovered?.type === type && hovered?.subtype === sub ? (subtypeColorMap.get(sub) ?? "#e5e5e5") : (subtypeColorMap.get(sub) ?? "#e5e5e5"), filter: hovered?.type === type && hovered?.subtype === sub ? "brightness(0.9)" : "none" }}
+                      style={{ width: `${(count / evts.length) * 100}%`, background: subtypeColor(sub), filter: hovered?.type === type && hovered?.subtype === sub ? "brightness(0.9)" : "none" }}
                       className="h-full focus:outline-none transition-all"
                       onMouseEnter={e => { e.stopPropagation(); setHovered({ type, subtype: sub, count }); }}
                       onMouseLeave={() => setHovered(null)}
