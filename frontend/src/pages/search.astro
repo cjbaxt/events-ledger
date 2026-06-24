@@ -9,7 +9,10 @@ import EventDetailPanel from "../components/EventDetailPanel";
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}favicon-grey.png`} />
+    <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}${import.meta.env.PUBLIC_STATIC_DATA === "true" ? "favicon.png" : "favicon-local.png"}`} />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}${import.meta.env.PUBLIC_STATIC_DATA === "true" ? "favicon.svg" : "favicon-local.svg"}`} />
+    {import.meta.env.PUBLIC_STATIC_DATA === "true" && <link rel="alternate icon" type="image/x-icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />}
+    {import.meta.env.PUBLIC_STATIC_DATA === "true" && <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}apple-touch-icon.png`} />}
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Search — Events Ledger</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet" />
