@@ -16,8 +16,8 @@ import { url } from "../lib/base";
 const links = [
   { path: "/", href: url("/"), label: "Timeline", icon: IconTimeline },
   { path: "/upcoming", href: url("/upcoming"), label: "Upcoming", icon: IconCalendarEvent },
-  { path: "/search", href: url("/search"), label: "Search", icon: IconSearch },
   { path: "/stats", href: url("/stats"), label: "Stats", icon: IconChartBar },
+  { path: "/search", href: url("/search"), label: "Search", icon: IconSearch },
   { path: "/about", href: url("/about"), label: "About", icon: IconInfoCircle },
 ];
 
