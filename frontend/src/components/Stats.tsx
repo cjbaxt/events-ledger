@@ -125,7 +125,7 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
             entityCounts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: (prev?.n ?? 0) + 1 });
           }
         }
-        const top = [...entityCounts.values()].sort((a, b) => b.n - a.n)[0];
+        const top = [...entityCounts.values()].sort((a, b) => b.n - a.n).find(e => e.n > 1) ?? null;
 
         const subtypeCounts = new Map<string, number>();
         for (const e of evts) {
