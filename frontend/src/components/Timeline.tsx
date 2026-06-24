@@ -240,11 +240,6 @@ function EventCard({
         <EventTypeIcon type={event.type} size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        {event.subtype && (
-          <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-0.5">
-            {event.subtype.replace(/_/g, " ")}
-          </div>
-        )}
         <div className="font-serif text-sm font-medium text-neutral-900 truncate">
           {event.title}
         </div>
