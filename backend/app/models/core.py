@@ -74,6 +74,7 @@ class Event(SQLModel, table=True):
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None  # ISO 4217, e.g. GBP, EUR
     rating: Optional[float] = None
+    rating_context: Optional[str] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = Field(default=None, foreign_key="festival.id")
     payment_method_id: Optional[uuid.UUID] = Field(default=None, foreign_key="payment_method.id")

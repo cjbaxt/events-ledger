@@ -47,6 +47,7 @@ The central table. Every event has exactly one row here.
 | `price_paid` | numeric | optional |
 | `currency` | varchar | optional |
 | `rating` | float | optional |
+| `rating_context` | varchar | optional — venue scale context for interpreting the rating. Values: `arena` (10,000+), `theatre` (400–10,000), `studio` (100–400), `intimate` (under 100), `outdoor`, `gallery` (museums/exhibitions) |
 | `notes` | text | optional |
 | `review` | text | optional |
 | `links` | jsonb | optional — array of `{url, label}` |

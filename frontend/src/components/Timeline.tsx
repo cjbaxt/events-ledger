@@ -7,13 +7,20 @@ import { IconWriting, IconArticle } from "@tabler/icons-react";
 
 const PAGE_SIZES = [25, 50, 100];
 
+const PRE_YEAR = 2015;
+const PRE_BUCKET = `pre-${PRE_YEAR}`;
+
 function groupByYearMonth(events: EventListItem[]) {
   const years: Record<string, Record<string, EventListItem[]>> = {};
   for (const e of events) {
     const [year, month] = e.date.split("-");
-    if (!years[year]) years[year] = {};
-    if (!years[year][month]) years[year][month] = [];
-    years[year][month].push(e);
+    const isPre = parseInt(year) < PRE_YEAR;
+    const bucket = isPre ? PRE_BUCKET : year;
+    // For pre-bucket use "YYYY-MM" as key so months across years don't merge
+    const monthKey = isPre ? `${year}-${month}` : month;
+    if (!years[bucket]) years[bucket] = {};
+    if (!years[bucket][monthKey]) years[bucket][monthKey] = [];
+    years[bucket][monthKey].push(e);
   }
   return years;
 }
@@ -120,7 +127,7 @@ function totalSpendEur(events: EventListItem[], paymentMethods: PaymentMethod[],
   // Payment methods whose purchase_date falls in this year (counted once each, regardless of filter)
   const pmIdsInEvents = new Set(events.map((e) => e.payment_method_id).filter(Boolean));
   const pmTotal = paymentMethods
-    .filter((pm) => pm.purchase_date.startsWith(year) && pmIdsInEvents.has(pm.id))
+    .filter((pm) => (year === PRE_BUCKET ? parseInt(pm.purchase_date) < PRE_YEAR : pm.purchase_date.startsWith(year)) && pmIdsInEvents.has(pm.id))
     .reduce((sum, pm) => sum + toEur(parseFloat(pm.total_cost), pm.currency), 0);
 
   return eventTotal + pmTotal;
@@ -159,8 +166,8 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: { 
     <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-baseline gap-3">
-          <h2 className="font-serif text-3xl text-neutral-900">{year}</h2>
-          {parseInt(year) < 2025 && (
+          <h2 className="font-serif text-3xl text-neutral-900">{year === PRE_BUCKET ? `Before ${PRE_YEAR}` : year}</h2>
+          {(year === PRE_BUCKET || parseInt(year) < 2025) && (
             <span className="text-[10px] uppercase tracking-widest text-orange-300">memory gaps</span>
           )}
         </div>
@@ -247,12 +254,17 @@ function EventCard({
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
-        {(event.has_review || event.has_essay) && (
-          <div className="flex gap-1">
-            {event.has_review && <IconWriting size={13} className="text-neutral-500" aria-label="Note written" />}
-            {event.has_essay && <IconArticle size={13} className="text-neutral-500" aria-label="Essay written" />}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5">
+          {event.rating !== null && event.rating !== undefined && (
+            <span className="text-[11px] text-neutral-400">{event.rating}★</span>
+          )}
+          {(event.has_review || event.has_essay) && (
+            <div className="flex gap-1">
+              {event.has_review && <IconWriting size={13} className="text-neutral-500" aria-label="Note written" />}
+              {event.has_essay && <IconArticle size={13} className="text-neutral-500" aria-label="Essay written" />}
+            </div>
+          )}
+        </div>
       </div>
       <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
     </button>
@@ -263,16 +275,21 @@ function MonthGroup({
   month,
   events,
   onEventClick,
+  showYear,
 }: {
   month: string;
   events: EventListItem[];
   onEventClick: (id: string) => void;
+  showYear?: boolean;
 }) {
+  // month is either "MM" or "YYYY-MM" for pre-bucket
+  const monthNum = month.includes("-") ? parseInt(month.split("-")[1]) : parseInt(month);
+  const yearFromKey = month.includes("-") ? month.split("-")[0] : events[0]?.date.slice(0, 4);
   return (
     <div className="mb-6">
       <div className="flex items-center gap-3 mb-2">
         <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
-          {MONTH_NAMES[parseInt(month)]}
+          {MONTH_NAMES[monthNum]}{showYear && yearFromKey ? ` ${yearFromKey}` : ""}
         </span>
         <span className="text-[10px] text-neutral-300">{events.length}</span>
         <div className="flex-1 h-px bg-neutral-100" />
@@ -351,7 +368,12 @@ export default function Timeline() {
   const years = useMemo(() => Object.keys(grouped).sort((a, b) => +b - +a), [grouped]);
 
   const yearEvents = useMemo(
-    () => (selectedYear ? allEvents.filter((e) => e.date.startsWith(selectedYear) && !hiddenTypes.has(e.type)) : []),
+    () => selectedYear ? allEvents.filter((e) => {
+      const matches = selectedYear === PRE_BUCKET
+        ? parseInt(e.date.slice(0, 4)) < PRE_YEAR
+        : e.date.startsWith(selectedYear);
+      return matches && !hiddenTypes.has(e.type);
+    }) : [],
     [allEvents, selectedYear, hiddenTypes]
   );
 
@@ -409,6 +431,7 @@ export default function Timeline() {
               month={month}
               events={pagedMonthGrouped[month]}
               onEventClick={handleEventClick}
+              showYear={selectedYear === PRE_BUCKET}
             />
           ))}
 
@@ -426,7 +449,7 @@ export default function Timeline() {
                   : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"
               }`}
             >
-              {y}
+              {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
             </button>
           ))}
         </div>
@@ -443,7 +466,7 @@ export default function Timeline() {
                     : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"
                 }`}
               >
-                {y}
+                {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
               </button>
             ))}
           </div>

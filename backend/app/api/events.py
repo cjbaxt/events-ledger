@@ -510,6 +510,7 @@ def list_events(
             currency=e.currency,
             payment_method_id=e.payment_method_id,
             rating=e.rating,
+            rating_context=e.rating_context,
             data_completeness=e.data_completeness,
             status=e.status,
             primary_entity_name=entity_name,
@@ -562,6 +563,7 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
             currency=pm.currency, purchase_date=pm.purchase_date,
         ) if pm else None,
         rating=event.rating,
+        rating_context=event.rating_context,
         notes=event.notes,
         review=event.review,
         links=event.links,
@@ -644,7 +646,7 @@ def delete_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 def _make_event(data, type: str) -> Event:
     base_fields = {
         "date", "time", "venue_id", "title", "work_id", "price_paid",
-        "currency", "rating", "notes", "festival_id", "review", "links", "data_completeness",
+        "currency", "rating", "rating_context", "notes", "festival_id", "review", "links", "data_completeness",
     }
     return Event(type=type, **{k: v for k, v in data.model_dump().items() if k in base_fields})
 

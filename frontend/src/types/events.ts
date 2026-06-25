@@ -23,6 +23,7 @@ export interface EventListItem {
   currency: string | null;
   payment_method_id: string | null;
   rating: number | null;
+  rating_context: string | null;
   data_completeness: string | null;
   substack_url: string | null;
   status: EventStatus;
@@ -53,6 +54,7 @@ export interface EventDetail {
   currency: string | null;
   payment_method: PaymentMethodRef | null;
   rating: number | null;
+  rating_context: string | null;
   notes: string | null;
   review: string | null;
   links: Array<{ url: string; label?: string }> | null;

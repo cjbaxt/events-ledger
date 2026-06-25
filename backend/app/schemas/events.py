@@ -22,6 +22,7 @@ class EventBase(BaseModel):
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
     rating: Optional[float] = None
+    rating_context: Optional[str] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
     review: Optional[str] = None
@@ -40,6 +41,7 @@ class EventUpdate(BaseModel):
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None
     rating: Optional[float] = None
+    rating_context: Optional[str] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
     payment_method_id: Optional[uuid.UUID] = None
@@ -69,6 +71,7 @@ class EventListItem(BaseModel):
     currency: Optional[str] = None
     payment_method_id: Optional[uuid.UUID] = None
     rating: Optional[float] = None
+    rating_context: Optional[str] = None
     data_completeness: Optional[str] = None
     status: str = "attended"
     primary_entity_name: Optional[str] = None
@@ -106,6 +109,7 @@ class EventDetail(BaseModel):
     currency: Optional[str] = None
     payment_method: Optional[PaymentMethodRef] = None
     rating: Optional[float] = None
+    rating_context: Optional[str] = None
     notes: Optional[str] = None
     review: Optional[str] = None
     links: Optional[List[dict]] = None

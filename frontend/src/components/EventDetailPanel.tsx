@@ -596,10 +596,53 @@ function PriceEditor({
   );
 }
 
+const RATING_CONTEXT_LABELS: Record<string, string> = {
+  arena:    "arena",
+  theatre:  "theatre",
+  studio:   "studio",
+  intimate: "intimate",
+  outdoor:  "outdoor",
+  gallery:  "gallery",
+};
+
+const RATING_CONTEXT_DESCRIPTIONS: Record<string, string> = {
+  arena:    "Rating context: 10,000+ capacity — a 5★ at arena scale means it cut through the vastness.",
+  theatre:  "Rating context: 400–10,000 seats — a proper main stage. The benchmark for most live performances.",
+  studio:   "Rating context: 100–400 capacity — a studio or small hall. Rating reflects craft at close range.",
+  intimate: "Rating context: under 100 people — a tiny room where everything lands directly.",
+  outdoor:  "Rating context: open air — weather, space, and crowd energy all factor in.",
+  gallery:  "Rating context: museum or exhibition — a different kind of encounter, not a live performance.",
+};
+
+function RatingContextBadge({ context }: { context: string }) {
+  const [open, setOpen] = useState(false);
+  const label = RATING_CONTEXT_LABELS[context] ?? context;
+  const description = RATING_CONTEXT_DESCRIPTIONS[context];
+
+  return (
+    <div className="relative inline-flex">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="text-[10px] uppercase tracking-widest text-neutral-400 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400 transition-colors"
+      >
+        {label}
+      </button>
+      {open && description && (
+        <div className="absolute bottom-full right-0 mb-1.5 w-52 bg-neutral-900 text-white text-[11px] leading-relaxed rounded px-2.5 py-2 z-50 pointer-events-none">
+          {description}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReviewSection({
   review,
   links,
   rating,
+  ratingContext,
   onSaveReview,
   onRate,
   editable = true,
@@ -607,6 +650,7 @@ function ReviewSection({
   review: string | null;
   links: Array<{ url: string; label?: string }> | null;
   rating: number | null;
+  ratingContext: string | null;
   onSaveReview: (text: string | null) => void;
   onRate: (r: number | null) => void;
   editable?: boolean;
@@ -636,11 +680,13 @@ function ReviewSection({
           {hasEssay && <IconArticle size={12} className="text-neutral-400" />}
           My take
         </div>
-        {!editing && editable && (
-          <EditableRating rating={rating} onRate={onRate} />
-        )}
-        {!editing && !editable && rating && (
-          <div className="text-xs text-neutral-400">{rating} ★</div>
+        {!editing && (
+          <div className="flex items-center gap-2">
+            {editable && <EditableRating rating={rating} onRate={onRate} />}
+            {!editable && rating && <div className="text-xs text-neutral-400">{rating} ★</div>}
+            {!editable && !rating && <div className="text-xs text-neutral-300">no rating</div>}
+            {ratingContext && <RatingContextBadge context={ratingContext} />}
+          </div>
         )}
       </div>
 
@@ -899,6 +945,7 @@ export default function EventDetailPanel() {
                     review={event.review}
                     links={event.links}
                     rating={event.rating}
+                    ratingContext={event.rating_context}
                     editable={editor}
                     onSaveReview={(text) => {
                       setEvent((prev) => prev ? { ...prev, review: text } : prev);

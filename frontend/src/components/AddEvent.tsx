@@ -680,6 +680,22 @@ export default function AddEvent() {
               <StarPicker value={base.rating as number | null} onChange={(v) => setBaseField("rating", v)} />
             </Field>
 
+            <Field label="Rating context">
+              <select
+                className={inputCls}
+                value={(base.rating_context as string) ?? ""}
+                onChange={(e) => setBaseField("rating_context", e.target.value || null)}
+              >
+                <option value="">— select —</option>
+                <option value="arena">Arena (10,000+)</option>
+                <option value="theatre">Theatre (400–10,000)</option>
+                <option value="studio">Studio (100–400)</option>
+                <option value="intimate">Intimate (under 100)</option>
+                <option value="outdoor">Outdoor</option>
+                <option value="gallery">Gallery / Exhibition</option>
+              </select>
+            </Field>
+
             <Field label="Review">
               <textarea
                 rows={4}

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { url } from "../lib/base";
-import { fetchEvents } from "../lib/api";
+import { fetchEvents, patchEventRating } from "../lib/api";
+import { isEditor } from "../lib/editor";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -65,41 +66,181 @@ function strHash(s: string): number {
 
 const SUBTYPE_LABEL = (s: string) => s.replace(/_/g, " ");
 
-function TypeDrillDown({ type, evts, subtype, onBack }: { type: string; evts: EventListItem[]; subtype?: string; onBack: () => void }) {
+const CONTEXT_ORDER = ["arena", "theatre", "studio", "intimate", "outdoor", "gallery"];
+const CONTEXT_LABELS: Record<string, string> = {
+  arena: "Arena (10,000+)", theatre: "Theatre (400–10,000)",
+  studio: "Studio (100–400)", intimate: "Intimate (<100)",
+  outdoor: "Outdoor", gallery: "Gallery / Exhibition",
+};
+
+function HalfStarPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const display = hovered ?? value ?? 0;
+  return (
+    <div className="flex items-center" onMouseLeave={() => setHovered(null)}>
+      {[1,2,3,4,5].map(star => {
+        const full = display >= star;
+        const half = display >= star - 0.5 && display < star;
+        return (
+          <div key={star} className="relative select-none" style={{ width: "1.1em", height: "1.1em", fontSize: "16px" }}>
+            {/* visual: gray base */}
+            <span className="absolute inset-0 pointer-events-none" style={{ color: "#d1d5db" }}>★</span>
+            {/* visual: amber fill — left half or full */}
+            {(half || full) && (
+              <span className="absolute inset-0 overflow-hidden pointer-events-none"
+                style={{ color: "#d97706", width: full ? "100%" : "50%" }}>★</span>
+            )}
+            {/* click zone: left half → half star */}
+            <span className="absolute inset-y-0 left-0 cursor-pointer" style={{ width: "50%" }}
+              onMouseEnter={() => setHovered(star - 0.5)}
+              onClick={() => onChange(value === star - 0.5 ? null : star - 0.5)} />
+            {/* click zone: right half → full star */}
+            <span className="absolute inset-y-0 right-0 cursor-pointer" style={{ width: "50%" }}
+              onMouseEnter={() => setHovered(star)}
+              onClick={() => onChange(value === star ? null : star)} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TypeDrillDown({
+  type, evts, subtype, onBack, editorMode, onRatingChange,
+}: {
+  type: string; evts: EventListItem[]; subtype?: string;
+  onBack: () => void; editorMode: boolean;
+  onRatingChange: (id: string, rating: number | null) => void;
+}) {
+  const [groupByContext, setGroupByContext] = useState(false);
+  const [groupBySubtype, setGroupBySubtype] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+
   const filtered = subtype ? evts.filter(e => (e as any).subtype === subtype) : evts;
-  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
   const label = subtype
     ? `${TYPE_LABELS[type] ?? type} — ${SUBTYPE_LABEL(subtype)}`
     : (TYPE_LABELS[type] ?? type);
+
+  const handleRate = useCallback(async (id: string, v: number | null) => {
+    setSaving(id);
+    try {
+      await patchEventRating(id, v);
+      onRatingChange(id, v);
+    } finally {
+      setSaving(null);
+    }
+  }, [onRatingChange]);
+
+  function renderRow(e: EventListItem) {
+    return (
+      <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-50 transition-colors group">
+        <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(0, 4)}</span>
+        <button
+          onClick={() => openEvent(e.id)}
+          className="flex-1 font-serif text-sm text-neutral-900 truncate text-left group-hover:underline underline-offset-2"
+        >{e.title}</button>
+        {editorMode ? (
+          <div className={saving === e.id ? "opacity-40" : ""}>
+            <HalfStarPicker value={e.rating} onChange={(v) => handleRate(e.id, v)} />
+          </div>
+        ) : (
+          e.rating
+            ? <span className="text-[10px] text-neutral-400 flex-shrink-0">{e.rating}★</span>
+            : <span className="text-[10px] text-neutral-200 flex-shrink-0 truncate max-w-[30%]">{e.venue_name}</span>
+        )}
+      </div>
+    );
+  }
+
+  function renderGroup(evts: EventListItem[], heading: string) {
+    const sorted = [...evts].sort((a, b) => b.date.localeCompare(a.date));
+    const rated = sorted.filter(e => e.rating !== null).length;
+    return (
+      <div key={heading} className="mb-5">
+        <div className="text-[9px] uppercase tracking-widest text-neutral-400 px-3 mb-1 flex items-center justify-between">
+          <span>{heading}</span>
+          {editorMode && <span className="text-neutral-300">{rated}/{sorted.length}</span>}
+        </div>
+        {sorted.map(renderRow)}
+      </div>
+    );
+  }
+
+  // Build grouped sections
+  let sections: Array<{ heading: string; evts: EventListItem[] }> = [];
+
+  if (groupByContext && groupBySubtype) {
+    const map = new Map<string, EventListItem[]>();
+    for (const e of filtered) {
+      const sub = (e as any).subtype ?? "—";
+      const ctx = e.rating_context ?? "no context";
+      const k = `${sub} · ${ctx}`;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    sections = [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ heading: k, evts: v }));
+  } else if (groupByContext) {
+    const map = new Map<string, EventListItem[]>();
+    for (const e of filtered) {
+      const ctx = e.rating_context ?? "no context";
+      if (!map.has(ctx)) map.set(ctx, []);
+      map.get(ctx)!.push(e);
+    }
+    sections = [...map.entries()]
+      .sort(([a], [b]) => {
+        const ai = CONTEXT_ORDER.indexOf(a), bi = CONTEXT_ORDER.indexOf(b);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      })
+      .map(([k, v]) => ({ heading: CONTEXT_LABELS[k] ?? k, evts: v }));
+  } else if (groupBySubtype) {
+    const map = new Map<string, EventListItem[]>();
+    for (const e of filtered) {
+      const sub = (e as any).subtype ?? "—";
+      if (!map.has(sub)) map.set(sub, []);
+      map.get(sub)!.push(e);
+    }
+    sections = [...map.entries()].sort(([a], [b]) => map.get(b)!.length - map.get(a)!.length)
+      .map(([k, v]) => ({ heading: SUBTYPE_LABEL(k), evts: v }));
+  }
+
+  const unGrouped = !groupByContext && !groupBySubtype;
+  const ratedTotal = filtered.filter(e => e.rating !== null).length;
+
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-700 transition-colors mb-5">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         Back
       </button>
-      <div className="flex items-center gap-2 mb-5">
+      <div className="flex items-center gap-2 mb-4">
         <EventTypeIcon type={type} size={14} />
         <span className="font-serif text-xl text-neutral-900 capitalize">{label}</span>
         <span className="text-sm text-neutral-300">{filtered.length}</span>
+        {editorMode && <span className="text-xs text-neutral-300 ml-1">{ratedTotal} rated</span>}
       </div>
-      <div className="space-y-0.5">
-        {sorted.map(e => (
-          <button
-            key={e.id}
-            onClick={() => openEvent(e.id)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group"
-          >
-            <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(0, 4)}</span>
-            <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{e.title}</span>
-            <span className="text-[10px] text-neutral-300 flex-shrink-0 truncate max-w-[30%]">{e.venue_name}</span>
-          </button>
-        ))}
+
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-[9px] uppercase tracking-widest text-neutral-300">Group by</span>
+        <label className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer">
+          <input type="checkbox" className="rounded border-neutral-200" checked={groupByContext}
+            onChange={e => setGroupByContext(e.target.checked)} />
+          Context
+        </label>
+        <label className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer">
+          <input type="checkbox" className="rounded border-neutral-200" checked={groupBySubtype}
+            onChange={e => setGroupBySubtype(e.target.checked)} />
+          Subtype
+        </label>
       </div>
+
+      {unGrouped
+        ? <div>{[...filtered].sort((a, b) => b.date.localeCompare(a.date)).map(renderRow)}</div>
+        : sections.map(s => renderGroup(s.evts, s.heading))}
     </div>
   );
 }
 
-function ByTypeTab({ events }: { events: EventListItem[] }) {
+function ByTypeTab({ events, editorMode, onRatingChange }: { events: EventListItem[]; editorMode: boolean; onRatingChange: (id: string, rating: number | null) => void }) {
   const [drill, setDrill] = useState<{ type: string; subtype?: string } | null>(null);
   const [hovered, setHovered] = useState<{ type: string; subtype: string; count: number } | null>(null);
 
@@ -108,16 +249,15 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
     if (!byType.has(e.type)) byType.set(e.type, []);
     byType.get(e.type)!.push(e);
   }
-  const types = [...byType.entries()].sort((a, b) => b[1].length - a[1].length);
-
+  const SECONDARY_TYPES = new Set(["exhibition", "talk"]);
+  const primaryTypes = [...byType.entries()].filter(([t]) => !SECONDARY_TYPES.has(t)).sort((a, b) => b[1].length - a[1].length);
+  const secondaryTypes = [...byType.entries()].filter(([t]) => SECONDARY_TYPES.has(t)).sort((a, b) => b[1].length - a[1].length);
 
   if (drill) {
-    return <TypeDrillDown type={drill.type} evts={byType.get(drill.type) ?? []} subtype={drill.subtype} onBack={() => setDrill(null)} />;
+    return <TypeDrillDown type={drill.type} evts={byType.get(drill.type) ?? []} subtype={drill.subtype} onBack={() => setDrill(null)} editorMode={editorMode} onRatingChange={onRatingChange} />;
   }
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {types.map(([type, evts]) => {
+  function renderCard([type, evts]: [string, EventListItem[]]) {
         const entityCounts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number }>();
         for (const e of evts) {
           if (e.primary_entity_name && e.primary_entity_id) {
@@ -182,7 +322,21 @@ function ByTypeTab({ events }: { events: EventListItem[] }) {
             )}
           </div>
         );
-      })}
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {primaryTypes.map(renderCard)}
+      </div>
+      {secondaryTypes.length > 0 && (
+        <>
+          <hr className="border-neutral-100" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {secondaryTypes.map(renderCard)}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -434,12 +588,23 @@ export default function Stats() {
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("By type");
+  const [editorMode, setEditorMode] = useState(() => isEditor());
+
+  useEffect(() => {
+    function sync() { setEditorMode(isEditor()); }
+    window.addEventListener("editor-change", sync);
+    return () => window.removeEventListener("editor-change", sync);
+  }, []);
 
   useEffect(() => {
     fetchEvents({ limit: 500 })
       .then(evts => setEvents(evts.filter(e => e.date <= new Date().toISOString().slice(0, 10))))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  const handleRatingChange = useCallback((id: string, rating: number | null) => {
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, rating } : e));
   }, []);
 
   if (loading) {
@@ -465,7 +630,7 @@ export default function Stats() {
         ))}
       </div>
 
-      {tab === "By type" && <ByTypeTab events={events} />}
+      {tab === "By type" && <ByTypeTab events={events} editorMode={editorMode} onRatingChange={handleRatingChange} />}
       {tab === "Artists" && <ArtistsTab events={events} />}
       {tab === "Venues" && <VenuesTab events={events} />}
       {tab === "Over time" && <OverTimeTab events={events} />}

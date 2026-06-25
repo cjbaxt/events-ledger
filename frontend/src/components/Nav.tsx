@@ -33,9 +33,9 @@ export default function Nav({ current }: { current: string }) {
     <>
       {/* Desktop top bar */}
       <header className="hidden md:flex fixed top-0 inset-x-0 z-40 h-14 border-b border-neutral-100 bg-white/90 backdrop-blur-sm items-center px-8">
-        <span className="font-serif text-lg tracking-tight mr-10">
+        <a href={url("/")} className="font-serif text-lg tracking-tight mr-10 hover:opacity-70 transition-opacity">
           events ledger
-        </span>
+        </a>
         <nav className="flex gap-8 flex-1">
           {links.map(({ path, href, label }) => {
             const active = current === path;
