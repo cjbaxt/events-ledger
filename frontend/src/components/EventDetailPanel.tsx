@@ -529,7 +529,20 @@ function NavEventsView({
                       <div className="font-serif text-sm font-medium text-neutral-900 truncate">{e.title}</div>
                       <div className="text-xs text-neutral-400 mt-0.5">{e.venue_name}</div>
                     </div>
-                    <div className="text-xs text-neutral-400 flex-shrink-0">{parseInt(d)} {MONTH_NAMES[parseInt(m)]} {yr}</div>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <div className="text-xs text-neutral-400">{parseInt(d)} {MONTH_NAMES[parseInt(m)]} {yr}</div>
+                      <div className="flex items-center gap-1.5">
+                        {e.rating != null && (
+                          <span className="text-[11px] text-neutral-400">{e.rating}★</span>
+                        )}
+                        {(e.has_review || e.has_essay) && (
+                          <div className="flex gap-1">
+                            {e.has_review && <IconWriting size={13} className="text-neutral-500" />}
+                            {e.has_essay && <IconArticle size={13} className="text-neutral-500" />}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </button>
                 );
               })}

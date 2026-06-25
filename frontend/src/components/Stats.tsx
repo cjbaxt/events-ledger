@@ -72,6 +72,37 @@ const CONTEXT_LABELS: Record<string, string> = {
   studio: "Studio (100–400)", intimate: "Intimate (<100)",
   outdoor: "Outdoor", gallery: "Gallery / Exhibition",
 };
+const CONTEXT_DESCRIPTIONS: Record<string, string> = {
+  arena:    "10,000+ capacity — a 5★ here means it cut through the vastness.",
+  theatre:  "400–10,000 seats — a proper main stage. The benchmark for most live performances.",
+  studio:   "100–400 capacity — a studio or small hall. Rating reflects craft at close range.",
+  intimate: "Under 100 people — a tiny room where everything lands directly.",
+  outdoor:  "Open air — weather, space, and crowd energy all factor in.",
+  gallery:  "Museum or exhibition — a different kind of encounter, not a live performance.",
+};
+
+function ContextHeading({ label, description }: { label: string; description?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative inline-flex items-center gap-1">
+      <span className="text-[9px] uppercase tracking-widest text-neutral-400">{label}</span>
+      {description && (
+        <button
+          className="text-neutral-300 hover:text-neutral-500 transition-colors leading-none"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onClick={() => setOpen(v => !v)}
+          style={{ fontSize: 10 }}
+        >?</button>
+      )}
+      {open && description && (
+        <div className="absolute bottom-full left-0 mb-1.5 w-52 bg-neutral-900 text-white text-[11px] leading-relaxed rounded px-2.5 py-2 z-50 pointer-events-none">
+          {description}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function HalfStarPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -152,14 +183,14 @@ function TypeDrillDown({
     );
   }
 
-  function renderGroup(evts: EventListItem[], heading: string) {
+  function renderGroup(evts: EventListItem[], heading: string, description?: string) {
     const sorted = [...evts].sort((a, b) => b.date.localeCompare(a.date));
     const rated = sorted.filter(e => e.rating !== null).length;
     return (
       <div key={heading} className="mb-5">
-        <div className="text-[9px] uppercase tracking-widest text-neutral-400 px-3 mb-1 flex items-center justify-between">
-          <span>{heading}</span>
-          {editorMode && <span className="text-neutral-300">{rated}/{sorted.length}</span>}
+        <div className="px-3 mb-1 flex items-center justify-between">
+          <ContextHeading label={heading} description={description} />
+          {editorMode && <span className="text-[9px] text-neutral-300">{rated}/{sorted.length}</span>}
         </div>
         {sorted.map(renderRow)}
       </div>
@@ -167,7 +198,7 @@ function TypeDrillDown({
   }
 
   // Build grouped sections
-  let sections: Array<{ heading: string; evts: EventListItem[] }> = [];
+  let sections: Array<{ heading: string; evts: EventListItem[]; description?: string }> = [];
 
   if (groupByContext && groupBySubtype) {
     const map = new Map<string, EventListItem[]>();
@@ -191,7 +222,7 @@ function TypeDrillDown({
         const ai = CONTEXT_ORDER.indexOf(a), bi = CONTEXT_ORDER.indexOf(b);
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       })
-      .map(([k, v]) => ({ heading: CONTEXT_LABELS[k] ?? k, evts: v }));
+      .map(([k, v]) => ({ heading: CONTEXT_LABELS[k] ?? k, evts: v, description: CONTEXT_DESCRIPTIONS[k] }));
   } else if (groupBySubtype) {
     const map = new Map<string, EventListItem[]>();
     for (const e of filtered) {
@@ -235,7 +266,7 @@ function TypeDrillDown({
 
       {unGrouped
         ? <div>{[...filtered].sort((a, b) => b.date.localeCompare(a.date)).map(renderRow)}</div>
-        : sections.map(s => renderGroup(s.evts, s.heading))}
+        : sections.map(s => renderGroup(s.evts, s.heading, s.description))}
     </div>
   );
 }
