@@ -1,1 +1,1 @@
-{"name": "Venue 150", "operator_id": null, "country": "United Kingdom", "capacity": null, "website_url": null, "id": "b4e6c670-712b-406e-8d8f-d43e20d7835d", "parent_id": "267a92a6-7dfd-5948-8476-38cdb19d0e04", "city": "Edinburgh", "venue_type": "theatre", "maps_url": null}
+{"name": "Venue 150", "operator_id": null, "country": "United Kingdom", "capacity": 300, "website_url": null, "city": "Edinburgh", "id": "b4e6c670-712b-406e-8d8f-d43e20d7835d", "parent_id": "267a92a6-7dfd-5948-8476-38cdb19d0e04", "venue_type": "theatre", "maps_url": null}

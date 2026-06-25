@@ -1,1 +1,1 @@
-{"name": "Monkey Barrel 3", "operator_id": null, "country": "United Kingdom", "capacity": null, "website_url": null, "id": "d55fd30b-1f48-479f-a6e0-79f18d503b94", "parent_id": "943ee0c0-3a7e-5499-8d32-ba00278dc61e", "city": "Edinburgh", "venue_type": "theatre", "maps_url": null}
+{"name": "Monkey Barrel 3", "operator_id": null, "country": "United Kingdom", "capacity": 60, "website_url": null, "city": "Edinburgh", "id": "d55fd30b-1f48-479f-a6e0-79f18d503b94", "parent_id": "943ee0c0-3a7e-5499-8d32-ba00278dc61e", "venue_type": "theatre", "maps_url": null}

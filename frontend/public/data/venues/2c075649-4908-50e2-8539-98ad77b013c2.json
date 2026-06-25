@@ -1,1 +1,1 @@
-{"name": "Lomond Theatre", "operator_id": null, "country": "United Kingdom", "capacity": null, "website_url": null, "id": "2c075649-4908-50e2-8539-98ad77b013c2", "parent_id": "267a92a6-7dfd-5948-8476-38cdb19d0e04", "city": "Edinburgh", "venue_type": "theatre", "maps_url": null}
+{"name": "Lomond Theatre", "operator_id": null, "country": "United Kingdom", "capacity": 80, "website_url": null, "city": "Edinburgh", "id": "2c075649-4908-50e2-8539-98ad77b013c2", "parent_id": "267a92a6-7dfd-5948-8476-38cdb19d0e04", "venue_type": "theatre", "maps_url": null}
