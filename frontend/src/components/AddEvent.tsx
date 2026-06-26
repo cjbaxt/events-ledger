@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createEvent, searchEntities } from "../lib/api";
+import { createEvent, searchEntities, fetchPaymentMethods, createPaymentMethod } from "../lib/api";
+import type { PaymentMethod } from "../lib/api";
 import { url } from "../lib/base";
 import EventTypeIcon from "./EventTypeIcon";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type NamedRef = { id: string; name: string };
+type LinkRow = { url: string; label: string; description: string };
 type Step = "type" | "basic" | "details" | "take";
 
 const EVENT_TYPES = [
@@ -369,12 +371,18 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     price_paid: base.price_paid || null,
     currency: base.currency || "EUR",
     festival_id: (base.festival as NamedRef | null)?.id ?? null,
-    status: base.status ?? "attended",
+    status: "attended",
+    payment_method_id: (base.payment_method as PaymentMethod | null)?.id ?? null,
     notes: base.notes || null,
     rating: base.rating ?? null,
     review: base.review || null,
     data_completeness: base.data_completeness || null,
     subtype: base.subtype || null,
+    links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
+      url: l.url,
+      ...(l.label ? { label: l.label } : {}),
+      ...(l.description ? { description: l.description } : {}),
+    })) ?? null,
   };
 
   const id = (v: NamedRef | null | undefined) => v?.id ?? null;
@@ -483,12 +491,16 @@ export default function AddEvent() {
   const [type, setType] = useState<EventType | null>(null);
   const [base, setBase] = useState<Record<string, unknown>>({
     date: new Date().toISOString().slice(0, 10),
-    status: "attended",
     currency: "EUR",
   });
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [showNewPM, setShowNewPM] = useState(false);
+  const [newPM, setNewPM] = useState({ name: "", total_cost: "", currency: "EUR", purchase_date: new Date().toISOString().slice(0, 10), notes: "" });
   const [ext, setExt] = useState<Ext>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => { fetchPaymentMethods().then(setPaymentMethods).catch(() => {}); }, []);
 
   function setBaseField(k: string, v: unknown) { setBase((b) => ({ ...b, [k]: v })); }
   function setExtField(k: string, v: unknown) { setExt((e) => ({ ...e, [k]: v })); }
@@ -581,22 +593,6 @@ export default function AddEvent() {
             </div>
 
             <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false} />
-
-            <Field label="Status">
-              <div className="flex gap-2">
-                {["attended", "cancelled"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setBaseField("status", s)}
-                    className={`flex-1 text-xs py-2 rounded-lg border transition-colors capitalize
-                      ${base.status === s ? "border-neutral-800 bg-neutral-900 text-white" : "border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </Field>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
@@ -696,6 +692,60 @@ export default function AddEvent() {
               </select>
             </Field>
 
+            <Field label="Payment method">
+              <select
+                className={inputCls}
+                value={(base.payment_method as PaymentMethod | null)?.id ?? ""}
+                onChange={(e) => {
+                  const pm = paymentMethods.find(p => p.id === e.target.value) ?? null;
+                  setBaseField("payment_method", pm);
+                  setShowNewPM(false);
+                }}
+              >
+                <option value="">— none —</option>
+                {paymentMethods.map(pm => (
+                  <option key={pm.id} value={pm.id}>{pm.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="text-xs text-neutral-400 hover:text-neutral-700 mt-1.5"
+                onClick={() => setShowNewPM(v => !v)}
+              >
+                {showNewPM ? "Cancel" : "+ New payment method"}
+              </button>
+              {showNewPM && (
+                <div className="mt-2 p-3 border border-neutral-100 rounded-lg space-y-2">
+                  <input className={inputCls} placeholder="Name (e.g. Museumkaart 2026)" value={newPM.name} onChange={e => setNewPM(v => ({ ...v, name: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={inputCls} type="number" step="0.01" placeholder="Total cost" value={newPM.total_cost} onChange={e => setNewPM(v => ({ ...v, total_cost: e.target.value }))} />
+                    <select className={inputCls} value={newPM.currency} onChange={e => setNewPM(v => ({ ...v, currency: e.target.value }))}>
+                      {["EUR", "GBP", "USD"].map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <input className={inputCls} type="date" value={newPM.purchase_date} onChange={e => setNewPM(v => ({ ...v, purchase_date: e.target.value }))} />
+                  <input className={inputCls} placeholder="Notes (optional)" value={newPM.notes} onChange={e => setNewPM(v => ({ ...v, notes: e.target.value }))} />
+                  <button
+                    type="button"
+                    className="w-full text-xs bg-neutral-900 text-white rounded-lg py-2 hover:bg-neutral-700 transition-colors"
+                    onClick={async () => {
+                      try {
+                        const pm = await createPaymentMethod({ ...newPM, total_cost: parseFloat(newPM.total_cost) || 0, notes: newPM.notes || undefined });
+                        setPaymentMethods(prev => [pm, ...prev]);
+                        setBaseField("payment_method", pm);
+                        setShowNewPM(false);
+                        setNewPM({ name: "", total_cost: "", currency: "EUR", purchase_date: new Date().toISOString().slice(0, 10), notes: "" });
+                      } catch {
+                        setError("Failed to create payment method");
+                      }
+                    }}
+                  >
+                    Save payment method
+                  </button>
+                </div>
+              )}
+            </Field>
+
             <Field label="Review">
               <textarea
                 rows={4}
@@ -704,6 +754,60 @@ export default function AddEvent() {
                 onChange={(e) => setBaseField("review", e.target.value)}
                 placeholder="Your thoughts…"
               />
+            </Field>
+
+            <Field label="Links">
+              {((base.links as LinkRow[]) ?? []).map((link, i) => (
+                <div key={i} className="space-y-1.5 mb-3 p-3 border border-neutral-100 rounded-lg">
+                  <input
+                    className={inputCls}
+                    placeholder="URL"
+                    value={link.url}
+                    onChange={(e) => {
+                      const links = [...((base.links as LinkRow[]) ?? [])];
+                      links[i] = { ...links[i], url: e.target.value };
+                      setBaseField("links", links);
+                    }}
+                  />
+                  <input
+                    className={inputCls}
+                    placeholder="Label (e.g. My review)"
+                    value={link.label}
+                    onChange={(e) => {
+                      const links = [...((base.links as LinkRow[]) ?? [])];
+                      links[i] = { ...links[i], label: e.target.value };
+                      setBaseField("links", links);
+                    }}
+                  />
+                  <input
+                    className={inputCls}
+                    placeholder="Description (e.g. subtitle or excerpt)"
+                    value={link.description}
+                    onChange={(e) => {
+                      const links = [...((base.links as LinkRow[]) ?? [])];
+                      links[i] = { ...links[i], description: e.target.value };
+                      setBaseField("links", links);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const links = ((base.links as LinkRow[]) ?? []).filter((_, j) => j !== i);
+                      setBaseField("links", links);
+                    }}
+                    className="text-[11px] text-neutral-400 hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setBaseField("links", [...((base.links as LinkRow[]) ?? []), { url: "", label: "", description: "" }])}
+                className="text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full"
+              >
+                + Add link
+              </button>
             </Field>
 
             <Field label="Admin notes">

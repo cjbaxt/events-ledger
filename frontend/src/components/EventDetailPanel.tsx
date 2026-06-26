@@ -661,7 +661,7 @@ function ReviewSection({
   editable = true,
 }: {
   review: string | null;
-  links: Array<{ url: string; label?: string }> | null;
+  links: Array<{ url: string; label?: string; description?: string }> | null;
   rating: number | null;
   ratingContext: string | null;
   onSaveReview: (text: string | null) => void;
@@ -762,7 +762,7 @@ function ReviewSection({
               <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm text-neutral-700 truncate">{link.label ?? link.url}</div>
-                <div className="text-xs text-neutral-400 truncate">{new URL(link.url).hostname}</div>
+                <div className="text-xs text-neutral-400 truncate">{link.description ?? new URL(link.url).hostname}</div>
               </div>
             </a>
           ))}

@@ -229,6 +229,18 @@ export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   return res.json();
 }
 
+export async function createPaymentMethod(data: {
+  name: string; total_cost: number; currency: string; purchase_date: string; notes?: string;
+}): Promise<PaymentMethod> {
+  const res = await authFetch(`${BASE}/api/payment-methods`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to create payment method: ${res.status}`);
+  return res.json();
+}
+
 export async function patchEventPaymentMethod(id: string, payment_method_id: string | null): Promise<void> {
   const res = await authFetch(`${BASE}/api/events/${id}`, {
     method: "PATCH",
