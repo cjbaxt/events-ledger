@@ -257,11 +257,13 @@ function TypeDrillDown({
             onChange={e => setGroupByContext(e.target.checked)} />
           Context
         </label>
-        <label className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer">
-          <input type="checkbox" className="rounded border-neutral-200" checked={groupBySubtype}
-            onChange={e => setGroupBySubtype(e.target.checked)} />
-          Subtype
-        </label>
+        {!subtype && (
+          <label className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer">
+            <input type="checkbox" className="rounded border-neutral-200" checked={groupBySubtype}
+              onChange={e => setGroupBySubtype(e.target.checked)} />
+            Subtype
+          </label>
+        )}
       </div>
 
       {unGrouped
