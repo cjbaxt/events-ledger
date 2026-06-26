@@ -683,7 +683,7 @@ function ReviewSection({
   }
 
   const hasContent = review || (links && links.length > 0);
-  const hasEssay = !!(links && links.some(l => l.url?.includes("substack")));
+  const hasEssay = !!(links && links.some(l => l.url?.includes("cultural-dispatch")));
 
   return (
     <div className="border-t border-b border-neutral-100 pt-4 pb-4">

@@ -518,7 +518,7 @@ def list_events(
             primary_entity_kind=entity_kind,
             has_review=bool(e.review),
             has_essay=bool(
-                e.links and any("substack" in (lnk.get("url") or "") for lnk in e.links)
+                e.links and any("cultural-dispatch" in (lnk.get("url") or "") for lnk in e.links)
             ),
         ))
     return result
