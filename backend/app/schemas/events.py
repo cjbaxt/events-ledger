@@ -37,6 +37,7 @@ class EventUpdate(BaseModel):
     time: Optional[time_type] = None
     venue_id: Optional[uuid.UUID] = None
     title: Optional[str] = None
+    subtype: Optional[str] = None
     work_id: Optional[uuid.UUID] = None
     price_paid: Optional[Decimal] = None
     currency: Optional[str] = None

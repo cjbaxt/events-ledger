@@ -599,12 +599,14 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
         raise HTTPException(status_code=404, detail="Event not found")
     dumped = data.model_dump(exclude_unset=True)
     extension_data = dumped.pop("extension", None)
+    subtype_value = dumped.get("subtype")
     for field, value in dumped.items():
         setattr(event, field, value)
     session.add(event)
+    ext_model = _EXTENSION_MODELS.get(event.type)
+    credits_data = None
     if extension_data:
         credits_data = extension_data.pop("credits", None)
-        ext_model = _EXTENSION_MODELS.get(event.type)
         if ext_model:
             ext = session.get(ext_model, event_id)
             if ext:
@@ -612,14 +614,19 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
                     if hasattr(ext, field):
                         setattr(ext, field, value)
                 session.add(ext)
-        if credits_data is not None:
-            for old in session.exec(select(EventCredit).where(EventCredit.event_id == event_id)).all():
-                session.delete(old)
-            for i, c in enumerate(credits_data):
-                person_id = c.get("person_id")
-                role = c.get("role", "")
-                if person_id and role:
-                    session.add(EventCredit(event_id=event_id, role=role, person_id=uuid.UUID(str(person_id)), sort_order=i))
+    if subtype_value is not None and ext_model:
+        ext = session.get(ext_model, event_id)
+        if ext and hasattr(ext, "subtype"):
+            ext.subtype = subtype_value
+            session.add(ext)
+    if credits_data is not None:
+        for old in session.exec(select(EventCredit).where(EventCredit.event_id == event_id)).all():
+            session.delete(old)
+        for i, c in enumerate(credits_data):
+            person_id = c.get("person_id")
+            role = c.get("role", "")
+            if person_id and role:
+                session.add(EventCredit(event_id=event_id, role=role, person_id=uuid.UUID(str(person_id)), sort_order=i))
     session.commit()
     session.refresh(event)
     return get_event(event_id, session)
