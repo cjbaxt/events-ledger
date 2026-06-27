@@ -1,6 +1,6 @@
 """Event schemas — base, list, detail, and one Create schema per event type."""
 from typing import Optional, List, Any
-from datetime import date
+from datetime import date as date_type
 from datetime import time as time_type
 from decimal import Decimal
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ from .reference import NamedRef
 # ---------------------------------------------------------------------------
 
 class EventBase(BaseModel):
-    date: date
+    date: date_type
     time: Optional[time_type] = None
     venue_id: uuid.UUID
     title: str
@@ -33,7 +33,7 @@ class EventBase(BaseModel):
 
 class EventUpdate(BaseModel):
     """Partial update of base Event fields and/or extension fields."""
-    date: Optional[date] = None
+    date: Optional[date_type] = None
     time: Optional[time_type] = None
     venue_id: Optional[uuid.UUID] = None
     title: Optional[str] = None
@@ -58,7 +58,7 @@ class EventUpdate(BaseModel):
 
 class EventListItem(BaseModel):
     id: uuid.UUID
-    date: date
+    date: date_type
     time: Optional[time_type] = None
     type: str
     subtype: Optional[str] = None
@@ -91,12 +91,12 @@ class PaymentMethodRef(BaseModel):
     name: str
     total_cost: Decimal
     currency: str
-    purchase_date: date
+    purchase_date: date_type
 
 
 class EventDetail(BaseModel):
     id: uuid.UUID
-    date: date
+    date: date_type
     time: Optional[time_type] = None
     type: str
     subtype: Optional[str] = None

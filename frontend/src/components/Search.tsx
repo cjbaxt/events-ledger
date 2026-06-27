@@ -251,12 +251,32 @@ function VenuesTab({ query }: { query: string }) {
 
   if (loading) return <Spinner />;
 
+  const venueById = Object.fromEntries(venues.map(v => [v.id, v]));
+
+  function venuePath(v: Venue): string[] {
+    const parts: string[] = [];
+    let cur: Venue | undefined = v;
+    while (cur?.parent_id) {
+      const p = venueById[cur.parent_id];
+      if (!p) break;
+      parts.unshift(p.name);
+      cur = p;
+    }
+    return parts;
+  }
+
   const q = query.trim().toLowerCase();
   const filtered = venues
-    .filter(v => !q || v.name.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q))
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    .filter(v => !q || v.name.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q) || venuePath(v).some(p => p.toLowerCase().includes(q)))
+    .sort((a, b) => {
+      const aRoot = venuePath(a)[0] ?? a.name;
+      const bRoot = venuePath(b)[0] ?? b.name;
+      const rootCmp = aRoot.localeCompare(bRoot, undefined, { sensitivity: "base" });
+      if (rootCmp !== 0) return rootCmp;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
 
-  const groups = groupAlpha(filtered, v => v.name);
+  const groups = groupAlpha(filtered, v => (venuePath(v)[0] ?? v.name));
   const presentLetters = new Set(groups.keys());
 
   return (
@@ -275,20 +295,30 @@ function VenuesTab({ query }: { query: string }) {
           <section key={letter} ref={el => { letterRefs.current[letter] = el; }}>
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
             <div className="divide-y divide-neutral-50">
-              {items.map(v => (
-                <button
-                  key={v.id}
-                  onClick={() => window.dispatchEvent(new CustomEvent("open-venue", { detail: v.id }))}
-                  className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors"
-                >
-                  <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">
-                    {v.name}
-                  </span>
-                  {v.city && (
-                    <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>
-                  )}
-                </button>
-              ))}
+              {items.map(v => {
+                const parents = venuePath(v);
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => window.dispatchEvent(new CustomEvent("open-venue", { detail: v.id }))}
+                    className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors"
+                  >
+                    <span className="flex-1 min-w-0">
+                      {parents.length > 0 && (
+                        <span className="block text-[10px] text-neutral-400 truncate">
+                          {parents.join(" › ")}
+                        </span>
+                      )}
+                      <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">
+                        {v.name}
+                      </span>
+                    </span>
+                    {v.city && (
+                      <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
         ))}

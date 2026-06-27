@@ -392,7 +392,14 @@ def list_venues(
         stmt = stmt.where(Venue.name.ilike(f"%{q}%"))
     if city:
         stmt = stmt.where(Venue.city.ilike(f"%{city}%"))
-    return session.exec(stmt).all()
+    rows = session.exec(stmt).all()
+    result = []
+    for v in rows:
+        parent = session.get(Venue, v.parent_id) if v.parent_id else None
+        d = v.model_dump()
+        d["parent_name"] = parent.name if parent else None
+        result.append(VenueRead(**d))
+    return result
 
 
 @router.get("/venues/{venue_id}", response_model=VenueRead)

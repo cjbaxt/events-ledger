@@ -13,6 +13,7 @@ from app.models import (
     EventOpera, EventBallet, BalletProgrammeItem, BalletProgrammeMusic,
     EventDance, EventCircus, EventTheatre, EventCabaret,
     EventComedy, EventSpokenWord, EventTalk, EventExhibition, EventScreening,
+    EventCredit,
 )
 from app.schemas.events import (
     EventListItem, EventDetail, EventUpdate, PaymentMethodRef,
@@ -282,6 +283,9 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "work": _resolve_work(session, ext.work_id),
             "composers": _resolve_ids_to_names(session, ext.composers, Person),
             "ensemble": _resolve_name(session, Ensemble, ext.ensemble_id),
+            "conductor": _resolve_name(session, Person, ext.conductor_id),
+            "director": _resolve_name(session, Person, ext.director_id),
+            "production_id": str(ext.production_id) if ext.production_id else None,
             "libretto_language": ext.libretto_language,
             "surtitles_languages": ext.surtitles_languages,
             "cast": _resolve_cast(session, ext.cast),
@@ -597,6 +601,7 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
         setattr(event, field, value)
     session.add(event)
     if extension_data:
+        credits_data = extension_data.pop("credits", None)
         ext_model = _EXTENSION_MODELS.get(event.type)
         if ext_model:
             ext = session.get(ext_model, event_id)
@@ -605,6 +610,14 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
                     if hasattr(ext, field):
                         setattr(ext, field, value)
                 session.add(ext)
+        if credits_data is not None:
+            for old in session.exec(select(EventCredit).where(EventCredit.event_id == event_id)).all():
+                session.delete(old)
+            for i, c in enumerate(credits_data):
+                person_id = c.get("person_id")
+                role = c.get("role", "")
+                if person_id and role:
+                    session.add(EventCredit(event_id=event_id, role=role, person_id=uuid.UUID(str(person_id)), sort_order=i))
     session.commit()
     session.refresh(event)
     return get_event(event_id, session)

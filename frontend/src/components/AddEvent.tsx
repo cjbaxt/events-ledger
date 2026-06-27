@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createEvent, searchEntities, fetchPaymentMethods, createPaymentMethod } from "../lib/api";
-import type { PaymentMethod } from "../lib/api";
+import { createEvent, updateEvent, searchEntities, createEntity, fetchPaymentMethods, createPaymentMethod } from "../lib/api";
+import type { PaymentMethod, EventDetail } from "../lib/api";
 import { url } from "../lib/base";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -42,10 +42,155 @@ const SUBTYPES: Record<string, string[]> = {
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
 };
 
+// ── Inline create forms per entity type ──────────────────────────────────────
+
+type CreateFormProps = { endpoint: string; initialName: string; onCreated: (v: NamedRef) => void; onCancel: () => void; };
+
+function VenueCreateForm({ initialName, onCreated, onCancel }: Omit<CreateFormProps, "endpoint">) {
+  const [name, setName] = useState(initialName);
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [parentQuery, setParentQuery] = useState("");
+  const [parentResults, setParentResults] = useState<NamedRef[]>([]);
+  const [parent, setParent] = useState<NamedRef | null>(null);
+  const [saving, setSaving] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (parentQuery.length < 2) { setParentResults([]); return; }
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      const items = await searchEntities("venues", parentQuery);
+      setParentResults(items.map(i => ({ id: i.id, name: i.name ?? String(i.id) })));
+    }, 280);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [parentQuery]);
+
+  async function save() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await createEntity("venues", { name: name.trim(), city: city.trim() || null, country: country.trim() || null, parent_id: parent?.id ?? null });
+      onCreated({ id: res.id, name: res.name ?? name.trim() });
+    } catch (e) { alert(String(e)); }
+    setSaving(false);
+  }
+
+  const iCls = "w-full border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-neutral-400";
+  return (
+    <div className="border border-neutral-200 rounded-lg p-3 space-y-2 bg-neutral-50 mt-1"
+      onMouseDown={e => e.stopPropagation()}>
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-1">New venue</div>
+      <input autoFocus className={iCls} placeholder="Name *" value={name} onChange={e => setName(e.target.value)} />
+      <input className={iCls} placeholder="City" value={city} onChange={e => setCity(e.target.value)} />
+      <input className={iCls} placeholder="Country" value={country} onChange={e => setCountry(e.target.value)} />
+      <div className="relative">
+        {parent ? (
+          <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded px-2 py-1.5">
+            <span className="text-xs text-neutral-700 flex-1">↳ {parent.name}</span>
+            <button type="button" onClick={() => setParent(null)} className="text-neutral-300 hover:text-neutral-500 text-xs">✕</button>
+          </div>
+        ) : (
+          <>
+            <input className={iCls} placeholder="Parent venue (optional)" value={parentQuery} onChange={e => setParentQuery(e.target.value)} />
+            {parentResults.length > 0 && (
+              <div className="absolute z-30 top-full mt-0.5 w-full bg-white border border-neutral-200 rounded shadow-sm overflow-hidden">
+                {parentResults.map(r => (
+                  <button key={r.id} type="button" onMouseDown={() => { setParent(r); setParentQuery(""); setParentResults([]); }}
+                    className="w-full text-left px-2 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50">
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={save} disabled={saving || !name.trim()} className="px-3 py-1 text-xs bg-neutral-900 text-white rounded hover:bg-neutral-700 disabled:opacity-40">
+          {saving ? "Saving…" : "Create"}
+        </button>
+        <button type="button" onClick={onCancel} className="px-3 py-1 text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function SimpleCreateForm({ endpoint, initialName, fields, onCreated, onCancel }: CreateFormProps & { fields: Array<{ key: string; label: string; required?: boolean; type?: string; options?: string[] }> }) {
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    fields.forEach(f => { init[f.key] = f.key === fields[0].key ? initialName : ""; });
+    return init;
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const nameKey = fields[0].key;
+  const iCls = "w-full border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-neutral-400";
+
+  async function save() {
+    if (!values[nameKey]?.trim()) return;
+    setSaving(true);
+    setErr("");
+    try {
+      const payload: Record<string, unknown> = {};
+      fields.forEach(f => { if (values[f.key]?.trim()) payload[f.key] = values[f.key].trim(); });
+      const res = await createEntity(endpoint, payload);
+      onCreated({ id: res.id, name: res.name ?? res.title ?? values[nameKey] });
+    } catch (e) { setErr(String(e)); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="border border-neutral-200 rounded-lg p-3 space-y-2 bg-neutral-50 mt-1"
+      onMouseDown={e => e.stopPropagation()}>
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-1">New {endpoint.replace(/_/g, " ").replace(/s$/, "")}</div>
+      {fields.map((f, i) => f.options ? (
+        <select key={f.key} className={iCls} value={values[f.key]} onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}>
+          <option value="">{f.label}{f.required ? " *" : " (optional)"}</option>
+          {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input key={f.key} autoFocus={i === 0} className={iCls} placeholder={`${f.label}${f.required ? " *" : ""}`}
+          value={values[f.key]} onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
+          type={f.type ?? "text"} />
+      ))}
+      {err && <div className="text-xs text-red-500">{err}</div>}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={save} disabled={saving || !values[nameKey]?.trim()} className="px-3 py-1 text-xs bg-neutral-900 text-white rounded hover:bg-neutral-700 disabled:opacity-40">
+          {saving ? "Saving…" : "Create"}
+        </button>
+        <button type="button" onClick={onCancel} className="px-3 py-1 text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+const CREATE_FIELDS: Record<string, Array<{ key: string; label: string; required?: boolean; type?: string; options?: string[] }>> = {
+  persons: [{ key: "name", label: "Name", required: true }],
+  ensembles: [
+    { key: "name", label: "Name", required: true },
+    { key: "type", label: "Type", options: ["orchestra", "chamber_ensemble", "choir", "band", "company", "collective", "other"] },
+  ],
+  festivals: [
+    { key: "name", label: "Name", required: true },
+    { key: "edition", label: "Edition (e.g. 2025)" },
+  ],
+  works: [
+    { key: "title", label: "Title", required: true },
+    { key: "type", label: "Type", required: true, options: ["opera", "ballet", "play", "film", "musical", "symphonic", "chamber", "song_cycle", "other"] },
+  ],
+  productions: [
+    { key: "title", label: "Title", required: true },
+  ],
+  musical_pieces: [
+    { key: "title", label: "Title", required: true },
+  ],
+};
+
 // ── Searchable combobox ───────────────────────────────────────────────────────
 
 function SearchCombo({
-  label, endpoint, value, onChange, optional = true, displayFn,
+  label, endpoint, value, onChange, optional = true, displayFn, allowCreate = true,
 }: {
   label: string;
   endpoint: string;
@@ -53,16 +198,20 @@ function SearchCombo({
   onChange: (v: NamedRef | null) => void;
   optional?: boolean;
   displayFn?: (item: Record<string, unknown>) => string;
+  allowCreate?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NamedRef[]>([]);
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && e.composedPath().includes(ref.current)) return;
+      setOpen(false);
+      setCreating(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -81,6 +230,15 @@ function SearchCombo({
     }, 280);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query, endpoint]);
+
+  const canCreate = allowCreate && (endpoint in CREATE_FIELDS || endpoint === "venues");
+
+  function handleCreated(v: NamedRef) {
+    onChange(v);
+    setQuery("");
+    setOpen(false);
+    setCreating(false);
+  }
 
   if (value) {
     return (
@@ -101,30 +259,39 @@ function SearchCombo({
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setQuery(e.target.value); setCreating(false); }}
           placeholder={`Search ${label.toLowerCase()}…`}
           className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400"
         />
-        {open && results.length > 0 && (
+        {open && (results.length > 0 || canCreate) && !creating && (
           <div className="absolute z-20 top-full mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
             {results.map((r) => (
-              <button
-                key={r.id}
-                type="button"
+              <button key={r.id} type="button"
                 onMouseDown={() => { onChange(r); setQuery(""); setOpen(false); }}
-                className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-b border-neutral-50 last:border-0"
-              >
+                className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
                 {r.name}
               </button>
             ))}
+            {canCreate && (
+              <button type="button"
+                onMouseDown={() => { setCreating(true); setOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs text-neutral-400 hover:bg-neutral-50 border-t border-neutral-100">
+                + Create "{query}"
+              </button>
+            )}
           </div>
         )}
-        {open && query.length >= 2 && results.length === 0 && (
+        {open && query.length >= 2 && results.length === 0 && !canCreate && (
           <div className="absolute z-20 top-full mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-sm px-3 py-2 text-xs text-neutral-400">
             No results
           </div>
         )}
       </div>
+      {creating && (
+        endpoint === "venues"
+          ? <VenueCreateForm initialName={query} onCreated={handleCreated} onCancel={() => setCreating(false)} />
+          : <SimpleCreateForm endpoint={endpoint} initialName={query} fields={CREATE_FIELDS[endpoint] ?? [{ key: "name", label: "Name", required: true }]} onCreated={handleCreated} onCancel={() => setCreating(false)} />
+      )}
     </div>
   );
 }
@@ -228,6 +395,86 @@ function ClassicalFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) 
     <div className="space-y-4">
       <SearchCombo label="Ensemble" endpoint="ensembles" value={ext.ensemble as NamedRef | null} onChange={(v) => set("ensemble", v)} />
       <SearchCombo label="Conductor" endpoint="persons" value={ext.conductor as NamedRef | null} onChange={(v) => set("conductor", v)} />
+      <Field label="Credits">
+        <CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} />
+      </Field>
+    </div>
+  );
+}
+
+type CreditRow = { role: string; person: NamedRef | null };
+
+function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: CreditRow[]) => void }) {
+  return (
+    <div className="space-y-2">
+      {credits.map((c, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-40 flex-shrink-0"
+            placeholder="Role"
+            value={c.role}
+            onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }}
+          />
+          <div className="flex-1">
+            <SearchCombo
+              label=""
+              endpoint="persons"
+              value={c.person}
+              onChange={(v) => { const next = [...credits]; next[i] = { ...c, person: v }; set(next); }}
+            />
+          </div>
+          <button type="button" onClick={() => set(credits.filter((_, j) => j !== i))} className="text-neutral-300 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full"
+        onClick={() => set([...credits, { role: "", person: null }])}
+      >
+        + Add credit
+      </button>
+    </div>
+  );
+}
+
+function CastEditor({ cast, set }: { cast: Record<string, unknown>; set: (v: Record<string, unknown>) => void }) {
+  const entries = Object.entries(cast);
+  return (
+    <div className="space-y-2">
+      {entries.map(([role, person]) => {
+        const p = person as { id: string; name: string } | null;
+        return (
+          <div key={role} className="flex items-center gap-2">
+            <input
+              className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-40"
+              placeholder="Role"
+              value={role}
+              onChange={(e) => {
+                const next = { ...cast };
+                delete next[role];
+                next[e.target.value] = person;
+                set(next);
+              }}
+            />
+            <div className="flex-1">
+              <SearchCombo
+                label=""
+                endpoint="persons"
+                value={p ? { id: p.id, name: p.name } : null}
+                onChange={(v) => set({ ...cast, [role]: v })}
+              />
+            </div>
+            <button type="button" onClick={() => { const next = { ...cast }; delete next[role]; set(next); }} className="text-neutral-300 hover:text-red-400 text-xs">✕</button>
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        className="text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full"
+        onClick={() => set({ ...cast, "": null })}
+      >
+        + Add cast member
+      </button>
     </div>
   );
 }
@@ -241,6 +488,15 @@ function OperaFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
       <SearchCombo label="Stage director" endpoint="persons" value={ext.director as NamedRef | null} onChange={(v) => set("director", v)} />
       <SearchCombo label="Production" endpoint="productions" value={ext.production as NamedRef | null} onChange={(v) => set("production", v)} displayFn={(i) => (i.title as string) ?? ""} />
       <MultiSearchCombo label="Composers" endpoint="persons" values={(ext.composers as NamedRef[]) ?? []} onChange={(v) => set("composers", v)} />
+      <Field label="Libretto language"><input className={inputCls} placeholder="e.g. Italian" value={(ext.libretto_language as string) ?? ""} onChange={(e) => set("libretto_language", e.target.value)} /></Field>
+      <Field label="Surtitle languages"><input className={inputCls} placeholder="e.g. English, Dutch" value={(ext.surtitles_languages as string) ?? ""} onChange={(e) => set("surtitles_languages", e.target.value)} /></Field>
+      <Field label="Operabase URL"><input className={inputCls} placeholder="https://operabase.com/…" value={(ext.operabase_url as string) ?? ""} onChange={(e) => set("operabase_url", e.target.value)} /></Field>
+      <Field label="Cast">
+        <CastEditor cast={(ext.cast as Record<string, unknown>) ?? {}} set={(v) => set("cast", v)} />
+      </Field>
+      <Field label="Credits">
+        <CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} />
+      </Field>
     </div>
   );
 }
@@ -252,6 +508,9 @@ function BalletFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => 
       <SearchCombo label="Orchestra" endpoint="ensembles" value={ext.orchestra as NamedRef | null} onChange={(v) => set("orchestra", v)} />
       <SearchCombo label="Conductor" endpoint="persons" value={ext.conductor as NamedRef | null} onChange={(v) => set("conductor", v)} />
       <SearchCombo label="Work (if single)" endpoint="works" value={ext.work as NamedRef | null} onChange={(v) => set("work", v)} displayFn={(i) => (i.title as string) ?? ""} />
+      <Field label="Credits">
+        <CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} />
+      </Field>
     </div>
   );
 }
@@ -284,6 +543,9 @@ function TheatreFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) =>
       <SearchCombo label="Playwright" endpoint="persons" value={ext.playwright as NamedRef | null} onChange={(v) => set("playwright", v)} />
       <SearchCombo label="Work" endpoint="works" value={ext.work as NamedRef | null} onChange={(v) => set("work", v)} displayFn={(i) => (i.title as string) ?? ""} />
       <SearchCombo label="Production" endpoint="productions" value={ext.production as NamedRef | null} onChange={(v) => set("production", v)} displayFn={(i) => (i.title as string) ?? ""} />
+      <Field label="Credits">
+        <CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} />
+      </Field>
     </div>
   );
 }
@@ -359,6 +621,163 @@ const EXTENSION_FIELDS: Record<string, React.ComponentType<{ ext: Ext; set: (k: 
   spoken_word: SpokenWordFields, talk: TalkFields, exhibition: ExhibitionFields,
   screening: ScreeningFields,
 };
+
+// ── Init form state from an existing EventDetail (edit mode) ─────────────────
+
+function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext: Ext } {
+  const e = event.extension ?? {};
+  const base: Record<string, unknown> = {
+    title: event.title,
+    date: String(event.date),
+    time: event.time ? String(event.time).slice(0, 5) : "",
+    venue: event.venue,
+    subtype: event.subtype ?? (event.extension as Record<string, unknown> | null)?.subtype ?? "",
+    price_paid: event.price_paid ? String(event.price_paid) : "",
+    currency: event.currency ?? "EUR",
+    festival: event.festival ?? null,
+    payment_method: event.payment_method ?? null,
+    rating: event.rating ?? null,
+    rating_context: event.rating_context ?? "",
+    review: event.review ?? "",
+    notes: event.notes ?? "",
+    data_completeness: event.data_completeness ?? "",
+    links: (event.links ?? []).map((l: Record<string, string>) => ({
+      url: l.url ?? "",
+      label: l.label ?? "",
+      description: l.description ?? "",
+    })),
+  };
+
+  const ref = (v: unknown): NamedRef | null => {
+    if (!v || typeof v !== "object") return null;
+    const r = v as Record<string, unknown>;
+    const name = r.name ?? r.title;
+    return r.id && name ? { id: String(r.id), name: String(name) } : null;
+  };
+  const refs = (arr: unknown): NamedRef[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map(ref).filter(Boolean) as NamedRef[];
+  };
+
+  const ext: Ext = {
+    // music
+    headliner_person: ref(e.headliner),
+    headliner_ensemble: ref(e.headliner_ensemble),
+    support_persons: refs(e.support_acts),
+    tour_name: e.tour_name ?? "",
+    // classical / opera / ballet / dance / circus / theatre / screening
+    ensemble: ref(e.ensemble),
+    conductor: ref(e.conductor),
+    work: ref(e.work),
+    // opera
+    director: ref(e.director),
+    production: ref(e.production),
+    composers: refs(e.composers),
+    libretto_language: e.libretto_language ?? "",
+    surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
+    operabase_url: e.operabase_url ?? "",
+    cast: e.cast ?? {},
+    // credits (opera, theatre, ballet, classical)
+    credits: Array.isArray(e.credits)
+      ? (e.credits as Array<{ role: string; person: { id: string; name: string } }>).map(c => ({ role: c.role, person: c.person ?? null }))
+      : [],
+    // ballet
+    company: ref(e.company),
+    orchestra: ref(e.orchestra),
+    // dance
+    choreographer: ref(e.choreographer),
+    // cabaret
+    headliner: ref(e.headliner),
+    host: ref(e.host),
+    supporting_cast: refs(e.supporting_cast),
+    // comedy
+    performer: ref(e.performer),
+    support_acts: refs(e.support_acts),
+    // spoken_word
+    performers: refs(e.performers),
+    // theatre
+    playwright: ref(e.playwright),
+    // talk
+    speakers: refs(e.speakers),
+    topic: e.topic ?? "",
+    host_organisation: e.host_organisation ?? "",
+    // exhibition
+    exhibition_title: e.exhibition_title ?? "",
+    artists: refs(e.artists),
+    period: e.period ?? "",
+    medium: e.medium ?? "",
+  };
+
+  return { base, ext };
+}
+
+// ── Build update payload (PATCH — base fields + extension wrapper) ────────────
+
+function buildUpdatePayload(type: string, base: Record<string, unknown>, ext: Ext): Record<string, unknown> {
+  const id = (v: NamedRef | null | undefined) => v?.id ?? null;
+  const ids = (arr: NamedRef[] | undefined) => arr?.map((v) => v.id) ?? [];
+
+  const payload: Record<string, unknown> = {
+    venue_id: (base.venue as NamedRef | null)?.id,
+    title: base.title,
+    date: base.date,
+    time: base.time || null,
+    price_paid: base.price_paid || null,
+    currency: base.currency || "EUR",
+    festival_id: (base.festival as NamedRef | null)?.id ?? null,
+    payment_method_id: (base.payment_method as PaymentMethod | null)?.id ?? null,
+    notes: base.notes || null,
+    rating: base.rating ?? null,
+    rating_context: base.rating_context || null,
+    review: base.review || null,
+    data_completeness: base.data_completeness || null,
+    subtype: base.subtype || null,
+    links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
+      url: l.url,
+      ...(l.label ? { label: l.label } : {}),
+      ...(l.description ? { description: l.description } : {}),
+    })) ?? null,
+  };
+
+  const creditsPayload = (ext.credits as CreditRow[] | undefined)
+    ?.filter(c => c.role && c.person)
+    .map((c, i) => ({ role: c.role, person_id: c.person!.id, sort_order: i })) ?? null;
+
+  const extPayload: Record<string, unknown> = {};
+  if (type === "music") {
+    Object.assign(extPayload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), tour_name: ext.tour_name || null });
+  } else if (type === "classical") {
+    Object.assign(extPayload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload });
+  } else if (type === "opera") {
+    const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map(s => s.trim()).filter(Boolean) : null;
+    const castRaw = ext.cast as Record<string, { id: string } | null> | undefined;
+    const castIds = castRaw ? Object.fromEntries(Object.entries(castRaw).filter(([r, p]) => r && p).map(([r, p]) => [r, p!.id])) : null;
+    Object.assign(extPayload, { work_id: id(ext.work as NamedRef), ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), director_id: id(ext.director as NamedRef), production_id: id(ext.production as NamedRef), composers: ids(ext.composers as NamedRef[]), libretto_language: (ext.libretto_language as string) || null, surtitles_languages: surtitles, cast: castIds, operabase_url: (ext.operabase_url as string) || null, credits: creditsPayload });
+  } else if (type === "ballet") {
+    Object.assign(extPayload, { company_id: id(ext.company as NamedRef), orchestra_id: id(ext.orchestra as NamedRef), conductor_id: id(ext.conductor as NamedRef), work_id: id(ext.work as NamedRef), credits: creditsPayload });
+  } else if (type === "dance") {
+    Object.assign(extPayload, { company_id: id(ext.company as NamedRef), choreographer_id: id(ext.choreographer as NamedRef), work_id: id(ext.work as NamedRef) });
+  } else if (type === "circus") {
+    Object.assign(extPayload, { company_id: id(ext.company as NamedRef), director_id: id(ext.director as NamedRef), work_id: id(ext.work as NamedRef) });
+  } else if (type === "theatre") {
+    Object.assign(extPayload, { company_id: id(ext.company as NamedRef), director_id: id(ext.director as NamedRef), playwright_id: id(ext.playwright as NamedRef), work_id: id(ext.work as NamedRef), production_id: id(ext.production as NamedRef), credits: creditsPayload });
+  } else if (type === "cabaret") {
+    Object.assign(extPayload, { headliner_id: id(ext.headliner as NamedRef), host_id: id(ext.host as NamedRef), ensemble_id: id(ext.ensemble as NamedRef), supporting_cast: ids(ext.supporting_cast as NamedRef[]), tour_name: ext.tour_name || null });
+  } else if (type === "comedy") {
+    Object.assign(extPayload, { performer_id: id(ext.performer as NamedRef), support_acts: ids(ext.support_acts as NamedRef[]), ensemble_id: id(ext.ensemble as NamedRef), tour_name: ext.tour_name || null });
+  } else if (type === "spoken_word") {
+    Object.assign(extPayload, { performers: ids(ext.performers as NamedRef[]), host_id: id(ext.host as NamedRef) });
+  } else if (type === "talk") {
+    Object.assign(extPayload, { speaker_ids: ids(ext.speakers as NamedRef[]), host_id: id(ext.host as NamedRef), topic: ext.topic || null, host_organisation: ext.host_organisation || null });
+  } else if (type === "exhibition") {
+    Object.assign(extPayload, { exhibition_title: ext.exhibition_title || null, artists: ids(ext.artists as NamedRef[]), period: ext.period || null, medium: ext.medium || null });
+  } else if (type === "screening") {
+    Object.assign(extPayload, { work_id: id(ext.work as NamedRef), director_id: id(ext.director as NamedRef), ensemble_id: id(ext.ensemble as NamedRef) });
+  }
+
+  if (Object.keys(extPayload).length > 0) payload.extension = extPayload;
+  return payload;
+}
 
 // ── Build API payload from form state ────────────────────────────────────────
 
@@ -486,17 +905,20 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
 
 // ── Main form ────────────────────────────────────────────────────────────────
 
-export default function AddEvent() {
-  const [step, setStep] = useState<Step>("type");
-  const [type, setType] = useState<EventType | null>(null);
-  const [base, setBase] = useState<Record<string, unknown>>({
+export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail }) {
+  const editMode = !!initialEvent;
+  const init = initialEvent ? initFromEvent(initialEvent) : null;
+
+  const [step, setStep] = useState<Step>(editMode ? "basic" : "type");
+  const [type, setType] = useState<EventType | null>(editMode ? initialEvent!.type as EventType : null);
+  const [base, setBase] = useState<Record<string, unknown>>(init?.base ?? {
     date: new Date().toISOString().slice(0, 10),
     currency: "EUR",
   });
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showNewPM, setShowNewPM] = useState(false);
   const [newPM, setNewPM] = useState({ name: "", total_cost: "", currency: "EUR", purchase_date: new Date().toISOString().slice(0, 10), notes: "" });
-  const [ext, setExt] = useState<Ext>({});
+  const [ext, setExt] = useState<Ext>(init?.ext ?? {});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -514,8 +936,14 @@ export default function AddEvent() {
     setSubmitting(true);
     setError("");
     try {
-      const payload = buildPayload(type, base, ext);
-      const event = await createEvent(type, payload);
+      let event;
+      if (editMode && initialEvent) {
+        const payload = buildUpdatePayload(type, base, ext);
+        event = await updateEvent(initialEvent.id as unknown as string, payload);
+      } else {
+        const payload = buildPayload(type, base, ext);
+        event = await createEvent(type, payload);
+      }
       window.location.href = url("/");
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent("open-event", { detail: event.id }));
@@ -528,12 +956,25 @@ export default function AddEvent() {
 
   const ExtFields = type ? EXTENSION_FIELDS[type] : null;
 
+  const steps = editMode
+    ? (["basic", "details", "take"] as Step[]).filter(s => s !== "details" || !!ExtFields)
+    : (["type", "basic", "details", "take"] as Step[]);
+
   return (
     <div className="max-w-lg mx-auto">
 
+      {/* Header */}
+      {editMode && (
+        <div className="mb-6">
+          <a href={url("/")} className="text-xs text-neutral-400 hover:text-neutral-700">← Back</a>
+          <h1 className="font-serif text-2xl text-neutral-900 mt-2">Edit event</h1>
+          <p className="text-sm text-neutral-400 mt-1">{TYPE_LABELS[type!]} · {String(base.date)}</p>
+        </div>
+      )}
+
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8">
-        {(["type", "basic", "details", "take"] as Step[]).map((s, i) => (
+        {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             {i > 0 && <div className="w-6 h-px bg-neutral-200" />}
             <button
@@ -550,8 +991,8 @@ export default function AddEvent() {
         ))}
       </div>
 
-      {/* Step 1: Type */}
-      {step === "type" && (
+      {/* Step 1: Type (add mode only) */}
+      {step === "type" && !editMode && (
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-6">What kind of event?</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -575,12 +1016,12 @@ export default function AddEvent() {
       {step === "basic" && (
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-6">
-            <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>
+            {!editMode && <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>}
             Basic info
           </h2>
           <div className="space-y-5">
             <Field label="Title" required>
-              <input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus />
+              <input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus autoCapitalize="none" />
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
@@ -592,7 +1033,8 @@ export default function AddEvent() {
               </Field>
             </div>
 
-            <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false} />
+            <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false}
+              displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
@@ -845,7 +1287,7 @@ export default function AddEvent() {
                 onClick={handleSubmit}
                 className="bg-neutral-900 text-white text-sm rounded-lg px-8 py-2.5 hover:bg-neutral-700 transition-colors disabled:opacity-40"
               >
-                {submitting ? "Saving…" : "Save event"}
+                {submitting ? "Saving…" : editMode ? "Save changes" : "Save event"}
               </button>
             </div>
           </div>

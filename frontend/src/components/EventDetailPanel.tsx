@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { isEditor } from "../lib/editor";
+import { url } from "../lib/base";
 import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose, IconWriting, IconArticle } from "@tabler/icons-react";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
@@ -928,6 +929,14 @@ export default function EventDetailPanel() {
                   </>
                 )}
               </div>
+              {editor && event && (
+                <a
+                  href={url(`/edit?id=${event.id}`)}
+                  className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-neutral-400 transition-colors"
+                >
+                  Edit
+                </a>
+              )}
             </div>
 
             <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">

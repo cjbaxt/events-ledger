@@ -1,4 +1,5 @@
 import type { EventListItem, EventDetail } from "../types/events";
+export type { EventDetail } from "../types/events";
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? "";
 export const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
@@ -108,6 +109,22 @@ export async function patchEventPrice(id: string, price: string, currency: strin
   if (!res.ok) throw new Error(`Failed to patch price: ${res.status}`);
 }
 
+export async function updateEvent(id: string, payload: Record<string, unknown>): Promise<EventDetail> {
+  const res = await authFetch(`${BASE}/api/events/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const detail = Array.isArray(err.detail)
+      ? err.detail.map((e: { msg?: string; loc?: unknown[] }) => `${e.loc?.join(".")}: ${e.msg}`).join("; ")
+      : (err.detail ?? `Failed to update event: ${res.status}`);
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function createEvent(type: string, payload: Record<string, unknown>): Promise<EventDetail> {
   const res = await authFetch(`${BASE}/api/events/${type}`, {
     method: "POST",
@@ -124,6 +141,19 @@ export async function createEvent(type: string, payload: Record<string, unknown>
 export async function searchEntities(endpoint: string, q: string): Promise<Array<{ id: string; name?: string; title?: string; edition?: string }>> {
   const res = await authFetch(`${BASE}/api/${endpoint}?q=${encodeURIComponent(q)}&limit=10`);
   if (!res.ok) return [];
+  return res.json();
+}
+
+export async function createEntity(endpoint: string, data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
+  const res = await authFetch(`${BASE}/api/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? `Failed to create: ${res.status}`);
+  }
   return res.json();
 }
 
