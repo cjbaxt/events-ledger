@@ -61,6 +61,8 @@ class EventClassical(SQLModel, table=True):
     ensemble_id: Optional[uuid.UUID] = Field(default=None, foreign_key="ensemble.id")
     conductor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="person.id")
     notes_on_performance: Optional[str] = None
+    setlist_fm_url: Optional[str] = None
+    setlist: Optional[list] = Field(default=None, sa_column=Column(JSON))
 
 
 class ClassicalProgrammeItem(SQLModel, table=True):

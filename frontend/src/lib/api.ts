@@ -1,7 +1,7 @@
 import type { EventListItem, EventDetail } from "../types/events";
 export type { EventDetail } from "../types/events";
 
-const BASE = import.meta.env.PUBLIC_API_URL ?? "";
+export const BASE = import.meta.env.PUBLIC_API_URL ?? "";
 export const STATIC = import.meta.env.PUBLIC_STATIC_DATA === "true";
 export const DATA = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 

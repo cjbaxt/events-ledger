@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createEvent, updateEvent, searchEntities, createEntity, fetchPaymentMethods, createPaymentMethod } from "../lib/api";
+import { createEvent, updateEvent, searchEntities, createEntity, fetchPaymentMethods, createPaymentMethod, BASE } from "../lib/api";
 import type { PaymentMethod, EventDetail } from "../lib/api";
 import { url } from "../lib/base";
 import EventTypeIcon from "./EventTypeIcon";
@@ -378,6 +378,68 @@ const inputCls = "w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm 
 
 type Ext = Record<string, unknown>;
 
+function SetlistSection({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
+  const [fetching, setFetching] = useState(false);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+
+  const songs: string[] = Array.isArray(ext.setlist) ? (ext.setlist as string[]) : [];
+  const url = (ext.setlist_fm_url as string) ?? "";
+
+  async function fetchSetlist() {
+    if (!url) return;
+    setFetching(true);
+    setFetchErr(null);
+    try {
+      const res = await fetch(`${BASE}/api/setlist/fetch?url=${encodeURIComponent(url)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ?? `Error ${res.status}`);
+      }
+      const data: string[] = await res.json();
+      set("setlist", data);
+    } catch (e) {
+      setFetchErr(e instanceof Error ? e.message : "Failed to fetch setlist");
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  return (
+    <>
+      <Field label="setlist.fm URL">
+        <div className="flex gap-2">
+          <input
+            className={`${inputCls} flex-1`}
+            placeholder="https://www.setlist.fm/setlist/…"
+            value={url}
+            onChange={(e) => set("setlist_fm_url", e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={!url || fetching}
+            onClick={fetchSetlist}
+            className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40 whitespace-nowrap"
+          >
+            {fetching ? "Fetching…" : "Fetch setlist"}
+          </button>
+        </div>
+        {fetchErr && <p className="text-xs text-red-500 mt-1">{fetchErr}</p>}
+      </Field>
+      {songs.length > 0 && (
+        <Field label={`Setlist (${songs.length} songs)`}>
+          <textarea
+            rows={Math.min(songs.length + 1, 12)}
+            className={`${inputCls} resize-y font-mono text-xs`}
+            value={songs.join("\n")}
+            onChange={(e) => set("setlist", e.target.value.split("\n").map(s => s.trim()).filter(Boolean))}
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">One song per line — edit freely</p>
+        </Field>
+      )}
+    </>
+  );
+}
+
 function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return (
     <div className="space-y-4">
@@ -386,6 +448,7 @@ function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
       <MultiSearchCombo label="Support acts (persons)" endpoint="persons" values={(ext.support_persons as NamedRef[]) ?? []} onChange={(v) => set("support_persons", v)} />
       <MultiSearchCombo label="Support acts (ensembles)" endpoint="ensembles" values={(ext.support_ensembles as NamedRef[]) ?? []} onChange={(v) => set("support_ensembles", v)} />
       <Field label="Tour name"><input className={inputCls} value={(ext.tour_name as string) ?? ""} onChange={(e) => set("tour_name", e.target.value)} /></Field>
+      <SetlistSection ext={ext} set={set} />
     </div>
   );
 }
@@ -398,6 +461,7 @@ function ClassicalFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) 
       <Field label="Credits">
         <CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} />
       </Field>
+      <SetlistSection ext={ext} set={set} />
     </div>
   );
 }
@@ -677,6 +741,9 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
     operabase_url: e.operabase_url ?? "",
     cast: e.cast ?? {},
+    // setlist (music + classical)
+    setlist_fm_url: e.setlist_fm_url ?? "",
+    setlist: Array.isArray(e.setlist) ? e.setlist : [],
     // credits (opera, theatre, ballet, classical)
     credits: Array.isArray(e.credits)
       ? (e.credits as Array<{ role: string; person: { id: string; name: string } }>).map(c => ({ role: c.role, person: c.person ?? null }))
@@ -744,10 +811,14 @@ function buildUpdatePayload(type: string, base: Record<string, unknown>, ext: Ex
     .map((c, i) => ({ role: c.role, person_id: c.person!.id, sort_order: i })) ?? null;
 
   const extPayload: Record<string, unknown> = {};
+  const setlistPayload = {
+    setlist_fm_url: (ext.setlist_fm_url as string) || null,
+    setlist: (ext.setlist as string[] | undefined)?.length ? ext.setlist : null,
+  };
   if (type === "music") {
-    Object.assign(extPayload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), tour_name: ext.tour_name || null });
+    Object.assign(extPayload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), tour_name: ext.tour_name || null, ...setlistPayload });
   } else if (type === "classical") {
-    Object.assign(extPayload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload });
+    Object.assign(extPayload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload, ...setlistPayload });
   } else if (type === "opera") {
     const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map(s => s.trim()).filter(Boolean) : null;
     const castRaw = ext.cast as Record<string, { id: string } | null> | undefined;
@@ -807,6 +878,10 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
   const id = (v: NamedRef | null | undefined) => v?.id ?? null;
   const ids = (arr: NamedRef[] | undefined) => arr?.map((v) => v.id) ?? [];
 
+  const setlistFields = {
+    setlist_fm_url: (ext.setlist_fm_url as string) || null,
+    setlist: (ext.setlist as string[] | undefined)?.length ? ext.setlist : null,
+  };
   if (type === "music") {
     Object.assign(payload, {
       headliner_person_id: id(ext.headliner_person as NamedRef),
@@ -814,11 +889,13 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
       support_act_person_ids: ids(ext.support_persons as NamedRef[]),
       support_act_ensemble_ids: ids(ext.support_ensembles as NamedRef[]),
       tour_name: ext.tour_name || null,
+      ...setlistFields,
     });
   } else if (type === "classical") {
     Object.assign(payload, {
       ensemble_id: id(ext.ensemble as NamedRef),
       conductor_id: id(ext.conductor as NamedRef),
+      ...setlistFields,
     });
   } else if (type === "opera") {
     Object.assign(payload, {

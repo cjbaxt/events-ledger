@@ -271,6 +271,8 @@ def _build_extension(session: Session, event: Event) -> Optional[dict]:
             "conductor": _resolve_name(session, Person, ext.conductor_id),
             "credits": _resolve_credits(session, event.id),
             "notes_on_performance": ext.notes_on_performance,
+            "setlist_fm_url": ext.setlist_fm_url,
+            "setlist": ext.setlist,
             "programme": programme,
         }
 
@@ -696,6 +698,8 @@ def create_classical_event(data: EventClassicalCreate, session: Session = Depend
         ensemble_id=data.ensemble_id,
         conductor_id=data.conductor_id,
         notes_on_performance=data.notes_on_performance,
+        setlist_fm_url=data.setlist_fm_url,
+        setlist=data.setlist,
     ))
     session.flush()
     if data.programme:

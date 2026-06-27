@@ -147,6 +147,8 @@ class EventClassicalCreate(EventBase):
     ensemble_id: Optional[uuid.UUID] = None
     conductor_id: Optional[uuid.UUID] = None
     notes_on_performance: Optional[str] = None
+    setlist_fm_url: Optional[str] = None
+    setlist: Optional[List[str]] = None
     programme: Optional[List[ClassicalProgrammeItemCreate]] = None
 
 
