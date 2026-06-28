@@ -14,7 +14,7 @@ app = FastAPI(title="Events Ledger", version="0.1.0")
 
 _cors_origins = os.environ.get(
     "CORS_ORIGINS",
-    "http://localhost:4321,http://127.0.0.1:4321,http://localhost:4322,http://localhost:4323,http://localhost:4324",
+    "http://localhost:4340,http://127.0.0.1:4340",
 ).split(",")
 
 app.add_middleware(

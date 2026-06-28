@@ -20,7 +20,7 @@ export default defineConfig({
       ...(!isStatic ? {
         proxy: {
           "/api": {
-            target: "http://localhost:8001",
+            target: "http://localhost:8010",
             changeOrigin: true,
           },
         },
