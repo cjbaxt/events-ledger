@@ -1146,6 +1146,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                 <datalist id={`subtypes-${type}`}>
                   {SUBTYPES[type!].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
                 </datalist>
+                <p className="text-[11px] text-neutral-400 mt-1">Type to filter suggestions, or enter anything new</p>
               </Field>
             )}
 
