@@ -27,16 +27,16 @@ const TYPE_LABELS: Record<string, string> = {
 
 // Subtypes per event type
 const SUBTYPES: Record<string, string[]> = {
-  music: ["gig", "open_mic", "residency", "other"],
+  music: ["gig", "choir", "open_mic", "residency", "other"],
   classical: ["orchestral", "chamber", "choral", "recital", "contemporary", "other"],
-  opera: ["opera", "operetta", "musical_theatre", "other"],
+  opera: ["full_length", "opera", "operetta", "musical_theatre", "other"],
   ballet: ["full_length", "mixed_bill", "contemporary", "other"],
   dance: ["contemporary", "flamenco", "folk", "ballroom", "other"],
   circus: ["contemporary_circus", "traditional", "physical_theatre", "aerial", "street", "other"],
   theatre: ["play", "musical", "improv", "improv_musical", "panto", "physical_theatre", "puppet", "other"],
   cabaret: ["burlesque", "drag", "cabaret", "variety", "other"],
   comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "comedy_magic", "other"],
-  spoken_word: ["reading", "slam", "spoken_word", "storytelling", "other"],
+  spoken_word: ["spoken_word", "reading", "slam", "storytelling", "other"],
   talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "interview", "other"],
   exhibition: ["art", "natural_history", "science", "photography", "sculpture", "design", "historical", "other"],
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
@@ -1136,10 +1136,16 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
 
             {SUBTYPES[type!] && (
               <Field label="Subtype">
-                <select className={inputCls} value={(base.subtype as string) ?? ""} onChange={(e) => setBaseField("subtype", e.target.value)}>
-                  <option value="">— select —</option>
+                <input
+                  className={inputCls}
+                  list={`subtypes-${type}`}
+                  value={(base.subtype as string) ?? ""}
+                  onChange={(e) => setBaseField("subtype", e.target.value)}
+                  placeholder="select or type a subtype"
+                />
+                <datalist id={`subtypes-${type}`}>
                   {SUBTYPES[type!].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
-                </select>
+                </datalist>
               </Field>
             )}
 
