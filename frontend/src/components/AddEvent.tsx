@@ -27,17 +27,17 @@ const TYPE_LABELS: Record<string, string> = {
 
 // Subtypes per event type
 const SUBTYPES: Record<string, string[]> = {
-  music: ["gig", "choir", "open_mic", "residency", "other"],
-  classical: ["orchestral", "chamber", "choral", "recital", "contemporary", "other"],
-  opera: ["full_length", "opera", "operetta", "musical_theatre", "other"],
+  music: ["gig", "choir", "comedy_music", "community", "open_mic", "residency", "other"],
+  classical: ["orchestral", "chamber", "choral", "recital", "contemporary", "comedy_classical", "other"],
+  opera: ["full_length", "contemporary", "opera", "operetta", "musical_theatre", "other"],
   ballet: ["full_length", "mixed_bill", "contemporary", "other"],
   dance: ["contemporary", "flamenco", "folk", "ballroom", "other"],
-  circus: ["contemporary_circus", "traditional", "physical_theatre", "aerial", "street", "other"],
+  circus: ["contemporary_circus", "contemporary", "big_top", "clown", "traditional", "physical_theatre", "aerial", "street", "other"],
   theatre: ["play", "musical", "improv", "improv_musical", "panto", "physical_theatre", "puppet", "other"],
   cabaret: ["burlesque", "drag", "cabaret", "variety", "other"],
-  comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "comedy_magic", "other"],
+  comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "comedy_magic", "variety", "other"],
   spoken_word: ["spoken_word", "reading", "slam", "storytelling", "other"],
-  talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "interview", "other"],
+  talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "science", "interview", "other"],
   exhibition: ["art", "natural_history", "science", "photography", "sculpture", "design", "historical", "other"],
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
 };
