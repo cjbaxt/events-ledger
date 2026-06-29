@@ -25,7 +25,7 @@ const paragraphs = raw.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
   <body class="bg-white min-h-screen">
     <EditorUnlock client:load />
     <Nav current="/about" client:load />
-    <main class="max-w-2xl mx-auto px-4 pt-20 pb-24 md:pb-8">
+    <main class="max-w-2xl mx-auto px-4 pt-4 md:pt-20 pb-24 md:pb-8">
       <p class="font-serif text-2xl text-neutral-900 mt-4 mb-8">About</p>
       <div class="space-y-5 text-sm text-neutral-700 leading-relaxed">
         {paragraphs.map(p => <p>{p}</p>)}
