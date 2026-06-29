@@ -663,48 +663,48 @@ function DescriptionBlock({
 }) {
   const [showFull, setShowFull] = React.useState(false);
   const hasBoth = !!(aiSummary && fullDescription);
+  const activeIsVerbatim = hasBoth ? showFull : !!fullDescription;
 
   return (
     <div className="border border-neutral-100 rounded-xl px-4 py-3">
-      {hasBoth && (
-        <div className="flex gap-1 mb-2.5">
-          <button
-            onClick={() => setShowFull(false)}
-            className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${!showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
-          >
-            Summary
-          </button>
-          <button
-            onClick={() => setShowFull(true)}
-            className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
-          >
-            Verbatim
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] uppercase tracking-widest text-neutral-400">Description</div>
+        {hasBoth ? (
+          <div className="flex gap-1">
+            <button
+              onClick={() => setShowFull(false)}
+              className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${!showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
+            >
+              AI summary
+            </button>
+            <button
+              onClick={() => setShowFull(true)}
+              className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
+            >
+              Verbatim
+            </button>
+          </div>
+        ) : (
+          <span className="text-[11px] text-neutral-400">{aiSummary ? "AI summary" : "Verbatim"}</span>
+        )}
+      </div>
+
       {(!hasBoth || !showFull) && aiSummary && (
-        <p className="text-sm text-neutral-600 leading-relaxed">{aiSummary}</p>
+        <p className="text-sm text-neutral-500 leading-relaxed">{aiSummary}</p>
       )}
       {(!hasBoth || showFull) && fullDescription && (
-        <p className="text-xs text-neutral-500 leading-relaxed whitespace-pre-wrap">{fullDescription}</p>
+        <p className="text-sm text-neutral-500 leading-relaxed whitespace-pre-wrap">{fullDescription}</p>
       )}
-      {showFull && sourceUrl && (
+
+      {activeIsVerbatim && sourceUrl && (
         <a
           href={sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[11px] text-neutral-400 hover:text-neutral-600 transition-colors mt-2 block"
+          className="text-[11px] text-neutral-400 hover:text-neutral-600 transition-colors mt-2.5 block break-all"
         >
-          Source ↗
+          {sourceUrl} ↗
         </a>
-      )}
-      {!showFull && sourceUrl && (
-        <button
-          onClick={() => setShowFull(true)}
-          className="text-[11px] text-neutral-400 hover:text-neutral-600 transition-colors mt-1.5 block"
-        >
-          From {new URL(sourceUrl).hostname.replace("www.", "")} ↗
-        </button>
       )}
     </div>
   );
