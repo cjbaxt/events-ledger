@@ -441,12 +441,19 @@ function VenuesTab({ events }: { events: EventListItem[] }) {
 
 // ── Tab: Over Time ────────────────────────────────────────────────────────────
 
-const OVER_TIME_TOGGLEABLE = ["exhibition", "talk"] as const;
+const ALL_OVER_TIME_TYPES = [
+  "ballet", "cabaret", "circus", "classical", "comedy", "dance",
+  "exhibition", "music", "opera", "other", "screening", "spoken_word",
+  "talk", "theatre",
+];
 
 function OverTimeTab({ events }: { events: EventListItem[] }) {
-  const [excluded, setExcluded] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
 
-  const filtered = events.filter(e => !excluded.has(e.type));
+  const presentTypes = new Set(events.map(e => e.type));
+  const filtered = events.filter(e => !hiddenTypes.has(e.type));
 
   const byYear = new Map<string, { count: number; spend: number }>();
   for (const e of filtered) {
@@ -458,33 +465,27 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
   const years = [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const maxCount = Math.max(...years.map(([, v]) => v.count));
 
-  function toggle(type: string) {
-    setExcluded(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
-    });
+  function openFilter() { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }
+  function applyFilter() { setHiddenTypes(new Set(pendingHidden)); setFilterOpen(false); }
+  function togglePending(type: string) {
+    setPendingHidden(prev => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; });
   }
 
+  const hiddenCount = hiddenTypes.size;
+
   return (
+    <>
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="text-[10px] uppercase tracking-widest text-neutral-400">Events per year</div>
-          <div className="flex gap-3">
-            {OVER_TIME_TOGGLEABLE.map(type => (
-              <button
-                key={type}
-                onClick={() => toggle(type)}
-                className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest transition-colors ${excluded.has(type) ? "text-neutral-300" : "text-neutral-500"}`}
-              >
-                <span className={`w-3 h-3 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${excluded.has(type) ? "border-neutral-200 bg-white" : "border-neutral-400 bg-neutral-400"}`}>
-                  {!excluded.has(type) && <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </span>
-                {TYPE_LABELS[type] ?? type}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={openFilter}
+            className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest transition-colors ${hiddenCount > 0 ? "text-neutral-400" : "text-neutral-300"}`}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            {hiddenCount > 0 ? `${ALL_OVER_TIME_TYPES.filter(t => presentTypes.has(t)).length - hiddenCount} types` : "All types"}
+          </button>
         </div>
         <div className="space-y-2">
           {years.map(([year, { count, spend }], i) => (
@@ -516,6 +517,61 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
         </div>
       </div>
     </div>
+
+    {filterOpen && (
+      <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setFilterOpen(false)}>
+        <div
+          className="bg-white rounded-t-2xl border-t border-neutral-200 px-5 pt-5 pb-8 max-h-[80vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-serif text-lg text-neutral-900">Filter by type</h3>
+            <button onClick={() => setFilterOpen(false)} className="text-neutral-400 hover:text-neutral-700 text-sm">✕</button>
+          </div>
+          <div className="space-y-1 mb-6">
+            {ALL_OVER_TIME_TYPES.filter(t => presentTypes.has(t)).map(type => {
+              const hidden = pendingHidden.has(type);
+              return (
+                <button
+                  key={type}
+                  onClick={() => togglePending(type)}
+                  className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-neutral-50 transition-colors"
+                >
+                  <div className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"}`}>
+                    {!hidden && (
+                      <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div className="w-6 h-6 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 flex-shrink-0">
+                    <EventTypeIcon type={type} size={12} />
+                  </div>
+                  <span className={`text-sm capitalize flex-1 text-left transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>
+                    {type.replace(/_/g, " ")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setPendingHidden(new Set())}
+              className="flex-1 border border-neutral-200 text-neutral-600 text-sm rounded-xl py-3 hover:border-neutral-400 transition-colors"
+            >
+              Show all
+            </button>
+            <button
+              onClick={applyFilter}
+              className="flex-1 bg-neutral-900 text-white text-sm rounded-xl py-3 hover:bg-neutral-700 transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
