@@ -690,10 +690,10 @@ function DescriptionBlock({
       </div>
 
       {(!hasBoth || !showFull) && aiSummary && (
-        <p className="text-sm text-neutral-500 leading-relaxed">{aiSummary}</p>
+        <p className="text-xs text-neutral-500 leading-relaxed">{aiSummary}</p>
       )}
       {(!hasBoth || showFull) && fullDescription && (
-        <p className="text-sm text-neutral-500 leading-relaxed whitespace-pre-wrap">{fullDescription}</p>
+        <p className="text-xs text-neutral-500 leading-relaxed whitespace-pre-wrap">{fullDescription}</p>
       )}
 
       {activeIsVerbatim && sourceUrl && (
