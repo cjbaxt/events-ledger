@@ -17,8 +17,13 @@ async function staticFetch<T>(path: string): Promise<T> {
 
 let _eventsCache: EventListItem[] | null = null;
 
+/** Returns a timestamp for an event, defaulting to midday if no time is set. */
+export function eventTimestamp(e: { date: string; time?: string | null }): number {
+  const timeStr = e.time ? e.time.slice(0, 5) : "12:00";
+  return new Date(`${e.date}T${timeStr}:00`).getTime();
+}
+
 export async function fetchEvents(params: {
-  status?: string;
   type?: string;
   q?: string;
   limit?: number;
@@ -27,7 +32,6 @@ export async function fetchEvents(params: {
   if (STATIC) {
     if (!_eventsCache) _eventsCache = await staticFetch<EventListItem[]>("/data/events.json");
     let results = _eventsCache;
-    if (params.status) results = results.filter(e => e.status === params.status);
     if (params.type) results = results.filter(e => e.type === params.type);
     if (params.q) {
       const q = params.q.toLowerCase();
@@ -38,7 +42,6 @@ export async function fetchEvents(params: {
     return results;
   }
   const qs = new URLSearchParams();
-  if (params.status) qs.set("status", params.status);
   if (params.type) qs.set("type", params.type);
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));

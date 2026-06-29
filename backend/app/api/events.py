@@ -471,7 +471,6 @@ def list_events(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     data_completeness: Optional[str] = None,
-    status: Optional[str] = None,
     q: Optional[str] = None,
     limit: int = Query(default=100, le=500),
     offset: int = 0,
@@ -488,8 +487,6 @@ def list_events(
         stmt = stmt.where(Event.date <= date_to)
     if data_completeness:
         stmt = stmt.where(Event.data_completeness == data_completeness)
-    if status:
-        stmt = stmt.where(Event.status == status)
     if q:
         stmt = stmt.where(Event.title.ilike(f"%{q}%"))
     stmt = stmt.offset(offset).limit(limit)
@@ -518,7 +515,6 @@ def list_events(
             rating=e.rating,
             rating_context=e.rating_context,
             data_completeness=e.data_completeness,
-            status=e.status,
             primary_entity_name=entity_name,
             primary_entity_id=entity_id,
             primary_entity_kind=entity_kind,

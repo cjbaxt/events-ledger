@@ -861,7 +861,6 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     price_paid: base.price_paid || null,
     currency: base.currency || "EUR",
     festival_id: (base.festival as NamedRef | null)?.id ?? null,
-    status: "attended",
     payment_method_id: (base.payment_method as PaymentMethod | null)?.id ?? null,
     notes: base.notes || null,
     rating: base.rating ?? null,

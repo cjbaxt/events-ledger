@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { fetchEvents } from "../lib/api";
+import { fetchEvents, eventTimestamp } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -133,15 +133,15 @@ export default function Upcoming() {
 
   useEffect(() => {
     function load() {
-      const today = new Date().toISOString().slice(0, 10);
       fetchEvents({ limit: 500 })
-        .then((evts) =>
+        .then((evts) => {
+          const now = Date.now();
           setEvents(
             [...evts]
-              .filter((e) => e.date >= today)
+              .filter((e) => eventTimestamp(e) > now)
               .sort((a, b) => a.date.localeCompare(b.date))
-          )
-        )
+          );
+        })
         .catch((e) => console.error("Upcoming fetch failed", e))
         .finally(() => setLoading(false));
     }

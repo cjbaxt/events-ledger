@@ -82,7 +82,5 @@ class Event(SQLModel, table=True):
     links: Optional[List[dict]] = Field(default=None, sa_column=Column(JSONB))
     # complete / partial / stub
     data_completeness: Optional[str] = None
-    # attended / planned / cancelled
-    status: str = Field(default="attended")
     related_event_ids: Optional[List[uuid.UUID]] = Field(default=None, sa_column=Column(ARRAY(PG_UUID(as_uuid=True))))
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -28,7 +28,6 @@ class EventBase(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
-    status: str = "attended"
 
 
 class EventUpdate(BaseModel):
@@ -49,7 +48,6 @@ class EventUpdate(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
-    status: Optional[str] = None
     extension: Optional[dict] = None
 
 
@@ -74,7 +72,6 @@ class EventListItem(BaseModel):
     rating: Optional[float] = None
     rating_context: Optional[str] = None
     data_completeness: Optional[str] = None
-    status: str = "attended"
     primary_entity_name: Optional[str] = None
     primary_entity_id: Optional[uuid.UUID] = None
     primary_entity_kind: Optional[str] = None  # "person" or "ensemble"
@@ -115,7 +112,6 @@ class EventDetail(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
-    status: str = "attended"
     related_events: List[dict] = []
     extension: Optional[dict] = None
     model_config = {"from_attributes": True}

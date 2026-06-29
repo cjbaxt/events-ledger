@@ -1,5 +1,3 @@
-export type EventStatus = "attended" | "cancelled";
-
 export interface PaymentMethodRef {
   id: string;
   name: string;
@@ -26,7 +24,6 @@ export interface EventListItem {
   rating_context: string | null;
   data_completeness: string | null;
   substack_url: string | null;
-  status: EventStatus;
   primary_entity_name: string | null;
   primary_entity_id: string | null;
   primary_entity_kind: "person" | "ensemble" | null;
@@ -59,7 +56,6 @@ export interface EventDetail {
   review: string | null;
   links: Array<{ url: string; label?: string }> | null;
   data_completeness: string | null;
-  status: EventStatus;
   related_events: Array<{ id: string; title: string; date: string; type: string }>;
   extension: Record<string, unknown> | null;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { fetchEvents, fetchPaymentMethods } from "../lib/api";
+import { fetchEvents, fetchPaymentMethods, eventTimestamp } from "../lib/api";
 import type { PaymentMethod } from "../lib/api";
 import type { EventListItem } from "../types/events";
 import EventTypeIcon from "./EventTypeIcon";
@@ -327,7 +327,8 @@ export default function Timeline() {
         fetchEvents({ limit: 500 }),
         fetchPaymentMethods(),
       ]).then(([all, pms]) => {
-        const events = all.filter((e) => e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
+        const now = Date.now();
+        const events = all.filter((e) => eventTimestamp(e) <= now).sort((a, b) => b.date.localeCompare(a.date));
         setAllEvents(events);
         setPaymentMethods(pms);
         const years = [...new Set(events.map(e => e.date.slice(0, 4)))];
