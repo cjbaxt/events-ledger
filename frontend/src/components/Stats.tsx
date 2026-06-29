@@ -441,9 +441,15 @@ function VenuesTab({ events }: { events: EventListItem[] }) {
 
 // ── Tab: Over Time ────────────────────────────────────────────────────────────
 
+const OVER_TIME_TOGGLEABLE = ["exhibition", "talk"] as const;
+
 function OverTimeTab({ events }: { events: EventListItem[] }) {
+  const [excluded, setExcluded] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+
+  const filtered = events.filter(e => !excluded.has(e.type));
+
   const byYear = new Map<string, { count: number; spend: number }>();
-  for (const e of events) {
+  for (const e of filtered) {
     const y = e.date.slice(0, 4);
     const prev = byYear.get(y) ?? { count: 0, spend: 0 };
     const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1) : 0;
@@ -452,10 +458,34 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
   const years = [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const maxCount = Math.max(...years.map(([, v]) => v.count));
 
+  function toggle(type: string) {
+    setExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-4">Events per year</div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[10px] uppercase tracking-widest text-neutral-400">Events per year</div>
+          <div className="flex gap-3">
+            {OVER_TIME_TOGGLEABLE.map(type => (
+              <button
+                key={type}
+                onClick={() => toggle(type)}
+                className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest transition-colors ${excluded.has(type) ? "text-neutral-300" : "text-neutral-500"}`}
+              >
+                <span className={`w-3 h-3 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${excluded.has(type) ? "border-neutral-200 bg-white" : "border-neutral-400 bg-neutral-400"}`}>
+                  {!excluded.has(type) && <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </span>
+                {TYPE_LABELS[type] ?? type}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
           {years.map(([year, { count, spend }], i) => (
             <>
