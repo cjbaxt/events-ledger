@@ -217,7 +217,6 @@ def _events_to_list_items(session: Session, events) -> List[EventListItem]:
             rating=e.rating,
             rating_context=e.rating_context,
             data_completeness=e.data_completeness,
-            status=e.status,
             has_review=bool(e.review),
             has_essay=bool(
                 e.links and any("cultural-dispatch" in (lnk.get("url") or "") for lnk in e.links)
