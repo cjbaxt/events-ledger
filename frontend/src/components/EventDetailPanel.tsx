@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { isEditor } from "../lib/editor";
 import { url } from "../lib/base";
 import { IconX, IconExternalLink, IconChevronLeft, IconPencil, IconCheck, IconX as IconClose, IconWriting, IconArticle } from "@tabler/icons-react";
@@ -652,6 +652,64 @@ function RatingContextBadge({ context }: { context: string }) {
   );
 }
 
+function DescriptionBlock({
+  aiSummary,
+  fullDescription,
+  sourceUrl,
+}: {
+  aiSummary: string | null;
+  fullDescription: string | null;
+  sourceUrl: string | null;
+}) {
+  const [showFull, setShowFull] = React.useState(false);
+  const hasBoth = !!(aiSummary && fullDescription);
+
+  return (
+    <div className="border border-neutral-100 rounded-xl px-4 py-3">
+      {hasBoth && (
+        <div className="flex gap-1 mb-2.5">
+          <button
+            onClick={() => setShowFull(false)}
+            className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${!showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
+          >
+            Summary
+          </button>
+          <button
+            onClick={() => setShowFull(true)}
+            className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${showFull ? "bg-neutral-900 text-white" : "text-neutral-400 hover:text-neutral-700"}`}
+          >
+            Verbatim
+          </button>
+        </div>
+      )}
+      {(!hasBoth || !showFull) && aiSummary && (
+        <p className="text-sm text-neutral-600 leading-relaxed">{aiSummary}</p>
+      )}
+      {(!hasBoth || showFull) && fullDescription && (
+        <p className="text-xs text-neutral-500 leading-relaxed whitespace-pre-wrap">{fullDescription}</p>
+      )}
+      {showFull && sourceUrl && (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-neutral-400 hover:text-neutral-600 transition-colors mt-2 block"
+        >
+          Source ↗
+        </a>
+      )}
+      {!showFull && sourceUrl && (
+        <button
+          onClick={() => setShowFull(true)}
+          className="text-[11px] text-neutral-400 hover:text-neutral-600 transition-colors mt-1.5 block"
+        >
+          From {new URL(sourceUrl).hostname.replace("www.", "")} ↗
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ReviewSection({
   review,
   links,
@@ -982,6 +1040,14 @@ export default function EventDetailPanel() {
                       );
                     }}
                   />
+
+                  {(event.ai_summary || event.full_description) && (
+                    <DescriptionBlock
+                      aiSummary={event.ai_summary}
+                      fullDescription={event.full_description}
+                      sourceUrl={event.description_source_url}
+                    />
+                  )}
 
                   <div className="space-y-0.5">
                     <Field label="Venue">

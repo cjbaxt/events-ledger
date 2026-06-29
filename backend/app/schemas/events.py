@@ -48,6 +48,9 @@ class EventUpdate(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
+    full_description: Optional[str] = None
+    ai_summary: Optional[str] = None
+    description_source_url: Optional[str] = None
     extension: Optional[dict] = None
 
 
@@ -112,6 +115,9 @@ class EventDetail(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
+    full_description: Optional[str] = None
+    ai_summary: Optional[str] = None
+    description_source_url: Optional[str] = None
     related_events: List[dict] = []
     extension: Optional[dict] = None
     model_config = {"from_attributes": True}

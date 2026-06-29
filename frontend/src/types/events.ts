@@ -56,6 +56,9 @@ export interface EventDetail {
   review: string | null;
   links: Array<{ url: string; label?: string }> | null;
   data_completeness: string | null;
+  full_description: string | null;
+  ai_summary: string | null;
+  description_source_url: string | null;
   related_events: Array<{ id: string; title: string; date: string; type: string }>;
   extension: Record<string, unknown> | null;
 }

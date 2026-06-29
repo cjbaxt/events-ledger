@@ -83,4 +83,7 @@ class Event(SQLModel, table=True):
     # complete / partial / stub
     data_completeness: Optional[str] = None
     related_event_ids: Optional[List[uuid.UUID]] = Field(default=None, sa_column=Column(ARRAY(PG_UUID(as_uuid=True))))
+    full_description: Optional[str] = None
+    ai_summary: Optional[str] = None
+    description_source_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

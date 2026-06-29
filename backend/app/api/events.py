@@ -570,6 +570,9 @@ def get_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
         review=event.review,
         links=event.links,
         data_completeness=event.data_completeness,
+        full_description=event.full_description,
+        ai_summary=event.ai_summary,
+        description_source_url=event.description_source_url,
         related_events=related_events,
         extension=_build_extension(session, event),
     )
