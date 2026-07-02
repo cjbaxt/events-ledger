@@ -2,7 +2,7 @@
 
 A personal archive of live performances.
 
-**Live site: [cjbaxt.github.io/events-ledger](https://cjbaxt.github.io/events-ledger)**
+**Live site: [claireheaded.com/events-ledger](https://claireheaded.com/events-ledger)**
 
 ---
 
