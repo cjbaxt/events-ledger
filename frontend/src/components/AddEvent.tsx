@@ -27,7 +27,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 // Subtypes per event type
 const SUBTYPES: Record<string, string[]> = {
-  music: ["gig", "choir", "comedy_music", "community", "open_mic", "residency", "other"],
+  music: ["gig", "festival", "choir", "comedy_music", "community", "open_mic", "residency", "other"],
   classical: ["orchestral", "chamber", "choral", "recital", "contemporary", "comedy_classical", "other"],
   opera: ["full_length", "contemporary", "opera", "operetta", "musical_theatre", "other"],
   ballet: ["full_length", "mixed_bill", "contemporary", "other"],
@@ -816,7 +816,7 @@ function buildUpdatePayload(type: string, base: Record<string, unknown>, ext: Ex
     setlist: (ext.setlist as string[] | undefined)?.length ? ext.setlist : null,
   };
   if (type === "music") {
-    Object.assign(extPayload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), tour_name: ext.tour_name || null, ...setlistPayload });
+    Object.assign(extPayload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), support_act_ensemble_ids: ids(ext.support_ensembles as NamedRef[]), tour_name: ext.tour_name || null, ...setlistPayload });
   } else if (type === "classical") {
     Object.assign(extPayload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload, ...setlistPayload });
   } else if (type === "opera") {
