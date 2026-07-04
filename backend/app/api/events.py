@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
-from sqlalchemy import text
+from sqlalchemy import text, nulls_last
 import uuid
 
 from app.db import get_session
@@ -476,7 +476,7 @@ def list_events(
     offset: int = 0,
     session: Session = Depends(get_session),
 ):
-    stmt = select(Event).order_by(Event.date.desc())
+    stmt = select(Event).order_by(Event.date.desc(), nulls_last(Event.time.asc()))
     if type:
         stmt = stmt.where(Event.type == type)
     if festival_id:
