@@ -476,7 +476,7 @@ def list_events(
     offset: int = 0,
     session: Session = Depends(get_session),
 ):
-    stmt = select(Event).order_by(Event.date.desc(), nulls_last(Event.time.asc()))
+    stmt = select(Event).order_by(Event.date.desc(), nulls_last(Event.time.desc()))
     if type:
         stmt = stmt.where(Event.type == type)
     if festival_id:
