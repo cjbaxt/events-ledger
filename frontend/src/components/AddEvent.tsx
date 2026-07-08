@@ -705,6 +705,8 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     review: event.review ?? "",
     notes: event.notes ?? "",
     data_completeness: event.data_completeness ?? "",
+    full_description: event.full_description ?? "",
+    description_source_url: event.description_source_url ?? "",
     links: (event.links ?? []).map((l: Record<string, string>) => ({
       url: l.url ?? "",
       label: l.label ?? "",
@@ -798,6 +800,8 @@ function buildUpdatePayload(type: string, base: Record<string, unknown>, ext: Ex
     rating_context: base.rating_context || null,
     review: base.review || null,
     data_completeness: base.data_completeness || null,
+    full_description: base.full_description || null,
+    description_source_url: base.description_source_url || null,
     subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
       url: l.url,
@@ -866,6 +870,8 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     rating: base.rating ?? null,
     review: base.review || null,
     data_completeness: base.data_completeness || null,
+    full_description: base.full_description || null,
+    description_source_url: base.description_source_url || null,
     subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
       url: l.url,
@@ -1279,6 +1285,27 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                 onChange={(e) => setBaseField("review", e.target.value)}
                 placeholder="Your thoughts…"
               />
+            </Field>
+
+            <Field label="Description source URL">
+              <input
+                className={inputCls}
+                type="url"
+                value={(base.description_source_url as string) ?? ""}
+                onChange={(e) => setBaseField("description_source_url", e.target.value)}
+                placeholder="https://venue.com/show-page"
+              />
+            </Field>
+
+            <Field label="Description (verbatim from source)">
+              <textarea
+                rows={5}
+                className={`${inputCls} resize-none leading-relaxed`}
+                value={(base.full_description as string) ?? ""}
+                onChange={(e) => setBaseField("full_description", e.target.value)}
+                placeholder="Paste the description from the venue website…"
+              />
+              <p className="text-[10px] text-neutral-400 mt-1">AI summary will be generated automatically on save.</p>
             </Field>
 
             <Field label="Links">

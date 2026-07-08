@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from sqlalchemy import text, nulls_last
 import uuid
+import httpx
 
 from app.db import get_session
 from app.models import (
@@ -26,6 +27,31 @@ from app.schemas.events import (
 from app.schemas.reference import NamedRef
 
 router = APIRouter(prefix="/events")
+
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2:3b"
+SUMMARY_PROMPT = (
+    "Write a concise 2-3 sentence summary of this arts event description for a personal cultural diary. "
+    "Focus on what makes it distinctive — the artistic form, the creative concept, key performers or companies, and anything unusual. "
+    "Do not start with 'This' or repeat the title. Write in plain prose, no bullet points.\n\n"
+    "Description:\n{description}"
+)
+
+
+def _generate_summary(description: str) -> Optional[str]:
+    """Call Ollama to generate an ai_summary from a full_description. Returns None on any failure."""
+    if not description or not description.strip():
+        return None
+    try:
+        resp = httpx.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": SUMMARY_PROMPT.format(description=description), "stream": False},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        return resp.json().get("response", "").strip() or None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +653,15 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
             if person_id and role:
                 session.add(EventCredit(event_id=event_id, role=role, person_id=uuid.UUID(str(person_id)), sort_order=i))
     session.commit()
+    # Auto-generate ai_summary via Ollama if full_description was updated
+    if "full_description" in dumped and event.full_description:
+        summary = _generate_summary(event.full_description)
+        if summary:
+            session.execute(
+                text("UPDATE event SET ai_summary = :s WHERE id = :id"),
+                {"s": summary, "id": str(event_id)},
+            )
+            session.commit()
     session.refresh(event)
     return get_event(event_id, session)
 
@@ -664,10 +699,24 @@ def delete_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 # Create — one endpoint per event type
 # ---------------------------------------------------------------------------
 
+def _post_create(event: Event, session: Session) -> "EventDetail":
+    """After a create commit: generate ai_summary if full_description present, then return detail."""
+    if event.full_description:
+        summary = _generate_summary(event.full_description)
+        if summary:
+            session.execute(
+                text("UPDATE event SET ai_summary = :s WHERE id = :id"),
+                {"s": summary, "id": str(event.id)},
+            )
+            session.commit()
+    return _post_create(event, session)
+
+
 def _make_event(data, type: str) -> Event:
     base_fields = {
         "date", "time", "venue_id", "title", "work_id", "price_paid",
         "currency", "rating", "rating_context", "notes", "festival_id", "review", "links", "data_completeness",
+        "full_description", "description_source_url",
     }
     return Event(type=type, **{k: v for k, v in data.model_dump().items() if k in base_fields})
 
@@ -689,8 +738,7 @@ def create_music_event(data: EventMusicCreate, session: Session = Depends(get_se
         setlist_fm_url=data.setlist_fm_url,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/classical", response_model=EventDetail, status_code=201)
@@ -718,8 +766,7 @@ def create_classical_event(data: EventClassicalCreate, session: Session = Depend
                 notes=item.notes,
             ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/opera", response_model=EventDetail, status_code=201)
@@ -741,8 +788,7 @@ def create_opera_event(data: EventOperaCreate, session: Session = Depends(get_se
         operabase_url=data.operabase_url,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/ballet", response_model=EventDetail, status_code=201)
@@ -780,8 +826,7 @@ def create_ballet_event(data: EventBalletCreate, session: Session = Depends(get_
                         order=j + 1,
                     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/dance", response_model=EventDetail, status_code=201)
@@ -799,8 +844,7 @@ def create_dance_event(data: EventDanceCreate, session: Session = Depends(get_se
         music_notes=data.music_notes,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/circus", response_model=EventDetail, status_code=201)
@@ -816,8 +860,7 @@ def create_circus_event(data: EventCircusCreate, session: Session = Depends(get_
         work_id=data.work_id,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/theatre", response_model=EventDetail, status_code=201)
@@ -836,8 +879,7 @@ def create_theatre_event(data: EventTheatreCreate, session: Session = Depends(ge
         playwright_id=data.playwright_id,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/cabaret", response_model=EventDetail, status_code=201)
@@ -856,8 +898,7 @@ def create_cabaret_event(data: EventCabaretCreate, session: Session = Depends(ge
         work_id=data.work_id,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/comedy", response_model=EventDetail, status_code=201)
@@ -874,8 +915,7 @@ def create_comedy_event(data: EventComedyCreate, session: Session = Depends(get_
         tour_name=data.tour_name,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/spoken-word", response_model=EventDetail, status_code=201)
@@ -891,8 +931,7 @@ def create_spoken_word_event(data: EventSpokenWordCreate, session: Session = Dep
         host_id=data.host_id,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/talk", response_model=EventDetail, status_code=201)
@@ -910,8 +949,7 @@ def create_talk_event(data: EventTalkCreate, session: Session = Depends(get_sess
         recording_url=data.recording_url,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/exhibition", response_model=EventDetail, status_code=201)
@@ -931,8 +969,7 @@ def create_exhibition_event(data: EventExhibitionCreate, session: Session = Depe
         exhibition_url=data.exhibition_url,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/screening", response_model=EventDetail, status_code=201)
@@ -950,8 +987,7 @@ def create_screening_event(data: EventScreeningCreate, session: Session = Depend
         series=data.series,
     ))
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
 
 
 @router.post("/other", response_model=EventDetail, status_code=201)
@@ -960,5 +996,4 @@ def create_other_event(data: EventOtherCreate, session: Session = Depends(get_se
     event.subtype = data.subtype
     session.add(event)
     session.commit()
-    session.refresh(event)
-    return get_event(event.id, session)
+    return _post_create(event, session)
