@@ -315,7 +315,7 @@ function ByTypeTab({ events, editorMode, onRatingChange }: { events: EventListIt
           >
             <div className="flex items-center gap-1.5 text-neutral-400">
               <EventTypeIcon type={type} size={12} />
-              <span className="text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span>
+              <span className="hidden sm:inline text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span>
             </div>
             <div className="font-serif text-3xl text-neutral-900 leading-none">{evts.length}</div>
 

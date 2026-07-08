@@ -4,6 +4,7 @@ from typing import List
 import urllib.request
 import urllib.error
 import re
+import html
 
 router = APIRouter()
 
@@ -31,4 +32,4 @@ def fetch_setlist(url: str = Query(..., description="setlist.fm URL")):
     if not songs:
         raise HTTPException(status_code=422, detail="Could not parse any songs from the page — the format may have changed")
 
-    return [s.strip() for s in songs if s.strip()]
+    return [html.unescape(s).strip() for s in songs if s.strip()]
