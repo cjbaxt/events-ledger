@@ -706,6 +706,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     notes: event.notes ?? "",
     data_completeness: event.data_completeness ?? "",
     full_description: event.full_description ?? "",
+    ai_summary: event.ai_summary ?? "",
     description_source_url: event.description_source_url ?? "",
     links: (event.links ?? []).map((l: Record<string, string>) => ({
       url: l.url ?? "",
@@ -801,6 +802,7 @@ function buildUpdatePayload(type: string, base: Record<string, unknown>, ext: Ex
     review: base.review || null,
     data_completeness: base.data_completeness || null,
     full_description: base.full_description || null,
+    ai_summary: base.ai_summary || null,
     description_source_url: base.description_source_url || null,
     subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
@@ -871,6 +873,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     review: base.review || null,
     data_completeness: base.data_completeness || null,
     full_description: base.full_description || null,
+    ai_summary: base.ai_summary || null,
     description_source_url: base.description_source_url || null,
     subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter(l => l.url).map(l => ({
@@ -1305,7 +1308,28 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                 onChange={(e) => setBaseField("full_description", e.target.value)}
                 placeholder="Paste the description from the venue website…"
               />
-              <p className="text-[10px] text-neutral-400 mt-1">AI summary will be generated automatically on save.</p>
+              {(base.full_description as string) && (
+                <button
+                  type="button"
+                  className="mt-1.5 text-[10px] text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded px-2 py-1"
+                  onClick={() => {
+                    const prompt = `Summarise this arts event description in 2–3 sentences for a personal cultural diary. Focus on what makes it distinctive — the artistic form, the creative concept, key performers or companies, and anything unusual or worth knowing. Write in plain prose. Don't start with "This". Don't repeat the title.\n\n${base.full_description as string}`;
+                    navigator.clipboard.writeText(prompt);
+                  }}
+                >
+                  Copy summarise prompt →
+                </button>
+              )}
+            </Field>
+
+            <Field label="AI summary">
+              <textarea
+                rows={3}
+                className={`${inputCls} resize-none leading-relaxed`}
+                value={(base.ai_summary as string) ?? ""}
+                onChange={(e) => setBaseField("ai_summary", e.target.value)}
+                placeholder="Paste the generated summary here…"
+              />
             </Field>
 
             <Field label="Links">

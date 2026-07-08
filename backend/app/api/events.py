@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from sqlalchemy import text, nulls_last
 import uuid
-import httpx
 
 from app.db import get_session
 from app.models import (
@@ -27,32 +26,6 @@ from app.schemas.events import (
 from app.schemas.reference import NamedRef
 
 router = APIRouter(prefix="/events")
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:3b"
-SUMMARY_PROMPT = (
-    "Write a concise 2-3 sentence summary of this arts event description for a personal cultural diary. "
-    "Focus on what makes it distinctive — the artistic form, the creative concept, key performers or companies, and anything unusual. "
-    "Do not start with 'This' or repeat the title. Write in plain prose, no bullet points.\n\n"
-    "Description:\n{description}"
-)
-
-
-def _generate_summary(description: str) -> Optional[str]:
-    """Call Ollama to generate an ai_summary from a full_description. Returns None on any failure."""
-    if not description or not description.strip():
-        return None
-    try:
-        resp = httpx.post(
-            OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": SUMMARY_PROMPT.format(description=description), "stream": False},
-            timeout=30.0,
-        )
-        resp.raise_for_status()
-        return resp.json().get("response", "").strip() or None
-    except Exception:
-        return None
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -653,15 +626,6 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, session: Session = Depe
             if person_id and role:
                 session.add(EventCredit(event_id=event_id, role=role, person_id=uuid.UUID(str(person_id)), sort_order=i))
     session.commit()
-    # Auto-generate ai_summary via Ollama if full_description was updated
-    if "full_description" in dumped and event.full_description:
-        summary = _generate_summary(event.full_description)
-        if summary:
-            session.execute(
-                text("UPDATE event SET ai_summary = :s WHERE id = :id"),
-                {"s": summary, "id": str(event_id)},
-            )
-            session.commit()
     session.refresh(event)
     return get_event(event_id, session)
 
@@ -700,16 +664,8 @@ def delete_event(event_id: uuid.UUID, session: Session = Depends(get_session)):
 # ---------------------------------------------------------------------------
 
 def _post_create(event: Event, session: Session) -> "EventDetail":
-    """After a create commit: generate ai_summary if full_description present, then return detail."""
-    if event.full_description:
-        summary = _generate_summary(event.full_description)
-        if summary:
-            session.execute(
-                text("UPDATE event SET ai_summary = :s WHERE id = :id"),
-                {"s": summary, "id": str(event.id)},
-            )
-            session.commit()
-    return _post_create(event, session)
+    session.refresh(event)
+    return get_event(event.id, session)
 
 
 def _make_event(data, type: str) -> Event:
