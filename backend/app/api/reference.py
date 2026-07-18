@@ -518,6 +518,18 @@ def update_festival(festival_id: str, data: FestivalUpdate, session: Session = D
     return festival
 
 
+@router.delete("/festivals/{festival_id}", status_code=204)
+def delete_festival(festival_id: str, session: Session = Depends(get_session)):
+    festival = session.get(Festival, festival_id)
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival not found")
+    attached = session.exec(select(Event).where(Event.festival_id == festival_id)).first()
+    if attached:
+        raise HTTPException(status_code=409, detail="Festival has events attached — reassign them first")
+    session.delete(festival)
+    session.commit()
+
+
 # ---------------------------------------------------------------------------
 # Works
 # ---------------------------------------------------------------------------

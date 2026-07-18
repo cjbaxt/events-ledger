@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { createEvent, updateEvent, searchEntities, createEntity, fetchPaymentMethods, createPaymentMethod, BASE } from "../lib/api";
-import type { PaymentMethod, EventDetail } from "../lib/api";
+import { createEvent, updateEvent, searchEntities, createEntity, fetchPaymentMethods, createPaymentMethod, BASE, scrapeEvent } from "../lib/api";
+import type { PaymentMethod, EventDetail, ScrapeResult, ScrapePerformance } from "../lib/api";
 import { url } from "../lib/base";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -8,7 +8,7 @@ import EventTypeIcon from "./EventTypeIcon";
 
 type NamedRef = { id: string; name: string };
 type LinkRow = { url: string; label: string; description: string };
-type Step = "type" | "basic" | "details" | "take";
+type Step = "import" | "type" | "basic" | "details" | "take";
 
 const EVENT_TYPES = [
   "music", "classical", "opera", "ballet", "dance",
@@ -32,7 +32,7 @@ const SUBTYPES: Record<string, string[]> = {
   opera: ["full_length", "contemporary", "opera", "operetta", "musical_theatre", "other"],
   ballet: ["full_length", "mixed_bill", "contemporary", "other"],
   dance: ["contemporary", "flamenco", "folk", "ballroom", "other"],
-  circus: ["contemporary_circus", "contemporary", "big_top", "clown", "traditional", "physical_theatre", "aerial", "street", "other"],
+  circus: ["contemporary", "big_top", "clown", "traditional", "physical_theatre", "aerial", "street", "other"],
   theatre: ["play", "musical", "improv", "improv_musical", "panto", "physical_theatre", "puppet", "other"],
   cabaret: ["burlesque", "drag", "cabaret", "variety", "other"],
   comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "comedy_magic", "variety", "other"],
@@ -172,8 +172,8 @@ const CREATE_FIELDS: Record<string, Array<{ key: string; label: string; required
     { key: "type", label: "Type", options: ["orchestra", "chamber_ensemble", "choir", "band", "company", "collective", "other"] },
   ],
   festivals: [
-    { key: "name", label: "Name", required: true },
-    { key: "edition", label: "Edition (e.g. 2025)" },
+    { key: "name", label: "Name (without year)", required: true },
+    { key: "edition", label: "Edition / year (e.g. 2026)" },
   ],
   works: [
     { key: "title", label: "Title", required: true },
@@ -190,7 +190,7 @@ const CREATE_FIELDS: Record<string, Array<{ key: string; label: string; required
 // ── Searchable combobox ───────────────────────────────────────────────────────
 
 function SearchCombo({
-  label, endpoint, value, onChange, optional = true, displayFn, allowCreate = true,
+  label, endpoint, value, onChange, optional = true, displayFn, allowCreate = true, initialQuery = "",
 }: {
   label: string;
   endpoint: string;
@@ -199,8 +199,9 @@ function SearchCombo({
   optional?: boolean;
   displayFn?: (item: Record<string, unknown>) => string;
   allowCreate?: boolean;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<NamedRef[]>([]);
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -994,7 +995,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
   const editMode = !!initialEvent;
   const init = initialEvent ? initFromEvent(initialEvent) : null;
 
-  const [step, setStep] = useState<Step>(editMode ? "basic" : "type");
+  const [step, setStep] = useState<Step>(editMode ? "basic" : "import");
   const [type, setType] = useState<EventType | null>(editMode ? initialEvent!.type as EventType : null);
   const [base, setBase] = useState<Record<string, unknown>>(init?.base ?? {
     date: new Date().toISOString().slice(0, 10),
@@ -1006,6 +1007,48 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
   const [ext, setExt] = useState<Ext>(init?.ext ?? {});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Import state
+  const [importUrl, setImportUrl] = useState("");
+  const [importScraping, setImportScraping] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<ScrapeResult | null>(null);
+  const [importPerf, setImportPerf] = useState<ScrapePerformance | null>(null);
+
+  async function handleImport() {
+    if (!importUrl.trim()) return;
+    setImportScraping(true);
+    setImportError("");
+    setImportResult(null);
+    setImportPerf(null);
+    try {
+      const result = await scrapeEvent(importUrl.trim());
+      setImportResult(result);
+      if (result.performances.length === 1) setImportPerf(result.performances[0]);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Failed to import");
+    } finally {
+      setImportScraping(false);
+    }
+  }
+
+  function applyImport() {
+    if (!importResult || !importPerf) return;
+    const t = importResult.type_suggestion as EventType;
+    setType(t);
+    setBase((b) => ({
+      ...b,
+      title: importResult.title,
+      date: importPerf.date,
+      time: importPerf.time,
+      subtype: importResult.subtype_suggestion,
+      full_description: importResult.description,
+      description_source_url: importResult.description_source_url,
+      // Pre-fill venue search field (user will still need to pick/create)
+      _venue_prefill: importResult.venue_name,
+    }));
+    setStep("basic");
+  }
 
   useEffect(() => { fetchPaymentMethods().then(setPaymentMethods).catch(() => {}); }, []);
 
@@ -1045,6 +1088,8 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
     ? (["basic", "details", "take"] as Step[]).filter(s => s !== "details" || !!ExtFields)
     : (["type", "basic", "details", "take"] as Step[]);
 
+  const showStepIndicator = step !== "import";
+
   return (
     <div className="max-w-lg mx-auto">
 
@@ -1058,7 +1103,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
       )}
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-8">
+      {showStepIndicator && <div className="flex items-center gap-2 mb-8">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             {i > 0 && <div className="w-6 h-px bg-neutral-200" />}
@@ -1074,7 +1119,96 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
             </button>
           </div>
         ))}
-      </div>
+      </div>}
+
+      {/* Step 0: Import from URL (add mode only) */}
+      {step === "import" && !editMode && (
+        <div>
+          <h2 className="font-serif text-xl text-neutral-900 mb-1">Add an event</h2>
+          <p className="text-sm text-neutral-400 mb-6">Import from a website, or enter manually.</p>
+
+          {/* Import section */}
+          <div className="border border-neutral-100 rounded-xl p-4 mb-4">
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Import from website</div>
+            <div className="flex gap-2 mb-2">
+              <select className="border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-600 bg-white focus:outline-none focus:border-neutral-400">
+                <option value="edfringe">Edinburgh Fringe</option>
+              </select>
+              <input
+                className="flex-1 border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:border-neutral-400"
+                type="url"
+                placeholder="https://www.edfringe.com/tickets/whats-on/..."
+                value={importUrl}
+                onChange={(e) => { setImportUrl(e.target.value); setImportResult(null); setImportError(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleImport(); }}
+              />
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={importScraping || !importUrl.trim()}
+                className="px-3 py-1.5 text-xs bg-neutral-900 text-white rounded hover:bg-neutral-700 disabled:opacity-40 whitespace-nowrap"
+              >
+                {importScraping ? "Fetching…" : "Import"}
+              </button>
+            </div>
+            {importError && <p className="text-xs text-red-500 mt-1">{importError}</p>}
+
+            {importResult && (
+              <div className="mt-3 space-y-3">
+                <div className="bg-neutral-50 rounded-lg p-3 space-y-1">
+                  <div className="font-serif text-sm text-neutral-900">{importResult.title}</div>
+                  <div className="text-xs text-neutral-500">{importResult.venue_name}</div>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px] uppercase tracking-widest bg-neutral-200 text-neutral-600 rounded px-1.5 py-0.5">{importResult.type_suggestion}</span>
+                    {importResult.subtype_suggestion !== "other" && (
+                      <span className="text-[10px] uppercase tracking-widest bg-neutral-100 text-neutral-500 rounded px-1.5 py-0.5">{importResult.subtype_suggestion.replace(/_/g, " ")}</span>
+                    )}
+                  </div>
+                </div>
+
+                {importResult.performances.length > 0 && (
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-1.5">
+                      {importResult.performances.length === 1 ? "Performance date" : "Which date are you attending?"}
+                    </label>
+                    <select
+                      className="w-full border border-neutral-200 rounded px-2 py-1.5 text-xs text-neutral-800 bg-white focus:outline-none focus:border-neutral-400"
+                      value={importPerf ? `${importPerf.date}|${importPerf.time}` : ""}
+                      onChange={(e) => {
+                        const [date, time] = e.target.value.split("|");
+                        const perf = importResult.performances.find(p => p.date === date && p.time === time) ?? null;
+                        setImportPerf(perf);
+                      }}
+                    >
+                      {importResult.performances.length > 1 && <option value="">— pick a date —</option>}
+                      {importResult.performances.map((p) => (
+                        <option key={`${p.date}|${p.time}`} value={`${p.date}|${p.time}`}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={applyImport}
+                  disabled={!importPerf}
+                  className="w-full py-2 text-xs font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-700 disabled:opacity-40"
+                >
+                  Use this →
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setStep("type")}
+            className="w-full py-2 text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg"
+          >
+            Enter manually instead
+          </button>
+        </div>
+      )}
 
       {/* Step 1: Type (add mode only) */}
       {step === "type" && !editMode && (
@@ -1119,7 +1253,8 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
             </div>
 
             <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false}
-              displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
+              displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)}
+              initialQuery={(base._venue_prefill as string) ?? ""} />
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">

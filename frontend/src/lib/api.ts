@@ -282,3 +282,30 @@ export async function patchEventPaymentMethod(id: string, payment_method_id: str
   });
   if (!res.ok) throw new Error(`Failed to patch payment method: ${res.status}`);
 }
+
+export interface ScrapePerformance {
+  date: string;
+  time: string;
+  label: string;
+}
+
+export interface ScrapeResult {
+  source: string;
+  title: string;
+  type_suggestion: string;
+  subtype_suggestion: string;
+  venue_name: string;
+  performances: ScrapePerformance[];
+  description: string;
+  description_source_url: string;
+  festival_hint: string;
+}
+
+export async function scrapeEvent(url: string): Promise<ScrapeResult> {
+  const res = await authFetch(`${BASE}/api/scrape/event?url=${encodeURIComponent(url)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `Scrape failed: ${res.status}`);
+  }
+  return res.json();
+}

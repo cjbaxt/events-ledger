@@ -134,7 +134,11 @@ export default function Upcoming() {
           setEvents(
             [...evts]
               .filter((e) => eventTimestamp(e) > now)
-              .sort((a, b) => a.date.localeCompare(b.date))
+              .sort((a, b) => {
+                const d = a.date.localeCompare(b.date);
+                if (d !== 0) return d;
+                return (a.time ?? "12:00").localeCompare(b.time ?? "12:00");
+              })
           );
         })
         .catch((e) => console.error("Upcoming fetch failed", e))

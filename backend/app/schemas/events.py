@@ -28,6 +28,9 @@ class EventBase(BaseModel):
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
+    full_description: Optional[str] = None
+    ai_summary: Optional[str] = None
+    description_source_url: Optional[str] = None
 
 
 class EventUpdate(BaseModel):

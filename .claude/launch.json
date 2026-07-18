@@ -7,6 +7,12 @@
       "runtimeArgs": ["-c", "cd frontend && npm run dev -- --port $PORT"],
       "port": 4321,
       "autoPort": true
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd backend && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8010 --reload"],
+      "port": 8010
     }
   ]
 }

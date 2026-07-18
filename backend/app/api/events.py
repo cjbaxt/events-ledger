@@ -672,7 +672,7 @@ def _make_event(data, type: str) -> Event:
     base_fields = {
         "date", "time", "venue_id", "title", "work_id", "price_paid",
         "currency", "rating", "rating_context", "notes", "festival_id", "review", "links", "data_completeness",
-        "full_description", "description_source_url",
+        "full_description", "description_source_url", "ai_summary",
     }
     return Event(type=type, **{k: v for k, v in data.model_dump().items() if k in base_fields})
 

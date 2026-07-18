@@ -9,6 +9,7 @@ from app.api.payment_methods import router as payment_methods_router
 from app.api.credits import router as credits_router
 from app.api.publish import router as publish_router
 from app.api.setlist import router as setlist_router
+from app.api.scrape import router as scrape_router
 
 app = FastAPI(title="Events Ledger", version="0.1.0")
 
@@ -30,6 +31,7 @@ app.include_router(payment_methods_router)
 app.include_router(credits_router)
 app.include_router(publish_router)
 app.include_router(setlist_router)
+app.include_router(scrape_router)
 
 
 @app.get("/health")
