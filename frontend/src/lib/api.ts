@@ -241,6 +241,13 @@ export async function fetchFestivalEvents(id: string): Promise<EventListItem[]> 
   return res.json();
 }
 
+export async function fetchPaymentMethodEvents(id: string): Promise<EventListItem[]> {
+  if (STATIC) return staticFetch<EventListItem[]>(`/data/payment-methods/${id}/events.json`);
+  const res = await authFetch(`${BASE}/api/payment-methods/${id}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch payment method events: ${res.status}`);
+  return res.json();
+}
+
 export async function deleteEvent(id: string): Promise<void> {
   const res = await authFetch(`${BASE}/api/events/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete event: ${res.status}`);

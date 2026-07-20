@@ -7,6 +7,7 @@ import {
   fetchVenue, fetchVenueEvents,
   fetchEnsemble, fetchEnsembleEvents,
   fetchFestival, fetchFestivalEvents,
+  fetchPaymentMethodEvents,
   patchEventRating, patchEventPrice, patchEventReview,
 } from "../lib/api";
 import type { EventListItem, EventDetail } from "../types/events";
@@ -441,11 +442,12 @@ function ExtensionFields({
 
 // ── Generic sub-panel for person/venue/ensemble event lists ────────────────
 
-type NavKind = "person" | "venue" | "ensemble" | "festival";
+type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method";
 
 interface NavTarget {
   kind: NavKind;
   id: string;
+  hint?: string;
 }
 
 const NAV_LABELS: Record<NavKind, string> = {
@@ -453,15 +455,17 @@ const NAV_LABELS: Record<NavKind, string> = {
   venue: "Venue",
   ensemble: "Ensemble",
   festival: "Festival",
+  payment_method: "Payment method",
 };
 
-async function fetchNavName(kind: NavKind, id: string): Promise<string> {
+async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<string> {
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") return (await fetchVenue(id)).name;
   if (kind === "festival") {
     const f = await fetchFestival(id);
     return [f.name, f.edition].filter(Boolean).join(" ");
   }
+  if (kind === "payment_method") return hint ?? id;
   return (await fetchEnsemble(id)).name;
 }
 
@@ -469,6 +473,7 @@ async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[
   if (kind === "person") return fetchPersonEvents(id);
   if (kind === "venue") return fetchVenueEvents(id);
   if (kind === "festival") return fetchFestivalEvents(id);
+  if (kind === "payment_method") return fetchPaymentMethodEvents(id);
   return fetchEnsembleEvents(id);
 }
 
@@ -487,7 +492,7 @@ function NavEventsView({
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchNavName(target.kind, target.id), fetchNavEvents(target.kind, target.id)])
+    Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id)])
       .then(([n, evts]) => { setName(n); setEvents(evts); })
       .finally(() => setLoading(false));
   }, [target.kind, target.id]);
@@ -860,7 +865,7 @@ export default function EventDetailPanel() {
     }
   }, []);
 
-  const navigate = useCallback((kind: NavKind, id: string) => setNavTarget({ kind, id }), []);
+  const navigate = useCallback((kind: NavKind, id: string, hint?: string) => setNavTarget({ kind, id, hint }), []);
   const backToEvent = useCallback(() => setNavTarget(null), []);
 
 
@@ -1083,7 +1088,13 @@ export default function EventDetailPanel() {
 
                   {event.payment_method ? (
                     <Field label="Payment method">
-                      <span className="text-neutral-700">{event.payment_method.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate("payment_method", String(event.payment_method!.id), event.payment_method!.name)}
+                        className="text-neutral-700 hover:text-neutral-900 hover:underline text-left"
+                      >
+                        {event.payment_method.name}
+                      </button>
                       {event.price_paid && (
                         <span className="text-neutral-400 text-xs ml-2">
                           + {event.currency ?? "EUR"} {event.price_paid} surcharge

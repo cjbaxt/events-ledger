@@ -8,7 +8,9 @@ from pydantic import BaseModel
 import uuid
 
 from app.db import get_session
-from app.models import PaymentMethod
+from app.models import PaymentMethod, Event
+from app.schemas.events import EventListItem
+from app.api.reference import _events_to_list_items
 
 router = APIRouter(prefix="/api/payment-methods", tags=["payment-methods"])
 
@@ -51,3 +53,14 @@ def get_payment_method(pm_id: uuid.UUID, session: Session = Depends(get_session)
     if not pm:
         raise HTTPException(status_code=404, detail="Payment method not found")
     return pm
+
+
+@router.get("/{pm_id}/events", response_model=List[EventListItem])
+def get_payment_method_events(pm_id: uuid.UUID, session: Session = Depends(get_session)):
+    pm = session.get(PaymentMethod, pm_id)
+    if not pm:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    events = session.exec(
+        select(Event).where(Event.payment_method_id == pm_id).order_by(Event.date.desc())
+    ).all()
+    return _events_to_list_items(session, events)
