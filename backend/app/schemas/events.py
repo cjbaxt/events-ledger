@@ -25,6 +25,7 @@ class EventBase(BaseModel):
     rating_context: Optional[str] = None
     notes: Optional[str] = None
     festival_id: Optional[uuid.UUID] = None
+    payment_method_id: Optional[uuid.UUID] = None
     review: Optional[str] = None
     links: Optional[List[dict]] = None
     data_completeness: Optional[str] = None
