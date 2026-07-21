@@ -174,7 +174,7 @@ function EventCard({ event, onClick }: { event: EventListItem; onClick: () => vo
 }
 
 function MonthGroup({ month, events, onEventClick, showYear }: {
-  month: string; events: EventListItem[]; onEventClick: (id: string) => void; showYear?: boolean;
+  month: string; events: EventListItem[]; onEventClick: (id: string, preview: EventListItem) => void; showYear?: boolean;
 }) {
   const monthNum = month.includes("-") ? parseInt(month.split("-")[1]) : parseInt(month);
   const yearFromKey = month.includes("-") ? month.split("-")[0] : events[0]?.date.slice(0, 4);
@@ -188,13 +188,13 @@ function MonthGroup({ month, events, onEventClick, showYear }: {
         <div className="flex-1 h-px bg-neutral-100" />
       </div>
       <div className="flex flex-col gap-2">
-        {events.map((e) => <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id)} />)}
+        {events.map((e) => <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id, e)} />)}
       </div>
     </div>
   );
 }
 
-export default function Timeline({ onEventClick }: { onEventClick: (id: string) => void }) {
+export default function Timeline({ onEventClick }: { onEventClick: (id: string, preview: EventListItem) => void }) {
   const [allEvents, setAllEvents] = useState<EventListItem[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);

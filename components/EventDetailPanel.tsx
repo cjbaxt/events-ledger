@@ -7,7 +7,7 @@ import {
   fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents,
   patchEventRating, patchEventPrice, patchEventReview,
 } from "@/lib/api";
-import type { EventListItem, EventDetail } from "@/lib/types";
+import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -376,21 +376,21 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
   );
 }
 
-export default function EventDetailPanel({ open, eventId, onClose, onNavigate, directTarget }: {
-  open: boolean; eventId: string | null; onClose: () => void; onNavigate: (id: string) => void;
+export default function EventDetailPanel({ open, eventId, preview, onClose, onNavigate, directTarget }: {
+  open: boolean; eventId: string | null; preview?: EventListItem | null; onClose: () => void; onNavigate: (id: string) => void;
   directTarget?: { kind: NavKind; id: string; hint?: string } | null;
 }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
 
   const navigate = useCallback((kind: NavKind, id: string, hint?: string) => setNavTarget({ kind, id, hint }), []);
 
   useEffect(() => {
     if (!eventId) return;
-    setLoading(true);
+    setDetailLoading(true);
     setEvent(null);
-    fetchEvent(eventId).then(setEvent).finally(() => setLoading(false));
+    fetchEvent(eventId).then(setEvent).finally(() => setDetailLoading(false));
   }, [eventId]);
 
   useEffect(() => {
@@ -417,9 +417,10 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate, d
           <NavEventsView target={navTarget} onBack={() => setNavTarget(null)} onEventClick={(id) => { setNavTarget(null); onNavigate(id); }} />
         ) : (
           <>
+            {/* Header: show from preview immediately, upgrade when full event loads */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 pr-14">
               <div className="flex items-center gap-2 text-neutral-400">
-                {event && <><EventTypeIcon type={event.type} size={16} /><span className="text-xs uppercase tracking-widest">{event.type.replace(/_/g, " ")}{event.subtype ? ` — ${event.subtype.replace(/_/g, " ")}` : ""}</span></>}
+                {(event ?? preview) && (() => { const e = event ?? preview!; return <><EventTypeIcon type={e.type} size={16} /><span className="text-xs uppercase tracking-widest">{e.type.replace(/_/g, " ")}{event?.subtype ? ` — ${event.subtype.replace(/_/g, " ")}` : ""}</span></>; })()}
               </div>
               {event && (
                 <div className="flex items-center gap-2">
@@ -430,18 +431,24 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate, d
             </div>
 
             <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">
-              {loading && <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>}
-              {!loading && event && (
-                <>
+              {/* Title/date: show from preview immediately */}
+              {(event ?? preview) && (() => {
+                const e = event ?? preview!;
+                return (
                   <div>
-                    <h2 className="font-serif text-2xl text-neutral-900 leading-snug mb-1">{event.title}</h2>
+                    <h2 className="font-serif text-2xl text-neutral-900 leading-snug mb-1">{e.title}</h2>
                     <div className="flex items-center gap-3 text-sm text-neutral-400">
-                      <span>{formatDate(event.date)}{event.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${event.date.slice(0, 4)}`}</span>
-                      {event.time && <span>{event.time.slice(0, 5)}</span>}
+                      <span>{formatDate(e.date)}{e.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${e.date.slice(0, 4)}`}</span>
+                      {e.time && <span>{e.time.slice(0, 5)}</span>}
                     </div>
-                    {parseInt(event.date.slice(0, 4)) < 2025 && <div className="mt-1.5 text-[10px] uppercase tracking-widest text-amber-500">Data may be incomplete for pre-2025 events</div>}
+                    {parseInt(e.date.slice(0, 4)) < 2025 && <div className="mt-1.5 text-[10px] uppercase tracking-widest text-amber-500">Data may be incomplete for pre-2025 events</div>}
                   </div>
+                );
+              })()}
 
+              {/* Details that require the full event fetch */}
+              {event ? (
+                <>
                   <ReviewSection
                     review={event.review} links={event.links} rating={event.rating} ratingContext={event.rating_context}
                     onSaveReview={(text) => { setEvent((prev) => prev ? { ...prev, review: text } : prev); patchEventReview(event.id, text).catch(() => fetchEvent(event.id).then(setEvent)); }}
@@ -452,7 +459,7 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate, d
 
                   <div className="space-y-0.5">
                     <Field label="Venue"><button onClick={() => navigate("venue", event.venue.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.venue.name}</button></Field>
-                    {event.venue_path.map((v) => <div key={v.id} className="text-xs text-neutral-400"><button onClick={() => navigate("venue", v.id)} className="hover:text-neutral-700 hover:underline underline-offset-2">{v.name}</button></div>)}
+                    {event.venue_path.map((v: NamedRef) => <div key={v.id} className="text-xs text-neutral-400"><button onClick={() => navigate("venue", v.id)} className="hover:text-neutral-700 hover:underline underline-offset-2">{v.name}</button></div>)}
                   </div>
 
                   {event.festival && <Field label="Festival"><button onClick={() => navigate("festival", event.festival!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.festival.name}</button></Field>}
@@ -490,6 +497,8 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate, d
 
                   {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} />}
                 </>
+              ) : detailLoading && !preview && (
+                <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
               )}
             </div>
           </>

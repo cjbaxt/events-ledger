@@ -12,6 +12,8 @@ export default function SearchPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [directTarget, setDirectTarget] = useState<DirectTarget>(null);
 
+  const [preview] = useState(null);
+
   const handleEventClick = useCallback((id: string) => {
     setDirectTarget(null);
     setSelectedId(id);
@@ -61,6 +63,7 @@ export default function SearchPage() {
       <EventDetailPanel
         open={panelOpen}
         eventId={selectedId}
+        preview={preview}
         onClose={handleClose}
         onNavigate={handleNavigate}
         directTarget={directTarget}
