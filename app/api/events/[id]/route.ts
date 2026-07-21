@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { extensionTable } from "@/lib/event-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
+import { createServiceClient } from "@/lib/supabase/service";
 
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
@@ -330,7 +331,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (isGuestRequest(req)) return guestDenied();
   const { id } = await params;
   const body = await req.json();
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const baseAllowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context",
     "title", "date", "time", "venue_id", "festival_id", "payment_method_id", "subtype",
@@ -366,7 +367,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (isGuestRequest(_req)) return guestDenied();
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Delete extension rows first (FK constraints), then the base event
   const { data: ev } = await supabase.from("event").select("type").eq("id", id).single();

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { extensionTable } from "@/lib/event-types";
 import type { EventListItem } from "@/lib/types";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function POST(req: NextRequest) {
   if (isGuestRequest(req)) return guestDenied();
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { type, ...fields } = body as { type: string } & Record<string, unknown>;
   if (!type) return NextResponse.json({ error: "type required" }, { status: 400 });
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Separate base event fields from extension fields
   const BASE_FIELDS = new Set(["venue_id", "title", "date", "time", "price_paid", "currency",

@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   if (!body.name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase.from("person").insert({ id: randomUUID(), name: body.name.trim() }).select("id, name").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
