@@ -40,3 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# python backend artefacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
+# local data exports
+events_ledger_data.sql
+events_ledger_export.sql
+scripts/load_descriptions_batch*.py

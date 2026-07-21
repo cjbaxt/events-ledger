@@ -420,7 +420,12 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate, d
               <div className="flex items-center gap-2 text-neutral-400">
                 {event && <><EventTypeIcon type={event.type} size={16} /><span className="text-xs uppercase tracking-widest">{event.type.replace(/_/g, " ")}{event.subtype ? ` — ${event.subtype.replace(/_/g, " ")}` : ""}</span></>}
               </div>
-              {event && <a href={`/edit?id=${event.id}`} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-neutral-400 transition-colors">Edit</a>}
+              {event && (
+                <div className="flex items-center gap-2">
+                  <a href={`/edit?id=${event.id}`} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-neutral-400 transition-colors">Edit</a>
+                  <button onClick={async () => { if (!confirm("Delete this event?")) return; await fetch(`/api/events/${event.id}`, { method: "DELETE" }); onClose(); }} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-red-300 transition-colors">Delete</button>
+                </div>
+              )}
             </div>
 
             <div className="overflow-y-auto h-[calc(100%-57px)] px-6 py-5 space-y-5">

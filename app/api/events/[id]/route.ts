@@ -367,3 +367,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // Delete extension rows first (FK constraints), then the base event
+  const { data: ev } = await supabase.from("event").select("type").eq("id", id).single();
+  if (ev) {
+    const extTable = extensionTable(ev.type);
+    if (extTable) await supabase.from(extTable).delete().eq("event_id", id);
+    await supabase.from("event_credit").delete().eq("event_id", id);
+  }
+
+  const { error } = await supabase.from("event").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
