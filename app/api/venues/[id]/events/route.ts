@@ -5,24 +5,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = await createClient();
 
-  // Include the venue itself and any child venues
+  // Include child venues (e.g. stages within a venue)
   const childRes = await supabase.from("venue").select("id").eq("parent_id", id);
   const venueIds = [id, ...(childRes.data ?? []).map((v: { id: string }) => v.id)];
 
-  const { data, error } = await supabase.rpc("get_events_list", {
-    p_type: null, p_q: null, p_festival_id: null, p_limit: 500, p_offset: 0,
-  });
+  const { data, error } = await supabase.from("event").select("id").in("venue_id", venueIds);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const venueSet = new Set(venueIds);
-  const filtered = (data ?? []).filter((r: Record<string, unknown>) => venueSet.has(r.venue_id as string));
-  return NextResponse.json(filtered.map((r: Record<string, unknown>) => ({
-    id: r.id, date: r.date, time: r.time, type: r.type, subtype: r.subtype, title: r.title,
-    venue_id: r.venue_id, venue_name: r.venue_name, festival_id: r.festival_id, festival_name: r.festival_name,
-    price_paid: r.price_paid != null ? String(r.price_paid) : null, currency: r.currency,
-    payment_method_id: r.payment_method_id, rating: r.rating, rating_context: r.rating_context,
-    data_completeness: r.data_completeness, primary_entity_name: r.primary_entity_name,
-    primary_entity_id: r.primary_entity_id, primary_entity_kind: r.primary_entity_kind,
-    has_review: r.has_review, has_essay: r.has_essay,
-  })));
+  return NextResponse.json((data ?? []).map((r) => r.id));
 }

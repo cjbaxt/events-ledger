@@ -29,21 +29,21 @@ export default function SearchPage() {
     setPanelOpen(true);
   }, []);
 
-  const handleEntityClick = useCallback((id: string, kind: "person" | "ensemble") => {
+  const handleEntityClick = useCallback((id: string, kind: "person" | "ensemble", name?: string) => {
     setSelectedId(null);
-    setDirectTarget({ kind, id });
+    setDirectTarget({ kind, id, hint: name });
     setPanelOpen(true);
   }, []);
 
-  const handleVenueClick = useCallback((id: string) => {
+  const handleVenueClick = useCallback((id: string, name?: string) => {
     setSelectedId(null);
-    setDirectTarget({ kind: "venue", id });
+    setDirectTarget({ kind: "venue", id, hint: name });
     setPanelOpen(true);
   }, []);
 
-  const handleFestivalClick = useCallback((id: string) => {
+  const handleFestivalClick = useCallback((id: string, name?: string) => {
     setSelectedId(null);
-    setDirectTarget({ kind: "festival", id });
+    setDirectTarget({ kind: "festival", id, hint: name });
     setPanelOpen(true);
   }, []);
 

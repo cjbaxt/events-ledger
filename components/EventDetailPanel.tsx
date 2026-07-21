@@ -203,10 +203,11 @@ interface NavTarget { kind: NavKind; id: string; hint?: string; }
 const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method" };
 
 async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<string> {
+  if (hint) return hint;
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") return (await fetchVenue(id)).name;
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
-  if (kind === "payment_method") return hint ?? id;
+  if (kind === "payment_method") return id;
   return (await fetchEnsemble(id)).name;
 }
 async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {

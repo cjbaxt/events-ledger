@@ -21,7 +21,32 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
   return res;
 }
 
+// Module-level cache: one shared promise for the full events list, TTL 5 min
+let eventsCache: Promise<EventListItem[]> | null = null;
+let eventsCacheAt = 0;
+const EVENTS_CACHE_TTL = 5 * 60 * 1000;
+
+function getEventsCache(): Promise<EventListItem[]> {
+  if (!eventsCache || Date.now() - eventsCacheAt > EVENTS_CACHE_TTL) {
+    eventsCacheAt = Date.now();
+    eventsCache = apiFetch("/api/events?limit=1000")
+      .then((r) => r.json())
+      .catch((e) => { eventsCache = null; throw e; });
+  }
+  return eventsCache;
+}
+
+export function invalidateEventsCache() {
+  eventsCache = null;
+}
+
 export async function fetchEvents(params: { type?: string; q?: string; limit?: number; offset?: number } = {}): Promise<EventListItem[]> {
+  // If no filters, prime/use the cache
+  if (!params.type && !params.q && !params.offset) {
+    const all = await getEventsCache();
+    if (params.limit) return all.slice(0, params.limit);
+    return all;
+  }
   const qs = new URLSearchParams();
   if (params.type) qs.set("type", params.type);
   if (params.q) qs.set("q", params.q);
@@ -44,126 +69,126 @@ export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   return res.json();
 }
 
-export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
-  const res = await apiFetch(`/api/persons/${id}/events`);
-  if (!res.ok) throw new Error(`Failed to fetch person events: ${res.status}`);
+// Entity events: API returns event_ids only; we filter from the cached list
+async function fetchEntityEventIds(url: string): Promise<string[]> {
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch event ids: ${res.status}`);
   return res.json();
+}
+
+async function filterFromCache(ids: string[]): Promise<EventListItem[]> {
+  const all = await getEventsCache();
+  const set = new Set(ids);
+  return all.filter((e) => set.has(e.id));
+}
+
+export async function fetchPersonEvents(id: string): Promise<EventListItem[]> {
+  const ids = await fetchEntityEventIds(`/api/persons/${id}/events`);
+  return filterFromCache(ids);
 }
 
 export async function fetchVenueEvents(id: string): Promise<EventListItem[]> {
-  const res = await apiFetch(`/api/venues/${id}/events`);
-  if (!res.ok) throw new Error(`Failed to fetch venue events: ${res.status}`);
-  return res.json();
+  const ids = await fetchEntityEventIds(`/api/venues/${id}/events`);
+  return filterFromCache(ids);
 }
 
 export async function fetchEnsembleEvents(id: string): Promise<EventListItem[]> {
-  const res = await apiFetch(`/api/ensembles/${id}/events`);
-  if (!res.ok) throw new Error(`Failed to fetch ensemble events: ${res.status}`);
-  return res.json();
+  const ids = await fetchEntityEventIds(`/api/ensembles/${id}/events`);
+  return filterFromCache(ids);
 }
 
 export async function fetchFestivalEvents(id: string): Promise<EventListItem[]> {
-  const res = await apiFetch(`/api/festivals/${id}/events`);
-  if (!res.ok) throw new Error(`Failed to fetch festival events: ${res.status}`);
-  return res.json();
+  const ids = await fetchEntityEventIds(`/api/festivals/${id}/events`);
+  return filterFromCache(ids);
 }
 
 export async function fetchPaymentMethodEvents(id: string): Promise<EventListItem[]> {
-  const res = await apiFetch(`/api/payment-methods/${id}/events`);
-  if (!res.ok) throw new Error(`Failed to fetch payment method events: ${res.status}`);
-  return res.json();
+  const ids = await fetchEntityEventIds(`/api/payment-methods/${id}/events`);
+  return filterFromCache(ids);
+}
+
+// Name cache to avoid redundant lookups
+const nameCache = new Map<string, Promise<{ id: string; name: string; edition?: string | null }>>();
+
+function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  if (!nameCache.has(key)) nameCache.set(key, fetcher() as Promise<{ id: string; name: string }>);
+  return nameCache.get(key) as Promise<T>;
 }
 
 export async function fetchPerson(id: string): Promise<{ id: string; name: string }> {
-  const res = await apiFetch(`/api/persons/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
-  return res.json();
+  return cachedFetch(`person:${id}`, async () => {
+    const res = await apiFetch(`/api/persons/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
+    return res.json();
+  });
 }
 
 export async function fetchVenue(id: string): Promise<{ id: string; name: string }> {
-  const res = await apiFetch(`/api/venues/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);
-  return res.json();
+  return cachedFetch(`venue:${id}`, async () => {
+    const res = await apiFetch(`/api/venues/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);
+    return res.json();
+  });
 }
 
 export async function fetchEnsemble(id: string): Promise<{ id: string; name: string }> {
-  const res = await apiFetch(`/api/ensembles/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
-  return res.json();
+  return cachedFetch(`ensemble:${id}`, async () => {
+    const res = await apiFetch(`/api/ensembles/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
+    return res.json();
+  });
 }
 
 export async function fetchFestival(id: string): Promise<{ id: string; name: string; edition?: string | null }> {
-  const res = await apiFetch(`/api/festivals/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch festival: ${res.status}`);
-  return res.json();
+  return cachedFetch(`festival:${id}`, async () => {
+    const res = await apiFetch(`/api/festivals/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch festival: ${res.status}`);
+    return res.json();
+  });
 }
 
-export async function searchEntities(endpoint: string, q: string): Promise<Array<{ id: string; name?: string; title?: string; edition?: string; parent_name?: string }>> {
-  const res = await apiFetch(`/api/${endpoint}?q=${encodeURIComponent(q)}&limit=10`);
+export async function searchEntities(endpoint: string, q: string, limit = 10): Promise<{ id: string; name?: string; title?: string; type?: string; edition?: string | null; city?: string | null }[]> {
+  const res = await apiFetch(`/api/${endpoint}?q=${encodeURIComponent(q)}&limit=${limit}`);
   if (!res.ok) return [];
   return res.json();
 }
 
-export async function createEntity(endpoint: string, data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
-  const res = await apiFetch(`/api/${endpoint}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create`); }
+export async function createEntity(kind: "person" | "ensemble" | "venue" | "festival" | "work" | "production", data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
+  const res = await apiFetch(`/api/${kind}s`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(`Failed to create ${kind}`);
   return res.json();
 }
 
-export async function createEvent(type: string, payload: Record<string, unknown>): Promise<{ id: string }> {
-  const res = await apiFetch("/api/events", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, ...payload }),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create event`); }
+export async function createEvent(data: Record<string, unknown>): Promise<{ id: string }> {
+  const res = await apiFetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? "Failed to create event"); }
+  invalidateEventsCache();
   return res.json();
 }
 
-export async function updateEvent(id: string, payload: Record<string, unknown>): Promise<{ id: string }> {
-  const res = await apiFetch(`/api/events/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to update event`); }
-  return { id };
+export async function updateEvent(id: string, data: Record<string, unknown>): Promise<void> {
+  const res = await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to update event");
+  invalidateEventsCache();
 }
 
-export async function createPaymentMethod(data: { name: string; total_cost: number; currency: string; purchase_date: string; notes?: string }): Promise<PaymentMethod> {
-  const res = await apiFetch("/api/payment-methods", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create payment method`); }
+export async function createPaymentMethod(data: Record<string, unknown>): Promise<PaymentMethod> {
+  const res = await apiFetch("/api/payment-methods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to create payment method");
   return res.json();
-}
-
-export async function patchEventRating(id: string, rating: number | null): Promise<void> {
-  await apiFetch(`/api/events/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rating }),
-  });
 }
 
 export async function patchEventReview(id: string, review: string | null): Promise<void> {
-  await apiFetch(`/api/events/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ review }),
-  });
+  await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ review }) });
+  invalidateEventsCache();
 }
 
-export async function patchEventPrice(id: string, price: string, currency: string): Promise<void> {
-  await apiFetch(`/api/events/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ price_paid: price, currency }),
-  });
+export async function patchEventRating(id: string, rating: number | null): Promise<void> {
+  await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rating }) });
+  invalidateEventsCache();
+}
+
+export async function patchEventPrice(id: string, price_paid: string, currency: string): Promise<void> {
+  await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ price_paid, currency }) });
+  invalidateEventsCache();
 }

@@ -85,7 +85,7 @@ function ContextHeading({ label, description }: { label: string; description?: s
 
 function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClick, editorMode, onRatingChange }: {
   type: string; evts: EventListItem[]; subtype?: string; onBack: () => void;
-  onEventClick: (id: string) => void; onEntityClick: (id: string, kind: "person" | "ensemble" | null) => void;
+  onEventClick: (id: string) => void; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void;
   editorMode: boolean; onRatingChange: (id: string, rating: number | null) => void;
 }) {
   const [groupByContext, setGroupByContext] = useState(false);
@@ -216,7 +216,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
   );
 }
 
-function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null) => void }) {
+function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void }) {
   const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> }>();
   for (const e of events) {
     if (e.primary_entity_name && e.primary_entity_id) {
@@ -230,7 +230,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
   return (
     <div className="space-y-1">
       {ranked.map((a, i) => (
-        <button key={a.id} onClick={() => onEntityClick(a.id, a.kind)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
+        <button key={a.id} onClick={() => onEntityClick(a.id, a.kind, a.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{a.name}</span>
           <span className="flex gap-1 flex-shrink-0">{[...a.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
@@ -241,7 +241,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
   );
 }
 
-function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string) => void }) {
+function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
   const counts = new Map<string, { name: string; id: string; n: number }>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
@@ -255,7 +255,7 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
   return (
     <div className="space-y-1">
       {ranked.map((v, i) => (
-        <button key={v.id} onClick={() => onVenueClick(v.id)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
+        <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
@@ -348,8 +348,8 @@ type Tab = typeof TABS[number];
 
 export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
   onEventClick: (id: string) => void;
-  onEntityClick: (id: string, kind: "person" | "ensemble" | null) => void;
-  onVenueClick: (id: string) => void;
+  onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void;
+  onVenueClick: (id: string, name?: string) => void;
 }) {
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);

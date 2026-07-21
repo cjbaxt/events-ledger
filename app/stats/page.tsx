@@ -29,16 +29,16 @@ export default function StatsPage() {
     setPanelOpen(true);
   }, []);
 
-  const handleEntityClick = useCallback((id: string, kind: "person" | "ensemble" | null) => {
+  const handleEntityClick = useCallback((id: string, kind: "person" | "ensemble" | null, name?: string) => {
     if (!kind) return;
     setSelectedId(null);
-    setDirectTarget({ kind, id });
+    setDirectTarget({ kind, id, hint: name });
     setPanelOpen(true);
   }, []);
 
-  const handleVenueClick = useCallback((id: string) => {
+  const handleVenueClick = useCallback((id: string, name?: string) => {
     setSelectedId(null);
-    setDirectTarget({ kind: "venue", id });
+    setDirectTarget({ kind: "venue", id, hint: name });
     setPanelOpen(true);
   }, []);
 

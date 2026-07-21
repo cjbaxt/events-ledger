@@ -104,7 +104,7 @@ function EntityTab<T extends { id: string; name: string }>({
   );
 }
 
-function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: string) => void }) {
+function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: string, name?: string) => void }) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -129,7 +129,7 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
             <div className="divide-y divide-neutral-50">
               {items.map((v) => (
-                <button key={v.id} onClick={() => onVenueClick(v.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+                <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
                   <span className="flex-1 min-w-0">
                     {v.parent_name && <span className="block text-[10px] text-neutral-400 truncate">{v.parent_name}</span>}
                     <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{v.name}</span>
@@ -156,9 +156,9 @@ const TABS: { id: ActiveTab; label: string }[] = [
 
 export default function Search({ onEventClick, onEntityClick, onVenueClick, onFestivalClick }: {
   onEventClick: (id: string) => void;
-  onEntityClick: (id: string, kind: "person" | "ensemble") => void;
-  onVenueClick: (id: string) => void;
-  onFestivalClick: (id: string) => void;
+  onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void;
+  onVenueClick: (id: string, name?: string) => void;
+  onFestivalClick: (id: string, name?: string) => void;
 }) {
   const [tab, setTab] = useState<ActiveTab>("events");
   const [query, setQuery] = useState("");
@@ -177,7 +177,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
       {tab === "people" && (
         <EntityTab<Person> query={query} endpoint="persons" singularLabel="person" pluralLabel="people"
           renderRow={(p) => (
-            <button key={p.id} onClick={() => onEntityClick(p.id, "person")} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+            <button key={p.id} onClick={() => onEntityClick(p.id, "person", p.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
               <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{p.name}</span>
             </button>
           )}
@@ -186,7 +186,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
       {tab === "ensembles" && (
         <EntityTab<Ensemble> query={query} endpoint="ensembles" singularLabel="ensemble" pluralLabel="ensembles"
           renderRow={(e) => (
-            <button key={e.id} onClick={() => onEntityClick(e.id, "ensemble")} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+            <button key={e.id} onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
               <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{e.name}</span>
               {e.type && <span className="text-xs text-neutral-400 flex-shrink-0">{e.type}</span>}
             </button>
@@ -197,7 +197,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
       {tab === "festivals" && (
         <EntityTab<Festival> query={query} endpoint="festivals" singularLabel="festival" pluralLabel="festivals"
           renderRow={(f) => (
-            <button key={f.id} onClick={() => onFestivalClick(f.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+            <button key={f.id} onClick={() => onFestivalClick(f.id, [f.name, f.edition].filter(Boolean).join(" "))} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
               <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{f.name}</span>
               {f.edition && <span className="text-xs text-neutral-400 flex-shrink-0">{f.edition}</span>}
             </button>
