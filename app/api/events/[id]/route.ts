@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: e, error } = await supabase
+    .from("event")
+    .select(`
+      id, date, time, type, subtype, title,
+      venue_id, work_id, festival_id,
+      price_paid, currency, payment_method_id,
+      rating, rating_context, notes, review, links,
+      data_completeness, full_description, ai_summary, description_source_url
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !e) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const [venueRes, festivalRes, pmRes, relatedRes] = await Promise.all([
+    supabase.from("venue").select("id, name, parent_id").eq("id", e.venue_id).single(),
+    e.festival_id ? supabase.from("festival").select("id, name, edition").eq("id", e.festival_id).single() : Promise.resolve({ data: null }),
+    e.payment_method_id ? supabase.from("payment_method").select("id, name, total_cost, currency, purchase_date").eq("id", e.payment_method_id).single() : Promise.resolve({ data: null }),
+    supabase.from("event").select("id, title, date, type").eq("venue_id", e.venue_id).eq("date", e.date).neq("id", id),
+  ]);
+
+  const venue = venueRes.data ?? { id: e.venue_id, name: "Unknown" };
+  const venuePath: { id: string; name: string }[] = [];
+  if (venueRes.data?.parent_id) {
+    const parentRes = await supabase.from("venue").select("id, name, parent_id").eq("id", venueRes.data.parent_id).single();
+    if (parentRes.data) {
+      venuePath.push({ id: parentRes.data.id, name: parentRes.data.name });
+      if (parentRes.data.parent_id) {
+        const gpRes = await supabase.from("venue").select("id, name").eq("id", parentRes.data.parent_id).single();
+        if (gpRes.data) venuePath.push({ id: gpRes.data.id, name: gpRes.data.name });
+      }
+    }
+  }
+
+  const festival = festivalRes.data ? { id: festivalRes.data.id, name: [festivalRes.data.name, (festivalRes.data as Record<string, string>).edition].filter(Boolean).join(" ") } : null;
+  const pm = pmRes.data as { id: string; name: string; total_cost: string; currency: string; purchase_date: string } | null;
+
+  let extension: Record<string, unknown> | null = null;
+  const extTable = extensionTable(e.type);
+  if (extTable) {
+    const extRes = await supabase.from(extTable).select("*").eq("event_id", id).maybeSingle();
+    if (extRes.data) extension = extRes.data;
+  }
+
+  return NextResponse.json({
+    id: e.id, date: e.date, time: e.time, type: e.type, subtype: e.subtype, title: e.title,
+    venue: { id: venue.id, name: venue.name },
+    venue_path: venuePath,
+    work_id: e.work_id,
+    festival,
+    price_paid: e.price_paid != null ? String(e.price_paid) : null,
+    currency: e.currency,
+    payment_method: pm,
+    rating: e.rating,
+    rating_context: e.rating_context,
+    notes: e.notes,
+    review: e.review,
+    links: e.links,
+    data_completeness: e.data_completeness,
+    full_description: e.full_description,
+    ai_summary: e.ai_summary,
+    description_source_url: e.description_source_url,
+    related_events: (relatedRes.data ?? []) as Array<{ id: string; title: string; date: string; type: string }>,
+    extension,
+  });
+}
+
+function extensionTable(type: string): string | null {
+  const map: Record<string, string> = {
+    music: "music_event", classical: "classical_event", opera: "opera_event",
+    ballet: "ballet_event", dance: "dance_event", circus: "circus_event",
+    theatre: "theatre_event", cabaret: "cabaret_event", comedy: "comedy_event",
+    spoken_word: "spoken_word_event", talk: "talk_event",
+  };
+  return map[type] ?? null;
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await req.json();
+  const supabase = await createClient();
+
+  const allowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context"];
+  const update: Record<string, unknown> = {};
+  for (const key of allowed) { if (key in body) update[key] = body[key]; }
+
+  if (!Object.keys(update).length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+
+  const { error } = await supabase.from("event").update(update).eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
