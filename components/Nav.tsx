@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconTimeline, IconCalendarEvent, IconChartBar,
-  IconSearch, IconPlus,
+  IconSearch, IconPlus, IconInfoCircle,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 
@@ -12,6 +12,7 @@ const links = [
   { path: "/upcoming", label: "Upcoming", icon: IconCalendarEvent },
   { path: "/stats", label: "Stats", icon: IconChartBar },
   { path: "/search", label: "Search", icon: IconSearch },
+  { path: "/about", label: "About", icon: IconInfoCircle },
 ];
 
 export default function Nav() {

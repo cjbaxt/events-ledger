@@ -28,7 +28,7 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       <Suspense><EventParamHandler onEvent={handleEvent} /></Suspense>
       <Nav />
-      <main className="pt-14 pb-20 md:pb-8 max-w-2xl mx-auto px-4 py-6 md:py-10">
+      <main className="max-w-2xl mx-auto px-4 pt-4 pb-24 md:pt-20 md:pb-8">
         <Timeline onEventClick={handleEventClick} />
       </main>
       <EventDetailPanel open={panelOpen} eventId={selectedId} onClose={handleClose} onNavigate={handleNavigate} />

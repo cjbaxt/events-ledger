@@ -236,6 +236,36 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
   );
 }
 
+function SetlistFetcher({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
+  const [url, setUrl] = useState((ext.setlist_fm_url as string) ?? "");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  async function fetch_() {
+    if (!url.trim()) return;
+    setLoading(true); setErr("");
+    try {
+      const res = await fetch(`/api/setlist?url=${encodeURIComponent(url.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      set("setlist_fm_url", url.trim());
+      set("setlist", data);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Failed"); }
+    setLoading(false);
+  }
+  const songs = (ext.setlist as string[]) ?? [];
+  return (
+    <div className="space-y-2">
+      <label className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1.5">Setlist.fm</label>
+      <div className="flex gap-2">
+        <input className={`${inputCls} flex-1`} placeholder="https://www.setlist.fm/…" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <button type="button" onClick={fetch_} disabled={!url.trim() || loading} className="px-3 py-2 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-700 disabled:opacity-40 flex-shrink-0">{loading ? "…" : "Fetch"}</button>
+      </div>
+      {err && <p className="text-xs text-red-400">{err}</p>}
+      {songs.length > 0 && <p className="text-xs text-neutral-400">{songs.length} songs imported</p>}
+    </div>
+  );
+}
+
 function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
     <SearchCombo label="Headliner (person)" endpoint="persons" value={ext.headliner_person as NamedRef | null} onChange={(v) => set("headliner_person", v)} />
@@ -243,6 +273,7 @@ function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
     <MultiSearchCombo label="Support acts (persons)" endpoint="persons" values={(ext.support_persons as NamedRef[]) ?? []} onChange={(v) => set("support_persons", v)} />
     <MultiSearchCombo label="Support acts (ensembles)" endpoint="ensembles" values={(ext.support_ensembles as NamedRef[]) ?? []} onChange={(v) => set("support_ensembles", v)} />
     <Field label="Tour name"><input className={inputCls} value={(ext.tour_name as string) ?? ""} onChange={(e) => set("tour_name", e.target.value)} /></Field>
+    <SetlistFetcher ext={ext} set={set} />
   </div>;
 }
 function ClassicalFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
@@ -426,8 +457,40 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
   const [ext, setExt] = useState<Ext>(init?.ext ?? {});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [performances, setPerformances] = useState<Array<{ date: string; time: string; label: string }>>([]);
 
   useEffect(() => { fetchPaymentMethods().then(setPaymentMethods).catch(() => {}); }, []);
+
+  async function handleImport() {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setImportError("");
+    try {
+      const res = await fetch(`/api/scrape?url=${encodeURIComponent(importUrl.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      setBase((b) => ({
+        ...b,
+        title: data.title ?? b.title,
+        full_description: data.description ?? b.full_description,
+        description_source_url: data.description_source_url ?? b.description_source_url,
+        subtype: data.subtype_suggestion ?? b.subtype,
+        date: data.performances?.[0]?.date ?? b.date,
+        time: data.performances?.[0]?.time ?? b.time,
+      }));
+      if (data.type_suggestion && EVENT_TYPES.includes(data.type_suggestion)) {
+        setType(data.type_suggestion as EventType);
+      }
+      if (data.performances?.length > 1) setPerformances(data.performances);
+      setStep("basic");
+    } catch (e: unknown) {
+      setImportError(e instanceof Error ? e.message : "Import failed");
+    }
+    setImporting(false);
+  }
 
   function setBaseField(k: string, v: unknown) { setBase((b) => ({ ...b, [k]: v })); }
   function setExtField(k: string, v: unknown) { setExt((e) => ({ ...e, [k]: v })); }
@@ -477,8 +540,34 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
       {step === "import" && !editMode && (
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-1">Add an event</h2>
-          <p className="text-sm text-neutral-400 mb-6">Enter manually, or import from a URL (coming soon).</p>
-          <button type="button" onClick={() => setStep("type")} className="w-full py-3 text-sm bg-neutral-900 text-white rounded-xl hover:bg-neutral-700 transition-colors">Enter manually</button>
+          <p className="text-sm text-neutral-400 mb-6">Paste an edfringe.com URL to import, or enter manually.</p>
+          <div className="space-y-2 mb-4">
+            <input
+              type="url"
+              value={importUrl}
+              onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
+              placeholder="https://www.edfringe.com/…"
+              className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400"
+              onKeyDown={(e) => { if (e.key === "Enter" && importUrl.trim()) handleImport(); }}
+            />
+            {importError && <p className="text-xs text-red-400">{importError}</p>}
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={!importUrl.trim() || importing}
+              className="w-full py-2.5 text-sm bg-neutral-900 text-white rounded-xl hover:bg-neutral-700 transition-colors disabled:opacity-40"
+            >
+              {importing ? "Importing…" : "Import from URL"}
+            </button>
+          </div>
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-neutral-100" />
+            <span className="text-xs text-neutral-300 uppercase tracking-widest">or</span>
+            <div className="flex-1 h-px bg-neutral-100" />
+          </div>
+          <button type="button" onClick={() => setStep("type")} className="w-full py-2.5 text-sm border border-neutral-200 text-neutral-600 rounded-xl hover:border-neutral-400 transition-colors">
+            Enter manually
+          </button>
         </div>
       )}
 
@@ -501,10 +590,18 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
           <h2 className="font-serif text-xl text-neutral-900 mb-6">{!editMode && <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>}Basic info</h2>
           <div className="space-y-5">
             <Field label="Title" required><input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus autoCapitalize="none" /></Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Date" required><input type="date" className={inputCls} value={(base.date as string) ?? ""} onChange={(e) => setBaseField("date", e.target.value)} /></Field>
-              <Field label="Time"><input type="time" className={inputCls} value={(base.time as string) ?? ""} onChange={(e) => setBaseField("time", e.target.value)} /></Field>
-            </div>
+            {performances.length > 1 ? (
+              <Field label="Performance" required>
+                <select className={inputCls} value={`${base.date as string}T${base.time as string}`} onChange={(e) => { const [d, t] = e.target.value.split("T"); setBaseField("date", d); setBaseField("time", t); }}>
+                  {performances.map((p) => <option key={p.label} value={`${p.date}T${p.time}`}>{p.label}</option>)}
+                </select>
+              </Field>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Date" required><input type="date" className={inputCls} value={(base.date as string) ?? ""} onChange={(e) => setBaseField("date", e.target.value)} /></Field>
+                <Field label="Time"><input type="time" className={inputCls} value={(base.time as string) ?? ""} onChange={(e) => setBaseField("time", e.target.value)} /></Field>
+              </div>
+            )}
             <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false} displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2"><Field label="Price paid"><input type="number" step="0.01" className={inputCls} value={(base.price_paid as string) ?? ""} onChange={(e) => setBaseField("price_paid", e.target.value)} placeholder="0.00" /></Field></div>
