@@ -340,7 +340,7 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
   return (
     <div className="border-t border-b border-neutral-100 pt-4 pb-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-400">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-700 font-medium">
           {review && <IconWriting size={12} />}
           {hasEssay && <IconArticle size={12} />}
           My take
@@ -358,7 +358,7 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
         </div>
       ) : (
         <>
-          {review && <button onClick={() => { setDraft(review); setEditing(true); }} className="w-full text-left group mb-3"><p className="text-sm font-serif text-neutral-700 leading-relaxed border-l-2 border-neutral-200 pl-3 whitespace-pre-wrap group-hover:border-neutral-400 transition-colors">{review}</p></button>}
+          {review && <button onClick={() => { setDraft(review); setEditing(true); }} className="w-full text-left group mb-3"><p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-400 pl-3 whitespace-pre-wrap group-hover:border-neutral-700 transition-colors">{review}</p></button>}
           {links && links.map((link, i) => (
             <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 border border-neutral-100 rounded-lg px-3 py-2.5 mb-2 hover:border-neutral-300 transition-colors group text-left no-underline">
               <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
