@@ -98,6 +98,52 @@ export async function fetchFestival(id: string): Promise<{ id: string; name: str
   return res.json();
 }
 
+export async function searchEntities(endpoint: string, q: string): Promise<Array<{ id: string; name?: string; title?: string; edition?: string; parent_name?: string }>> {
+  const res = await apiFetch(`/api/${endpoint}?q=${encodeURIComponent(q)}&limit=10`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function createEntity(endpoint: string, data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
+  const res = await apiFetch(`/api/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create`); }
+  return res.json();
+}
+
+export async function createEvent(type: string, payload: Record<string, unknown>): Promise<{ id: string }> {
+  const res = await apiFetch("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, ...payload }),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create event`); }
+  return res.json();
+}
+
+export async function updateEvent(id: string, payload: Record<string, unknown>): Promise<{ id: string }> {
+  const res = await apiFetch(`/api/events/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to update event`); }
+  return { id };
+}
+
+export async function createPaymentMethod(data: { name: string; total_cost: number; currency: string; purchase_date: string; notes?: string }): Promise<PaymentMethod> {
+  const res = await apiFetch("/api/payment-methods", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error ?? `Failed to create payment method`); }
+  return res.json();
+}
+
 export async function patchEventRating(id: string, rating: number | null): Promise<void> {
   await apiFetch(`/api/events/${id}`, {
     method: "PATCH",

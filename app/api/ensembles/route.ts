@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
+  const q = searchParams.get("q");
+  const limit = parseInt(searchParams.get("limit") ?? "10");
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("payment_method")
-    .select("id, name, total_cost, currency, purchase_date, notes")
-    .order("purchase_date", { ascending: false });
+  let query = supabase.from("ensemble").select("id, name, type").order("name").limit(limit);
+  if (q) query = query.ilike("name", `%${q}%`);
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
@@ -15,13 +17,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   if (!body.name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const supabase = await createClient();
-  const { data, error } = await supabase.from("payment_method").insert({
-    name: body.name.trim(),
-    total_cost: body.total_cost ?? 0,
-    currency: body.currency ?? "EUR",
-    purchase_date: body.purchase_date,
-    notes: body.notes ?? null,
-  }).select("id, name, total_cost, currency, purchase_date, notes").single();
+  const insert: Record<string, unknown> = { name: body.name.trim() };
+  if (body.type) insert.type = body.type;
+  const { data, error } = await supabase.from("ensemble").insert(insert).select("id, name").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

@@ -74,10 +74,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 function extensionTable(type: string): string | null {
   const map: Record<string, string> = {
-    music: "music_event", classical: "classical_event", opera: "opera_event",
-    ballet: "ballet_event", dance: "dance_event", circus: "circus_event",
-    theatre: "theatre_event", cabaret: "cabaret_event", comedy: "comedy_event",
-    spoken_word: "spoken_word_event", talk: "talk_event",
+    music: "event_music", classical: "event_classical", opera: "event_opera",
+    ballet: "event_ballet", dance: "event_dance", circus: "event_circus",
+    theatre: "event_theatre", cabaret: "event_cabaret", comedy: "event_comedy",
+    spoken_word: "event_spoken_word", talk: "event_talk",
+    exhibition: "event_exhibition", screening: "event_screening",
   };
   return map[type] ?? null;
 }
@@ -87,13 +88,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const supabase = await createClient();
 
-  const allowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context"];
-  const update: Record<string, unknown> = {};
-  for (const key of allowed) { if (key in body) update[key] = body[key]; }
+  const baseAllowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context",
+    "title", "date", "time", "venue_id", "festival_id", "payment_method_id", "subtype",
+    "data_completeness", "full_description", "ai_summary", "description_source_url", "links"];
+  const baseUpdate: Record<string, unknown> = {};
+  for (const key of baseAllowed) { if (key in body) baseUpdate[key] = body[key]; }
 
-  if (!Object.keys(update).length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  if (Object.keys(baseUpdate).length) {
+    const { error } = await supabase.from("event").update(baseUpdate).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  const { error } = await supabase.from("event").update(update).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Handle extension data if present
+  if (body.extension && typeof body.extension === "object") {
+    const { data: ev } = await supabase.from("event").select("type").eq("id", id).single();
+    if (ev) {
+      const extTable = extensionTable(ev.type);
+      if (extTable) {
+        const ext = body.extension as Record<string, unknown>;
+        const { error: extErr } = await supabase.from(extTable).upsert({ event_id: id, ...ext });
+        if (extErr) console.error("Extension update error:", extErr);
+      }
+      // Handle credits separately
+      if (Array.isArray(body.extension.credits)) {
+        await supabase.from("event_credit").delete().eq("event_id", id);
+        const credits = body.extension.credits as Array<{ role: string; person_id: string; sort_order: number }>;
+        if (credits.length) {
+          await supabase.from("event_credit").insert(credits.map((c) => ({ event_id: id, ...c })));
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,54 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { EventListItem } from "@/lib/types";
 
+const EXT_TABLE: Record<string, string> = {
+  music: "event_music", classical: "event_classical", opera: "event_opera",
+  ballet: "event_ballet", dance: "event_dance", circus: "event_circus",
+  theatre: "event_theatre", cabaret: "event_cabaret", comedy: "event_comedy",
+  spoken_word: "event_spoken_word", talk: "event_talk",
+  exhibition: "event_exhibition", screening: "event_screening",
+};
+
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { type, ...fields } = body as { type: string } & Record<string, unknown>;
+  if (!type) return NextResponse.json({ error: "type required" }, { status: 400 });
+
+  const supabase = await createClient();
+
+  // Separate base event fields from extension fields
+  const BASE_FIELDS = new Set(["venue_id", "title", "date", "time", "price_paid", "currency",
+    "festival_id", "payment_method_id", "notes", "rating", "rating_context", "review",
+    "data_completeness", "full_description", "ai_summary", "description_source_url", "subtype", "links"]);
+
+  const baseInsert: Record<string, unknown> = { type };
+  const extInsert: Record<string, unknown> = {};
+
+  for (const [k, v] of Object.entries(fields)) {
+    if (BASE_FIELDS.has(k)) baseInsert[k] = v;
+    else extInsert[k] = v;
+  }
+
+  const { data: event, error: eventErr } = await supabase.from("event").insert(baseInsert).select("id").single();
+  if (eventErr || !event) return NextResponse.json({ error: eventErr?.message ?? "Insert failed" }, { status: 500 });
+
+  const extTable = EXT_TABLE[type];
+  if (extTable && Object.keys(extInsert).length) {
+    const { error: extErr } = await supabase.from(extTable).insert({ event_id: event.id, ...extInsert });
+    if (extErr) console.error("Extension insert error:", extErr);
+  }
+
+  // Handle credits
+  if (Array.isArray(fields.credits)) {
+    const credits = fields.credits as Array<{ role: string; person_id: string; sort_order: number }>;
+    if (credits.length) {
+      await supabase.from("event_credit").insert(credits.map((c) => ({ event_id: event.id, ...c })));
+    }
+  }
+
+  return NextResponse.json({ id: event.id });
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const type = searchParams.get("type") || null;

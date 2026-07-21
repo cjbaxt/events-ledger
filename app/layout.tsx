@@ -4,6 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Events Ledger",
   description: "Personal cultural events tracker",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Ledger" },
 };
 
 export default function RootLayout({
