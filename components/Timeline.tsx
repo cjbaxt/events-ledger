@@ -204,9 +204,11 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
-  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(() => {
+    try { const s = localStorage.getItem("timeline-hidden-types"); return s ? new Set(JSON.parse(s)) : new Set(["exhibition", "talk"]); } catch { return new Set(["exhibition", "talk"]); }
+  });
   const [filterOpen, setFilterOpen] = useState(false);
-  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(hiddenTypes));
 
   useEffect(() => {
     Promise.all([fetchEvents({ limit: 500 }), fetchPaymentMethods()])
@@ -306,7 +308,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
                 );
               })}
             </div>
-            <button onClick={() => { setHiddenTypes(new Set(pendingHidden)); setFilterOpen(false); }} className="w-full bg-neutral-900 text-white text-sm rounded-xl py-3 hover:bg-neutral-700 transition-colors">Apply</button>
+            <button onClick={() => { const next = new Set(pendingHidden); setHiddenTypes(next); try { localStorage.setItem("timeline-hidden-types", JSON.stringify([...next])); } catch {} setFilterOpen(false); }} className="w-full bg-neutral-900 text-white text-sm rounded-xl py-3 hover:bg-neutral-700 transition-colors">Apply</button>
           </div>
         </div>
       )}
