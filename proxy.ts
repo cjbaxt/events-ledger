@@ -16,11 +16,6 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // Guest session: allow read-only access, block write routes in API handlers
-  if (request.cookies.get(GUEST_COOKIE)?.value === "1") {
-    return NextResponse.next({ request });
-  }
-
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -40,7 +35,15 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user && pathname !== "/login") {
+  // Authenticated users always get full access — guest cookie is ignored
+  if (user) return supabaseResponse;
+
+  // No real session: fall back to guest cookie for read-only access
+  if (request.cookies.get(GUEST_COOKIE)?.value === "1") {
+    return NextResponse.next({ request });
+  }
+
+  if (pathname !== "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
