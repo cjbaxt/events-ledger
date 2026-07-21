@@ -44,7 +44,10 @@ export default function Nav() {
         </nav>
         <div className="flex items-center gap-4">
           {isGuest ? (
-            <span className="text-[10px] uppercase tracking-widest text-neutral-300 border border-neutral-100 rounded px-2 py-1">Guest</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-widest text-neutral-300 border border-neutral-100 rounded px-2 py-1">Guest</span>
+              <a href="/api/guest/logout" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">Sign out</a>
+            </div>
           ) : (
             <>
               <Link href="/add" className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
