@@ -231,12 +231,12 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
 }
 
 function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string>; lastTitle: string; lastDate: string }>();
+  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> }>();
   for (const e of events) {
     if (e.primary_entity_name && e.primary_entity_id) {
       const prev = counts.get(e.primary_entity_id);
-      if (prev) { prev.n++; prev.types.add(e.type); if (e.date > prev.lastDate) { prev.lastDate = e.date; prev.lastTitle = e.title; } }
-      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]), lastTitle: e.title, lastDate: e.date });
+      if (prev) { prev.n++; prev.types.add(e.type); }
+      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
     }
   }
   const ranked = [...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n);
@@ -248,10 +248,6 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{a.name}</span>
           <span className="flex gap-1 flex-shrink-0">{[...a.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
-          <div className="hidden sm:flex flex-col items-end flex-shrink-0 max-w-[35%]">
-            <span className="text-[10px] text-neutral-400 truncate w-full text-right">{a.lastTitle}</span>
-            <span className="text-[10px] text-neutral-300">{a.lastDate.slice(0, 7)}</span>
-          </div>
           <span className="text-xs text-neutral-400 flex-shrink-0 w-6 text-right">×{a.n}</span>
         </button>
       ))}
@@ -260,12 +256,12 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
 }
 
 function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; n: number; lastTitle: string; lastDate: string }>();
+  const counts = new Map<string, { name: string; id: string; n: number }>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
       const prev = counts.get(e.venue_id);
-      if (prev) { prev.n++; if (e.date > prev.lastDate) { prev.lastDate = e.date; prev.lastTitle = e.title; } }
-      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1, lastTitle: e.title, lastDate: e.date });
+      if (prev) { prev.n++; }
+      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1 });
     }
   }
   const ranked = [...counts.values()].filter((v) => v.n > 1).sort((a, b) => b.n - a.n);
@@ -276,10 +272,6 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
         <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
-          <div className="hidden sm:flex flex-col items-end flex-shrink-0 max-w-[40%]">
-            <span className="text-[10px] text-neutral-400 truncate w-full text-right">{v.lastTitle}</span>
-            <span className="text-[10px] text-neutral-300">{v.lastDate.slice(0, 7)}</span>
-          </div>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
         </button>
       ))}
