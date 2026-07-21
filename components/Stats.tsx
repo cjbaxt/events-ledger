@@ -184,7 +184,10 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
     const subtypes = [...subtypeCounts.entries()].sort((a, b) => b[1] - a[1]);
     const rated = evts.filter((e) => e.rating !== null);
     const avgRating = rated.length > 0 ? rated.reduce((s, e) => s + e.rating!, 0) / rated.length : null;
-    const lastSeen = evts.reduce((best, e) => e.date > best ? e.date : best, "");
+    const lastSeenEvt = evts.reduce((best, e) => e.date > best.date ? e : best, evts[0]);
+    const lastSeenEntity = lastSeenEvt?.primary_entity_name ?? null;
+    const lastSeenEntityId = lastSeenEvt?.primary_entity_id ?? null;
+    const lastSeenEntityKind = lastSeenEvt?.primary_entity_kind ?? null;
     return (
       <div key={type} onClick={() => setDrill({ type })} className="border border-neutral-100 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all">
         <div className="flex items-center gap-1.5 text-neutral-400"><EventTypeIcon type={type} size={12} /><span className="hidden sm:inline text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span></div>
@@ -209,10 +212,12 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
               <button onClick={(e) => { e.stopPropagation(); onEntityClick(top.id, top.kind); }} className="text-xs text-neutral-600 font-serif leading-snug text-left hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60 truncate block w-full">{top.name}{top.n > 1 && <span className="font-sans text-neutral-300 ml-1">×{top.n}</span>}</button>
             </div>
           )}
-          <div className={top ? "text-right flex-shrink-0" : ""}>
-            <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Last seen</div>
-            <div className="text-xs text-neutral-400 font-serif">{lastSeen.slice(0, 7)}</div>
-          </div>
+          {lastSeenEntity && (
+            <div className={top ? "text-right flex-shrink-0 max-w-[45%]" : ""}>
+              <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Last seen</div>
+              <button onClick={(e) => { e.stopPropagation(); if (lastSeenEntityId) onEntityClick(lastSeenEntityId, lastSeenEntityKind); }} className="text-xs text-neutral-600 font-serif leading-snug text-right hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60 truncate block w-full">{lastSeenEntity}</button>
+            </div>
+          )}
         </div>
       </div>
     );
