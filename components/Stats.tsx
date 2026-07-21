@@ -282,10 +282,11 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
   );
 }
 
-function OverTimeTab({ events }: { events: EventListItem[] }) {
+function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
   const [filterOpen, setFilterOpen] = useState(false);
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const presentTypes = new Set(events.map((e) => e.type));
   const filtered = events.filter((e) => !hiddenTypes.has(e.type));
   const byYear = new Map<string, { count: number; spend: number }>();
@@ -301,6 +302,7 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
   function applyFilter() { setHiddenTypes(new Set(pendingHidden)); setFilterOpen(false); }
   function togglePending(type: string) { setPendingHidden((prev) => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; }); }
   const hiddenCount = hiddenTypes.size;
+  const yearEvents = selectedYear ? [...filtered].filter((e) => e.date.startsWith(selectedYear)).sort((a, b) => b.date.localeCompare(a.date)) : [];
 
   return (
     <>
@@ -319,18 +321,34 @@ function OverTimeTab({ events }: { events: EventListItem[] }) {
                 {i > 0 && years[i - 1][0] === "2025" && parseInt(year) < 2025 && (
                   <div className="flex items-center gap-3 py-1"><span className="text-[10px] uppercase tracking-widest text-orange-300 w-full">memory gaps below</span></div>
                 )}
-                <div className="flex items-center gap-3 w-full">
-                  <span className={`text-xs w-10 flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
+                <button className={`flex items-center gap-3 w-full rounded-lg px-1 py-0.5 transition-colors ${selectedYear === year ? "bg-neutral-50" : "hover:bg-neutral-50"}`}
+                  onClick={() => setSelectedYear(selectedYear === year ? null : year)}>
+                  <span className={`text-xs w-10 flex-shrink-0 text-left ${selectedYear === year ? "text-neutral-700 font-medium" : parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
                   <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${parseInt(year) < 2025 ? "bg-neutral-100" : "bg-neutral-200"}`} style={{ width: `${(count / maxCount) * 100}%` }} />
+                    <div className={`h-full rounded-full transition-all ${selectedYear === year ? "bg-neutral-400" : parseInt(year) < 2025 ? "bg-neutral-100" : "bg-neutral-200"}`} style={{ width: `${(count / maxCount) * 100}%` }} />
                   </div>
-                  <span className={`text-xs w-6 text-right flex-shrink-0 ${parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-500"}`}>{count}</span>
+                  <span className={`text-xs w-6 text-right flex-shrink-0 ${selectedYear === year ? "text-neutral-700 font-medium" : parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-500"}`}>{count}</span>
                   <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">{spend > 0 ? `€${Math.round(spend)}` : ""}</span>
-                </div>
+                </button>
               </div>
             ))}
           </div>
         </div>
+        {selectedYear && (
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{selectedYear}</div>
+            <div className="space-y-0.5">
+              {yearEvents.map((e) => (
+                <button key={e.id} onClick={() => onEventClick(e.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-50 transition-colors text-left group">
+                  <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(5, 7)}/{e.date.slice(8, 10)}</span>
+                  <EventTypeIcon type={e.type} size={11} />
+                  <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{e.title}</span>
+                  {e.rating && <span className="text-[10px] text-neutral-300 flex-shrink-0">{e.rating}★</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {filterOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setFilterOpen(false)}>
@@ -385,7 +403,7 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
       {tab === "By type" && <ByTypeTab events={events} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={true} onRatingChange={handleRatingChange} />}
       {tab === "Artists" && <ArtistsTab events={events} onEntityClick={onEntityClick} />}
       {tab === "Venues" && <VenuesTab events={events} onVenueClick={onVenueClick} />}
-      {tab === "Over time" && <OverTimeTab events={events} />}
+      {tab === "Over time" && <OverTimeTab events={events} onEventClick={onEventClick} />}
     </div>
   );
 }
