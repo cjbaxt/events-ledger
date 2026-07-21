@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
   if (!body.name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const supabase = await createClient();
   const { data, error } = await supabase.from("payment_method").insert({
+    id: randomUUID(),
     name: body.name.trim(),
     total_cost: body.total_cost ?? 0,
     currency: body.currency ?? "EUR",

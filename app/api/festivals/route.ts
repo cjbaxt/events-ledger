@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   if (!body.name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const supabase = await createClient();
-  const insert: Record<string, unknown> = { name: body.name.trim() };
+  const insert: Record<string, unknown> = { id: randomUUID(), name: body.name.trim() };
   if (body.edition) insert.edition = body.edition.trim();
   const { data, error } = await supabase.from("festival").insert(insert).select("id, name, edition").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

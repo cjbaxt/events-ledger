@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { EventListItem } from "@/lib/types";
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     "festival_id", "payment_method_id", "notes", "rating", "rating_context", "review",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "subtype", "links"]);
 
-  const baseInsert: Record<string, unknown> = { type };
+  const baseInsert: Record<string, unknown> = { id: randomUUID(), type };
   const extInsert: Record<string, unknown> = {};
 
   for (const [k, v] of Object.entries(fields)) {
