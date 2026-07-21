@@ -256,6 +256,13 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
         {selectedYear && Object.keys(pagedMonthGrouped).sort((a, b) => b.localeCompare(a)).map((month) => (
           <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} openEventId={openEventId} />
         ))}
+        {yearEvents.length > pageSize && (
+          <div className="flex justify-center py-6">
+            <button onClick={() => setPageSize((n) => n + PAGE_SIZE)} className="text-xs text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-full px-5 py-2 transition-colors">
+              Load more
+            </button>
+          </div>
+        )}
         <div className="sticky bottom-16 md:bottom-0 z-10 mt-2 border-t border-neutral-100 bg-white">
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 md:hidden">
             {years.map((y) => (
@@ -264,7 +271,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-between px-4 pb-3 md:py-3">
+          <div className="flex items-center px-4 pb-3 md:py-3">
             <div className="hidden md:flex gap-2 overflow-x-auto no-scrollbar">
               {years.map((y) => (
                 <button key={y} onClick={() => { setSelectedYear(y); setPageSize(PAGE_SIZE); }} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
@@ -272,11 +279,6 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
                 </button>
               ))}
             </div>
-            {yearEvents.length > pageSize && (
-              <button onClick={() => setPageSize((n) => n + PAGE_SIZE)} className="text-xs text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-3 py-1.5 transition-colors ml-auto">
-                Load more
-              </button>
-            )}
           </div>
         </div>
       </div>
