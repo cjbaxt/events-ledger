@@ -263,38 +263,41 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = await createClient();
 
+  // Fetch base event with nested venue chain in one query
   const { data: e, error } = await supabase
     .from("event")
     .select(`
       id, date, time, type, subtype, title,
-      venue_id, festival_id,
-      price_paid, currency, payment_method_id,
+      venue_id, festival_id, payment_method_id,
+      price_paid, currency,
       rating, rating_context, notes, review, links,
-      data_completeness, full_description, ai_summary, description_source_url
+      data_completeness, full_description, ai_summary, description_source_url,
+      venue:venue_id(id, name, parent_id, parent:parent_id(id, name, parent_id, grandparent:parent_id(id, name)))
     `)
     .eq("id", id)
     .single();
 
   if (error || !e) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const [venueRes, festivalRes, pmRes, relatedRes] = await Promise.all([
-    supabase.from("venue").select("id, name, parent_id").eq("id", e.venue_id).single(),
+  const extTable = extensionTable(e.type);
+
+  // Fire all independent queries in parallel, including the extension table
+  const [festivalRes, pmRes, relatedRes, extRes] = await Promise.all([
     e.festival_id ? supabase.from("festival").select("id, name, edition").eq("id", e.festival_id).single() : Promise.resolve({ data: null }),
     e.payment_method_id ? supabase.from("payment_method").select("id, name, total_cost, currency, purchase_date").eq("id", e.payment_method_id).single() : Promise.resolve({ data: null }),
     supabase.from("event").select("id, title, date, type").eq("venue_id", e.venue_id).eq("date", e.date).neq("id", id),
+    extTable ? supabase.from(extTable).select("*").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
-  const venue = venueRes.data ?? { id: e.venue_id, name: "Unknown" };
+  // Build venue path from nested join result (no extra round trips)
+  type VenueRow = { id: string; name: string; parent_id?: string | null; parent?: VenueRow | null; grandparent?: VenueRow | null };
+  const venueData = e.venue as unknown as VenueRow | null;
+  const venue = venueData ?? { id: e.venue_id, name: "Unknown" };
   const venuePath: Named[] = [];
-  if (venueRes.data?.parent_id) {
-    const parentRes = await supabase.from("venue").select("id, name, parent_id").eq("id", venueRes.data.parent_id).single();
-    if (parentRes.data) {
-      venuePath.push({ id: parentRes.data.id, name: parentRes.data.name });
-      if (parentRes.data.parent_id) {
-        const gpRes = await supabase.from("venue").select("id, name").eq("id", parentRes.data.parent_id).single();
-        if (gpRes.data) venuePath.push({ id: gpRes.data.id, name: gpRes.data.name });
-      }
-    }
+  if (venueData?.parent) {
+    venuePath.push({ id: venueData.parent.id, name: venueData.parent.name });
+    const gp = venueData.parent as unknown as { grandparent?: VenueRow | null };
+    if (gp.grandparent) venuePath.push({ id: gp.grandparent.id, name: gp.grandparent.name });
   }
 
   const festivalData = festivalRes.data as { id: string; name: string; edition?: string | null } | null;
@@ -302,15 +305,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const pm = pmRes.data as { id: string; name: string; total_cost: string; currency: string; purchase_date: string } | null;
 
   let extension: Record<string, unknown> | null = null;
-  const extTable = extensionTable(e.type);
-  if (extTable) {
-    const extRes = await supabase.from(extTable).select("*").eq("event_id", id).maybeSingle();
-    if (extRes.data) {
-      extension = await resolveExtension(supabase, e.type, extRes.data as Record<string, unknown>, id);
-    }
+  if (extRes.data) {
+    extension = await resolveExtension(supabase, e.type, extRes.data as Record<string, unknown>, id);
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     id: e.id, date: e.date, time: e.time, type: e.type, subtype: e.subtype, title: e.title,
     venue: { id: venue.id, name: venue.name },
     venue_path: venuePath,
@@ -330,6 +329,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     related_events: (relatedRes.data ?? []) as Array<{ id: string; title: string; date: string; type: string }>,
     extension,
   });
+  response.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+  return response;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
