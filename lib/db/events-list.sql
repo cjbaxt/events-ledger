@@ -57,7 +57,8 @@ RETURNS TABLE (
     e.data_completeness::text,
     -- primary entity: check each extension table in order
     COALESCE(
-      (SELECT p.name FROM event_comedy ec JOIN person p ON p.id = ec.performer_id WHERE ec.event_id = e.id AND e.type = 'comedy'),
+      (SELECT p.name FROM event_comedy ec JOIN person p ON p.id = ec.performer_id WHERE ec.event_id = e.id AND e.type = 'comedy' AND ec.performer_id IS NOT NULL),
+      (SELECT ens.name FROM event_comedy ec JOIN ensemble ens ON ens.id = ec.ensemble_id WHERE ec.event_id = e.id AND e.type = 'comedy' AND ec.ensemble_id IS NOT NULL),
       (SELECT p.name FROM event_music em JOIN person p ON p.id = em.headliner_person_id WHERE em.event_id = e.id AND e.type = 'music'),
       (SELECT ens.name FROM event_music em JOIN ensemble ens ON ens.id = em.headliner_ensemble_id WHERE em.event_id = e.id AND e.type = 'music'),
       (SELECT ens.name FROM event_circus ec JOIN ensemble ens ON ens.id = ec.company_id WHERE ec.event_id = e.id AND e.type = 'circus'),
@@ -66,22 +67,30 @@ RETURNS TABLE (
       (SELECT ens.name FROM event_opera eo JOIN ensemble ens ON ens.id = eo.ensemble_id WHERE eo.event_id = e.id AND e.type = 'opera'),
       (SELECT ens.name FROM event_dance ed JOIN ensemble ens ON ens.id = ed.company_id WHERE ed.event_id = e.id AND e.type = 'dance'),
       (SELECT ens.name FROM event_cabaret ec JOIN ensemble ens ON ens.id = ec.ensemble_id WHERE ec.event_id = e.id AND e.type = 'cabaret'),
-      (SELECT p.name FROM event_cabaret ec JOIN person p ON p.id = ec.headliner_id WHERE ec.event_id = e.id AND e.type = 'cabaret')
+      (SELECT p.name FROM event_cabaret ec JOIN person p ON p.id = ec.headliner_id WHERE ec.event_id = e.id AND e.type = 'cabaret'),
+      (SELECT p.name FROM event_talk et JOIN person p ON p.id = (et.speaker_ids)[1] WHERE et.event_id = e.id AND e.type = 'talk' AND et.speaker_ids IS NOT NULL AND array_length(et.speaker_ids, 1) > 0),
+      (SELECT p.name FROM event_spoken_word esw JOIN person p ON p.id = (esw.performers)[1] WHERE esw.event_id = e.id AND e.type = 'spoken_word' AND esw.performers IS NOT NULL AND array_length(esw.performers, 1) > 0)
     ) AS primary_entity_name,
     COALESCE(
-      (SELECT ec.performer_id FROM event_comedy ec WHERE ec.event_id = e.id AND e.type = 'comedy'),
+      (SELECT ec.performer_id FROM event_comedy ec WHERE ec.event_id = e.id AND e.type = 'comedy' AND ec.performer_id IS NOT NULL),
+      (SELECT ec.ensemble_id FROM event_comedy ec WHERE ec.event_id = e.id AND e.type = 'comedy' AND ec.ensemble_id IS NOT NULL),
       (SELECT em.headliner_person_id FROM event_music em WHERE em.event_id = e.id AND e.type = 'music' AND em.headliner_person_id IS NOT NULL),
       (SELECT em.headliner_ensemble_id FROM event_music em WHERE em.event_id = e.id AND e.type = 'music' AND em.headliner_ensemble_id IS NOT NULL),
       (SELECT ec2.company_id FROM event_circus ec2 WHERE ec2.event_id = e.id AND e.type = 'circus'),
       (SELECT eb.company_id FROM event_ballet eb WHERE eb.event_id = e.id AND e.type = 'ballet'),
       (SELECT ec3.ensemble_id FROM event_classical ec3 WHERE ec3.event_id = e.id AND e.type = 'classical'),
       (SELECT eo.ensemble_id FROM event_opera eo WHERE eo.event_id = e.id AND e.type = 'opera'),
-      (SELECT ed.company_id FROM event_dance ed WHERE ed.event_id = e.id AND e.type = 'dance')
+      (SELECT ed.company_id FROM event_dance ed WHERE ed.event_id = e.id AND e.type = 'dance'),
+      (SELECT (et.speaker_ids)[1] FROM event_talk et WHERE et.event_id = e.id AND e.type = 'talk' AND et.speaker_ids IS NOT NULL AND array_length(et.speaker_ids, 1) > 0),
+      (SELECT (esw.performers)[1] FROM event_spoken_word esw WHERE esw.event_id = e.id AND e.type = 'spoken_word' AND esw.performers IS NOT NULL AND array_length(esw.performers, 1) > 0)
     ) AS primary_entity_id,
     CASE
       WHEN e.type = 'comedy' AND EXISTS (SELECT 1 FROM event_comedy ec WHERE ec.event_id = e.id AND ec.performer_id IS NOT NULL) THEN 'person'
+      WHEN e.type = 'comedy' AND EXISTS (SELECT 1 FROM event_comedy ec WHERE ec.event_id = e.id AND ec.ensemble_id IS NOT NULL) THEN 'ensemble'
       WHEN e.type = 'music' AND EXISTS (SELECT 1 FROM event_music em WHERE em.event_id = e.id AND em.headliner_person_id IS NOT NULL) THEN 'person'
       WHEN e.type IN ('music','circus','ballet','classical','opera','dance','cabaret') THEN 'ensemble'
+      WHEN e.type = 'talk' AND EXISTS (SELECT 1 FROM event_talk et WHERE et.event_id = e.id AND et.speaker_ids IS NOT NULL AND array_length(et.speaker_ids, 1) > 0) THEN 'person'
+      WHEN e.type = 'spoken_word' AND EXISTS (SELECT 1 FROM event_spoken_word esw WHERE esw.event_id = e.id AND esw.performers IS NOT NULL AND array_length(esw.performers, 1) > 0) THEN 'person'
       ELSE NULL
     END AS primary_entity_kind,
     (e.review IS NOT NULL AND e.review != '') AS has_review,
