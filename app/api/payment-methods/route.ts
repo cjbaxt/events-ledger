@@ -1,11 +1,10 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isGuestRequest, guestDenied } from "@/lib/guest";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isGuestRequest, guestDenied } from "@/lib/guest";
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("payment_method")
     .select("id, name, total_cost, currency, purchase_date, notes")

@@ -1,14 +1,13 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isGuestRequest, guestDenied } from "@/lib/guest";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isGuestRequest, guestDenied } from "@/lib/guest";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const q = searchParams.get("q");
   const limit = parseInt(searchParams.get("limit") ?? "10");
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   let query = supabase.from("festival").select("id, name, edition").order("name").limit(limit);
   if (q) query = query.or(`name.ilike.%${q}%,edition.ilike.%${q}%`);
   const { data, error } = await query;
