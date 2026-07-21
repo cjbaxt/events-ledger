@@ -121,13 +121,13 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: {
         </div>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] uppercase tracking-widest text-neutral-400">Top attended</span>
+        <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+          <span className="text-[10px] uppercase tracking-widest text-neutral-400 flex-shrink-0">Top</span>
           {types.map(([type, count]) => (
-            <div key={type} className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-100 rounded-full px-2.5 py-1">
+            <div key={type} className="flex items-center gap-1 bg-neutral-50 border border-neutral-100 rounded-full px-2 py-1 flex-shrink-0">
               <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-500"><EventTypeIcon type={type} size={10} /></div>
               <span className="hidden sm:inline text-xs text-neutral-500 capitalize">{type.replace("_", " ")}</span>
-              <span className="text-xs text-neutral-300">· {count}</span>
+              <span className="text-xs text-neutral-300">{count}</span>
             </div>
           ))}
         </div>
