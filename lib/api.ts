@@ -147,19 +147,21 @@ export async function fetchFestival(id: string): Promise<{ id: string; name: str
   });
 }
 
-export async function searchEntities(endpoint: string, q: string, limit = 10): Promise<{ id: string; name?: string; title?: string; type?: string; edition?: string | null; city?: string | null }[]> {
+export async function searchEntities(endpoint: string, q: string, limit?: number): Promise<{ id: string; name?: string; title?: string; type?: string; edition?: string | null; city?: string | null }[]> {
+  limit = limit ?? 10;
   const res = await apiFetch(`/api/${endpoint}?q=${encodeURIComponent(q)}&limit=${limit}`);
   if (!res.ok) return [];
   return res.json();
 }
 
-export async function createEntity(kind: "person" | "ensemble" | "venue" | "festival" | "work" | "production", data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
+export async function createEntity(kind: string, data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
   const res = await apiFetch(`/api/${kind}s`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error(`Failed to create ${kind}`);
   return res.json();
 }
 
-export async function createEvent(data: Record<string, unknown>): Promise<{ id: string }> {
+export async function createEvent(typeOrData: string | Record<string, unknown>, payload?: Record<string, unknown>): Promise<{ id: string }> {
+  const data = typeof typeOrData === "string" ? { type: typeOrData, ...payload } : typeOrData;
   const res = await apiFetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? "Failed to create event"); }
   invalidateEventsCache();
