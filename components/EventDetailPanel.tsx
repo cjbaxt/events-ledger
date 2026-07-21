@@ -346,7 +346,8 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
           {hasEssay && <IconArticle size={12} />}
           My take
         </div>
-        {!editing && <div className="flex items-center gap-2"><EditableRating rating={rating} onRate={onRate} />{ratingContext && <RatingContextBadge context={ratingContext} />}</div>}
+        {!editing && !review && <div className="flex items-center gap-2"><EditableRating rating={rating} onRate={onRate} />{ratingContext && <RatingContextBadge context={ratingContext} />}</div>}
+        {!editing && review && rating !== null && <div className="flex items-center gap-2"><span className="text-xs text-neutral-400">{rating}★</span>{ratingContext && <RatingContextBadge context={ratingContext} />}</div>}
       </div>
       {editing ? (
         <div className="space-y-2">
@@ -376,9 +377,10 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
   );
 }
 
-export default function EventDetailPanel({ open, eventId, preview, onClose, onNavigate, directTarget }: {
+export default function EventDetailPanel({ open, eventId, preview, onClose, onNavigate, directTarget, getAdjacentId }: {
   open: boolean; eventId: string | null; preview?: EventListItem | null; onClose: () => void; onNavigate: (id: string) => void;
   directTarget?: { kind: NavKind; id: string; hint?: string } | null;
+  getAdjacentId?: (id: string, dir: 1 | -1) => string | null;
 }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -402,10 +404,17 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
   }, [open]);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { onClose(); return; }
+      if (!eventId || !getAdjacentId || navTarget) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "j" || e.key === "ArrowDown") { const id = getAdjacentId(eventId, 1); if (id) { e.preventDefault(); onNavigate(id); } }
+      if (e.key === "k" || e.key === "ArrowUp") { const id = getAdjacentId(eventId, -1); if (id) { e.preventDefault(); onNavigate(id); } }
+    }
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, eventId, getAdjacentId, navTarget, onNavigate]);
 
   return (
     <>

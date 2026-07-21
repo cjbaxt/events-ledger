@@ -182,10 +182,12 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
     const subtypeCounts = new Map<string, number>();
     for (const e of evts) { const s = e.subtype ?? "other"; subtypeCounts.set(s, (subtypeCounts.get(s) ?? 0) + 1); }
     const subtypes = [...subtypeCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const rated = evts.filter((e) => e.rating !== null);
+    const avgRating = rated.length > 0 ? rated.reduce((s, e) => s + e.rating!, 0) / rated.length : null;
     return (
       <div key={type} onClick={() => setDrill({ type })} className="border border-neutral-100 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all">
         <div className="flex items-center gap-1.5 text-neutral-400"><EventTypeIcon type={type} size={12} /><span className="hidden sm:inline text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span></div>
-        <div className="font-serif text-3xl text-neutral-900 leading-none">{evts.length}</div>
+        <div className="flex items-end gap-2"><span className="font-serif text-3xl text-neutral-900 leading-none">{evts.length}</span>{avgRating !== null && <span className="text-[10px] text-neutral-400 mb-0.5">{avgRating.toFixed(1)}★</span>}</div>
         {subtypes.length > 0 && (
           <div className="relative">
             <div className="flex h-3 rounded-full overflow-hidden gap-px">
@@ -217,12 +219,12 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
 }
 
 function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> }>();
+  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string>; lastDate: string }>();
   for (const e of events) {
     if (e.primary_entity_name && e.primary_entity_id) {
       const prev = counts.get(e.primary_entity_id);
-      if (prev) { prev.n++; prev.types.add(e.type); }
-      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
+      if (prev) { prev.n++; prev.types.add(e.type); if (e.date > prev.lastDate) prev.lastDate = e.date; }
+      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]), lastDate: e.date });
     }
   }
   const ranked = [...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n);
@@ -234,6 +236,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{a.name}</span>
           <span className="flex gap-1 flex-shrink-0">{[...a.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
+          <span className="text-[10px] text-neutral-300 flex-shrink-0 hidden sm:block">{a.lastDate.slice(0, 7)}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0 w-6 text-right">×{a.n}</span>
         </button>
       ))}
@@ -242,12 +245,12 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
 }
 
 function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; n: number }>();
+  const counts = new Map<string, { name: string; id: string; n: number; lastDate: string }>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
       const prev = counts.get(e.venue_id);
-      if (prev) prev.n++;
-      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1 });
+      if (prev) { prev.n++; if (e.date > prev.lastDate) prev.lastDate = e.date; }
+      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1, lastDate: e.date });
     }
   }
   const ranked = [...counts.values()].filter((v) => v.n > 1).sort((a, b) => b.n - a.n);
@@ -258,6 +261,7 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
         <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
+          <span className="text-[10px] text-neutral-300 flex-shrink-0 hidden sm:block">{v.lastDate.slice(0, 7)}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
         </button>
       ))}

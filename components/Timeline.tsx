@@ -143,12 +143,12 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: {
   );
 }
 
-function EventCard({ event, onClick }: { event: EventListItem; onClick: () => void }) {
+function EventCard({ event, onClick, active }: { event: EventListItem; onClick: () => void; active?: boolean }) {
   const dateObj = new Date(event.date + "T00:00:00");
   const day = dateObj.getDate();
   const monthShort = dateObj.toLocaleString("en-GB", { month: "short" });
   return (
-    <button onClick={onClick} className="w-full text-left bg-white border border-neutral-100 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-neutral-300 active:bg-neutral-50 transition-colors group">
+    <button onClick={onClick} className={`w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 active:bg-neutral-50 transition-colors group ${active ? "bg-neutral-50 border border-neutral-300" : "bg-white border border-neutral-100 hover:border-neutral-300"}`}>
       <div className="w-8 h-8 border border-neutral-200 rounded-full flex items-center justify-center flex-shrink-0 text-neutral-400 group-hover:text-neutral-600 transition-colors">
         <EventTypeIcon type={event.type} size={16} />
       </div>
@@ -173,8 +173,8 @@ function EventCard({ event, onClick }: { event: EventListItem; onClick: () => vo
   );
 }
 
-function MonthGroup({ month, events, onEventClick, showYear }: {
-  month: string; events: EventListItem[]; onEventClick: (id: string, preview: EventListItem) => void; showYear?: boolean;
+function MonthGroup({ month, events, onEventClick, showYear, openEventId }: {
+  month: string; events: EventListItem[]; onEventClick: (id: string, preview: EventListItem) => void; showYear?: boolean; openEventId?: string | null;
 }) {
   const monthNum = month.includes("-") ? parseInt(month.split("-")[1]) : parseInt(month);
   const yearFromKey = month.includes("-") ? month.split("-")[0] : events[0]?.date.slice(0, 4);
@@ -188,13 +188,17 @@ function MonthGroup({ month, events, onEventClick, showYear }: {
         <div className="flex-1 h-px bg-neutral-100" />
       </div>
       <div className="flex flex-col gap-2">
-        {events.map((e) => <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id, e)} />)}
+        {events.map((e) => <EventCard key={e.id} event={e} onClick={() => onEventClick(e.id, e)} active={e.id === openEventId} />)}
       </div>
     </div>
   );
 }
 
-export default function Timeline({ onEventClick }: { onEventClick: (id: string, preview: EventListItem) => void }) {
+export default function Timeline({ onEventClick, openEventId, onYearEventsChange }: {
+  onEventClick: (id: string, preview: EventListItem) => void;
+  openEventId?: string | null;
+  onYearEventsChange?: (ids: string[]) => void;
+}) {
   const [allEvents, setAllEvents] = useState<EventListItem[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,6 +236,8 @@ export default function Timeline({ onEventClick }: { onEventClick: (id: string, 
     return matches && !hiddenTypes.has(e.type);
   }) : [], [allEvents, selectedYear, hiddenTypes]);
 
+  useEffect(() => { onYearEventsChange?.(yearEvents.map((e) => e.id)); }, [yearEvents, onYearEventsChange]);
+
   const pagedMonthGrouped = useMemo(() => {
     const paged = yearEvents.slice(0, pageSize);
     const byYearMonth = groupByYearMonth(paged);
@@ -248,7 +254,7 @@ export default function Timeline({ onEventClick }: { onEventClick: (id: string, 
           <YearSummary year={selectedYear} events={yearEvents} paymentMethods={paymentMethods} hiddenTypes={hiddenTypes} onFilter={() => { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }} />
         )}
         {selectedYear && Object.keys(pagedMonthGrouped).sort((a, b) => b.localeCompare(a)).map((month) => (
-          <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} />
+          <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} openEventId={openEventId} />
         ))}
         <div className="sticky bottom-16 md:bottom-0 z-10 mt-2 border-t border-neutral-100 bg-white">
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 md:hidden">
