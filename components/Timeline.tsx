@@ -6,7 +6,7 @@ import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 import { IconWriting, IconArticle } from "@tabler/icons-react";
 
-const PAGE_SIZES = [25, 50, 100];
+const PAGE_SIZE = 30;
 const PRE_YEAR = 2015;
 const PRE_BUCKET = `pre-${PRE_YEAR}`;
 
@@ -126,7 +126,7 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, onFilter }: {
           {types.map(([type, count]) => (
             <div key={type} className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-100 rounded-full px-2.5 py-1">
               <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-500"><EventTypeIcon type={type} size={10} /></div>
-              <span className="text-xs text-neutral-500 capitalize">{type.replace("_", " ")}</span>
+              <span className="hidden sm:inline text-xs text-neutral-500 capitalize">{type.replace("_", " ")}</span>
               <span className="text-xs text-neutral-300">· {count}</span>
             </div>
           ))}
@@ -199,7 +199,7 @@ export default function Timeline({ onEventClick }: { onEventClick: (id: string, 
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
   const [filterOpen, setFilterOpen] = useState(false);
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
@@ -253,7 +253,7 @@ export default function Timeline({ onEventClick }: { onEventClick: (id: string, 
         <div className="sticky bottom-16 md:bottom-0 z-10 mt-2 border-t border-neutral-100 bg-white">
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 md:hidden">
             {years.map((y) => (
-              <button key={y} onClick={() => setSelectedYear(y)} className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
+              <button key={y} onClick={() => { setSelectedYear(y); setPageSize(PAGE_SIZE); }} className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
                 {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
               </button>
             ))}
@@ -261,17 +261,16 @@ export default function Timeline({ onEventClick }: { onEventClick: (id: string, 
           <div className="flex items-center justify-between px-4 pb-3 md:py-3">
             <div className="hidden md:flex gap-2 overflow-x-auto no-scrollbar">
               {years.map((y) => (
-                <button key={y} onClick={() => setSelectedYear(y)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
+                <button key={y} onClick={() => { setSelectedYear(y); setPageSize(PAGE_SIZE); }} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
                   {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-3 text-xs text-neutral-400">
-              <span>Per page</span>
-              <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="border border-neutral-200 rounded-md px-2 py-1 text-xs text-neutral-600 bg-white">
-                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
+            {yearEvents.length > pageSize && (
+              <button onClick={() => setPageSize((n) => n + PAGE_SIZE)} className="text-xs text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-3 py-1.5 transition-colors ml-auto">
+                Load more
+              </button>
+            )}
           </div>
         </div>
       </div>
