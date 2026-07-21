@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extensionTable } from "@/lib/event-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isGuestRequest, guestDenied } from "@/lib/guest";
 
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
@@ -326,6 +327,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (isGuestRequest(req)) return guestDenied();
   const { id } = await params;
   const body = await req.json();
   const supabase = await createClient();
@@ -362,6 +364,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (isGuestRequest(_req)) return guestDenied();
   const { id } = await params;
   const supabase = await createClient();
 

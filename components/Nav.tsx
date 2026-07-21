@@ -6,6 +6,7 @@ import {
   IconSearch, IconPlus, IconInfoCircle,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
+import { useGuest } from "./GuestContext";
 
 const links = [
   { path: "/", label: "Timeline", icon: IconTimeline },
@@ -17,6 +18,7 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const isGuest = useGuest();
 
   return (
     <>
@@ -41,15 +43,21 @@ export default function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-4">
-          <Link href="/add" className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
-            <IconPlus size={16} />
-            Add event
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
-              Sign out
-            </button>
-          </form>
+          {isGuest ? (
+            <span className="text-[10px] uppercase tracking-widest text-neutral-300 border border-neutral-100 rounded px-2 py-1">Guest</span>
+          ) : (
+            <>
+              <Link href="/add" className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
+                <IconPlus size={16} />
+                Add event
+              </Link>
+              <form action={logout}>
+                <button type="submit" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+                  Sign out
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </header>
 
@@ -70,10 +78,12 @@ export default function Nav() {
             </Link>
           );
         })}
-        <Link href="/add" className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
-          <IconPlus size={22} strokeWidth={1.5} />
-          <span className="text-[10px] uppercase tracking-wider">Add</span>
-        </Link>
+        {!isGuest && (
+          <Link href="/add" className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
+            <IconPlus size={22} strokeWidth={1.5} />
+            <span className="text-[10px] uppercase tracking-wider">Add</span>
+          </Link>
+        )}
       </nav>
     </>
   );

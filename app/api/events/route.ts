@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extensionTable } from "@/lib/event-types";
 import type { EventListItem } from "@/lib/types";
+import { isGuestRequest, guestDenied } from "@/lib/guest";
 
 export async function POST(req: NextRequest) {
+  if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   const { type, ...fields } = body as { type: string } & Record<string, unknown>;
   if (!type) return NextResponse.json({ error: "type required" }, { status: 400 });

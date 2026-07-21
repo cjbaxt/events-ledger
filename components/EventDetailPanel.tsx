@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
+import { useGuest } from "./GuestContext";
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -382,6 +383,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
   directTarget?: { kind: NavKind; id: string; hint?: string } | null;
   getAdjacentId?: (id: string, dir: 1 | -1) => string | null;
 }) {
+  const isGuest = useGuest();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
@@ -431,7 +433,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
               <div className="flex items-center gap-2 text-neutral-400">
                 {(event ?? preview) && (() => { const e = event ?? preview!; return <><EventTypeIcon type={e.type} size={16} /><span className="text-xs uppercase tracking-widest">{e.type.replace(/_/g, " ")}{event?.subtype ? ` — ${event.subtype.replace(/_/g, " ")}` : ""}</span></>; })()}
               </div>
-              {event && (
+              {event && !isGuest && (
                 <div className="flex items-center gap-2">
                   <a href={`/edit?id=${event.id}`} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-neutral-400 transition-colors">Edit</a>
                   <button onClick={async () => { if (!confirm("Delete this event?")) return; await fetch(`/api/events/${event.id}`, { method: "DELETE" }); onClose(); }} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-red-300 transition-colors">Delete</button>
@@ -458,11 +460,26 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
               {/* Details that require the full event fetch */}
               {event ? (
                 <>
-                  <ReviewSection
-                    review={event.review} links={event.links} rating={event.rating} ratingContext={event.rating_context}
-                    onSaveReview={(text) => { setEvent((prev) => prev ? { ...prev, review: text } : prev); patchEventReview(event.id, text).catch(() => fetchEvent(event.id).then(setEvent)); }}
-                    onRate={(r) => { setEvent((prev) => prev ? { ...prev, rating: r } : prev); patchEventRating(event.id, r).catch(() => fetchEvent(event.id).then(setEvent)); }}
-                  />
+                  {isGuest ? (
+                    (event.review || event.rating || (event.links && event.links.length > 0)) ? (
+                      <div className="border-t border-b border-neutral-100 pt-4 pb-4 space-y-3">
+                        <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
+                        {event.rating !== null && <div className="text-sm text-neutral-500">{event.rating}★{event.rating_context && <span className="text-neutral-300 ml-2 text-xs">{event.rating_context}</span>}</div>}
+                        {event.review && <p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-300 pl-3 whitespace-pre-wrap">{event.review}</p>}
+                        {event.links?.map((link, i) => (
+                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700">
+                            <IconExternalLink size={13} />{link.label ?? link.url}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null
+                  ) : (
+                    <ReviewSection
+                      review={event.review} links={event.links} rating={event.rating} ratingContext={event.rating_context}
+                      onSaveReview={(text) => { setEvent((prev) => prev ? { ...prev, review: text } : prev); patchEventReview(event.id, text).catch(() => fetchEvent(event.id).then(setEvent)); }}
+                      onRate={(r) => { setEvent((prev) => prev ? { ...prev, rating: r } : prev); patchEventRating(event.id, r).catch(() => fetchEvent(event.id).then(setEvent)); }}
+                    />
+                  )}
 
                   {(event.ai_summary || event.full_description) && <DescriptionBlock aiSummary={event.ai_summary} fullDescription={event.full_description} sourceUrl={event.description_source_url} />}
 
@@ -478,6 +495,8 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                       <button type="button" onClick={() => navigate("payment_method", String(event.payment_method!.id), event.payment_method!.name)} className="text-neutral-700 hover:text-neutral-900 hover:underline text-left">{event.payment_method.name}</button>
                       {event.price_paid && <span className="text-neutral-400 text-xs ml-2">+ {event.currency ?? "EUR"} {event.price_paid} surcharge</span>}
                     </Field>
+                  ) : isGuest ? (
+                    event.price_paid ? <Field label="Price paid"><span className="text-neutral-600">{event.currency} {event.price_paid}</span></Field> : null
                   ) : (
                     <PriceEditor price={event.price_paid} currency={event.currency}
                       onSave={(price, currency) => { setEvent((prev) => prev ? { ...prev, price_paid: price, currency } : prev); patchEventPrice(event.id, price, currency).catch(() => fetchEvent(event.id).then(setEvent)); }}
