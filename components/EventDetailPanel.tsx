@@ -375,8 +375,9 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
   );
 }
 
-export default function EventDetailPanel({ open, eventId, onClose, onNavigate }: {
+export default function EventDetailPanel({ open, eventId, onClose, onNavigate, directTarget }: {
   open: boolean; eventId: string | null; onClose: () => void; onNavigate: (id: string) => void;
+  directTarget?: { kind: NavKind; id: string; hint?: string } | null;
 }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -390,6 +391,10 @@ export default function EventDetailPanel({ open, eventId, onClose, onNavigate }:
     setEvent(null);
     fetchEvent(eventId).then(setEvent).finally(() => setLoading(false));
   }, [eventId]);
+
+  useEffect(() => {
+    if (directTarget) setNavTarget(directTarget);
+  }, [directTarget]);
 
   useEffect(() => {
     if (!open) setNavTarget(null);
