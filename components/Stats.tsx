@@ -272,7 +272,7 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
         <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
-          {v.types.size > 1 && <span className="flex gap-1 flex-shrink-0">{[...v.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>}
+          <span className="flex gap-1 flex-shrink-0">{[...v.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
         </button>
       ))}
