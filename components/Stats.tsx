@@ -205,17 +205,17 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
             {hovered?.type === type && <div className="absolute top-full mt-1.5 right-0 bg-neutral-900 text-white text-[10px] rounded-md px-2 py-1 whitespace-nowrap pointer-events-none z-10 capitalize">{hovered.subtype.replace(/_/g, " ")} · {hovered.count}</div>}
           </div>
         )}
-        <div className="flex gap-3 mt-auto">
+        <div className="flex flex-col gap-1.5 mt-auto">
           {top && (
-            <div className="flex-1 min-w-0">
-              <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Most seen</div>
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-0.5">Most seen</div>
               <button onClick={(e) => { e.stopPropagation(); onEntityClick(top.id, top.kind); }} className="text-xs text-neutral-600 font-serif leading-snug text-left hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60 truncate block w-full">{top.name}{top.n > 1 && <span className="font-sans text-neutral-300 ml-1">×{top.n}</span>}</button>
             </div>
           )}
           {lastSeenEntity && (
-            <div className={top ? "text-right flex-shrink-0 max-w-[45%]" : ""}>
-              <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-1">Last seen</div>
-              <button onClick={(e) => { e.stopPropagation(); if (lastSeenEntityId) onEntityClick(lastSeenEntityId, lastSeenEntityKind); }} className="text-xs text-neutral-600 font-serif leading-snug text-right hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60 truncate block w-full">{lastSeenEntity}</button>
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-neutral-300 mb-0.5">Last seen</div>
+              <button onClick={(e) => { e.stopPropagation(); if (lastSeenEntityId) onEntityClick(lastSeenEntityId, lastSeenEntityKind); }} className="text-xs text-neutral-600 font-serif leading-snug text-left hover:text-neutral-900 hover:underline underline-offset-2 transition-colors active:opacity-60 truncate block w-full">{lastSeenEntity}</button>
             </div>
           )}
         </div>
@@ -256,12 +256,12 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
 }
 
 function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; n: number }>();
+  const counts = new Map<string, { name: string; id: string; n: number; types: Set<string> }>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
       const prev = counts.get(e.venue_id);
-      if (prev) { prev.n++; }
-      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1 });
+      if (prev) { prev.n++; prev.types.add(e.type); }
+      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1, types: new Set([e.type]) });
     }
   }
   const ranked = [...counts.values()].filter((v) => v.n > 1).sort((a, b) => b.n - a.n);
@@ -272,6 +272,7 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
         <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
+          {v.types.size > 1 && <span className="flex gap-1 flex-shrink-0">{[...v.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>}
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
         </button>
       ))}

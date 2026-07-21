@@ -292,6 +292,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
               <span className="text-[10px] uppercase tracking-widest text-neutral-400">Filter by type</span>
               <div className="flex items-center gap-3">
                 <button onClick={() => setPendingHidden(new Set())} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">All</button>
+                <button onClick={() => setPendingHidden(new Set(["exhibition", "talk"].filter((t) => presentTypes.has(t))))} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">Default</button>
                 <button onClick={() => setPendingHidden(new Set(ALL_TYPES.filter((t) => presentTypes.has(t))))} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">None</button>
                 <button onClick={() => setFilterOpen(false)} className="text-neutral-300 hover:text-neutral-600 transition-colors text-lg leading-none">✕</button>
               </div>
@@ -301,7 +302,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
                 const active = !pendingHidden.has(type);
                 return (
                   <button key={type} onClick={() => setPendingHidden((prev) => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; })}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-left ${active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-100 bg-neutral-50 text-neutral-300"}`}>
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-left ${active ? "border-neutral-300 bg-neutral-100 text-neutral-700" : "border-neutral-100 bg-neutral-50 text-neutral-300"}`}>
                     <EventTypeIcon type={type} size={12} />
                     <span className="text-xs capitalize leading-tight">{type.replace(/_/g, " ")}</span>
                   </button>
