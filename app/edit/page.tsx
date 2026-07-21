@@ -26,7 +26,7 @@ function EditInner() {
 
 export default function EditPage() {
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-white">
       <Nav />
       <main className="pt-14 pb-20 md:pb-8 max-w-lg mx-auto px-4 py-6 md:py-10">
         <Suspense fallback={<div className="flex items-center justify-center h-64 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>}>

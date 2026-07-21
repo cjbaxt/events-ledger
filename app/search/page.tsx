@@ -48,7 +48,7 @@ export default function SearchPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-white">
       <Nav />
       <main className="pt-14 pb-20 md:pb-8 max-w-2xl mx-auto px-4 py-6 md:py-10">
         <Search
