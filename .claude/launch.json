@@ -17,7 +17,7 @@
   ,{
       "name": "ledger-app",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd ledger-app && npm run dev -- --port $PORT"],
+      "runtimeArgs": ["-c", "npm run dev -- --port $PORT"],
       "port": 3000,
       "autoPort": true
     }
