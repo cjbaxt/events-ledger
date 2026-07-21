@@ -408,7 +408,7 @@ function BreakdownTab({ events, onEventClick }: { events: EventListItem[]; onEve
   );
 }
 
-const TABS = ["By type", "Artists", "Venues", "Over time", "Breakdown"] as const;
+const TABS = ["By type", "Artists", "Venues", "Over time"] as const;
 type Tab = typeof TABS[number];
 
 export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
@@ -434,7 +434,6 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
       {tab === "Artists" && <ArtistsTab events={events} onEntityClick={onEntityClick} />}
       {tab === "Venues" && <VenuesTab events={events} onVenueClick={onVenueClick} />}
       {tab === "Over time" && <OverTimeTab events={events} />}
-      {tab === "Breakdown" && <BreakdownTab events={events} onEventClick={onEventClick} />}
     </div>
   );
 }
