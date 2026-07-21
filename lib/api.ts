@@ -40,6 +40,38 @@ export function invalidateEventsCache() {
   eventsCache = null;
 }
 
+// Module-level cache for entity lists (persons, ensembles, venues, festivals)
+type EntityCache<T> = { promise: Promise<T[]>; at: number } | null;
+const ENTITY_CACHE_TTL = 5 * 60 * 1000;
+
+let personsCache: EntityCache<{ id: string; name: string }> = null;
+let ensemblesCache: EntityCache<{ id: string; name: string; type?: string | null }> = null;
+let venuesCache: EntityCache<{ id: string; name: string; city?: string | null; parent_id?: string | null; parent_name?: string | null }> = null;
+let festivalsCache: EntityCache<{ id: string; name: string; edition?: string | null }> = null;
+
+function makeEntityFetcher<T>(getCache: () => EntityCache<T>, setCache: (c: EntityCache<T>) => void, url: string): () => Promise<T[]> {
+  return () => {
+    const cache = getCache();
+    if (cache && Date.now() - cache.at <= ENTITY_CACHE_TTL) return cache.promise;
+    const p: Promise<T[]> = apiFetch(url).then((r) => r.json()).catch((e) => { setCache(null); throw e; });
+    setCache({ promise: p, at: Date.now() });
+    return p;
+  };
+}
+
+export const fetchAllPersons = makeEntityFetcher<{ id: string; name: string }>(
+  () => personsCache, (c) => { personsCache = c; }, "/api/persons?limit=2000"
+);
+export const fetchAllEnsembles = makeEntityFetcher<{ id: string; name: string; type?: string | null }>(
+  () => ensemblesCache, (c) => { ensemblesCache = c; }, "/api/ensembles?limit=2000"
+);
+export const fetchAllVenues = makeEntityFetcher<{ id: string; name: string; city?: string | null; parent_id?: string | null; parent_name?: string | null }>(
+  () => venuesCache, (c) => { venuesCache = c; }, "/api/venues?limit=2000"
+);
+export const fetchAllFestivals = makeEntityFetcher<{ id: string; name: string; edition?: string | null }>(
+  () => festivalsCache, (c) => { festivalsCache = c; }, "/api/festivals?limit=2000"
+);
+
 export async function fetchEvents(params: { type?: string; q?: string; limit?: number; offset?: number } = {}): Promise<EventListItem[]> {
   // If no filters, prime/use the cache
   if (!params.type && !params.q && !params.offset) {

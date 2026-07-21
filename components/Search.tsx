@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { fetchEvents } from "@/lib/api";
+import { fetchEvents, fetchAllPersons, fetchAllEnsembles, fetchAllVenues, fetchAllFestivals } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -38,7 +38,7 @@ function EventsTab({ query, onEventClick }: { query: string; onEventClick: (id: 
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
-  useEffect(() => { fetchEvents({ limit: 2000 }).then(setEvents).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { fetchEvents({ limit: 1000 }).then(setEvents).catch(() => {}).finally(() => setLoading(false)); }, []);
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = events.filter((e) => !q || e.title.toLowerCase().includes(q) || e.primary_entity_name?.toLowerCase().includes(q)).sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
@@ -80,7 +80,11 @@ function EntityTab<T extends { id: string; name: string }>({
   const [loading, setLoading] = useState(true);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => {
-    fetch(`/api/${endpoint}?limit=2000`).then((r) => r.json()).then(setItems).catch(() => {}).finally(() => setLoading(false));
+    const fetcher = endpoint === "persons" ? fetchAllPersons
+      : endpoint === "ensembles" ? fetchAllEnsembles
+      : endpoint === "festivals" ? fetchAllFestivals
+      : () => fetch(`/api/${endpoint}?limit=2000`).then((r) => r.json());
+    (fetcher() as Promise<T[]>).then(setItems).catch(() => {}).finally(() => setLoading(false));
   }, [endpoint]);
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
@@ -108,7 +112,7 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
-  useEffect(() => { fetch("/api/venues?limit=2000").then((r) => r.json()).then(setVenues).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { (fetchAllVenues() as Promise<Venue[]>).then(setVenues).catch(() => {}).finally(() => setLoading(false)); }, []);
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = venues.filter((v) => !q || v.name.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q) || v.parent_name?.toLowerCase().includes(q)).sort((a, b) => {

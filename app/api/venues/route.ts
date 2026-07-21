@@ -7,19 +7,17 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q");
   const limit = parseInt(searchParams.get("limit") ?? "10");
   const supabase = await createClient();
-  let query = supabase.from("venue").select("id, name, city, country, parent_id").order("name").limit(limit);
+  let query = supabase.from("venue").select("id, name, city, country, parent_id, parent:parent_id(id, name)").order("name").limit(limit);
   if (q) query = query.ilike("name", `%${q}%`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Enrich with parent name for display in comboboxes
-  const parentIds = [...new Set((data ?? []).filter((v) => v.parent_id).map((v) => v.parent_id as string))];
-  let parentMap: Record<string, string> = {};
-  if (parentIds.length) {
-    const { data: parents } = await supabase.from("venue").select("id, name").in("id", parentIds);
-    parentMap = Object.fromEntries((parents ?? []).map((p) => [p.id, p.name]));
-  }
-  return NextResponse.json((data ?? []).map((v) => ({ ...v, parent_name: v.parent_id ? parentMap[v.parent_id] ?? null : null })));
+  const res = NextResponse.json((data ?? []).map((v) => {
+    const parent = v.parent as { id: string; name: string } | { id: string; name: string }[] | null;
+    const parentName = Array.isArray(parent) ? (parent[0]?.name ?? null) : (parent?.name ?? null);
+    return { id: v.id, name: v.name, city: v.city, country: v.country, parent_id: v.parent_id, parent_name: parentName };
+  }));
+  res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=300");
+  return res;
 }
 
 export async function POST(req: NextRequest) {

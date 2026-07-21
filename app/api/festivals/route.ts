@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
   if (q) query = query.or(`name.ilike.%${q}%,edition.ilike.%${q}%`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  const res = NextResponse.json(data ?? []);
+  res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=300");
+  return res;
 }
 
 export async function POST(req: NextRequest) {

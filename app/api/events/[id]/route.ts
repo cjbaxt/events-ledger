@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { extensionTable } from "@/lib/event-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
-
-function extensionTable(type: string): string | null {
-  const map: Record<string, string> = {
-    music: "event_music", classical: "event_classical", opera: "event_opera",
-    ballet: "event_ballet", dance: "event_dance", circus: "event_circus",
-    theatre: "event_theatre", cabaret: "event_cabaret", comedy: "event_comedy",
-    spoken_word: "event_spoken_word", talk: "event_talk",
-    exhibition: "event_exhibition", screening: "event_screening",
-  };
-  return map[type] ?? null;
-}
 
 async function lookupPersons(sb: SupabaseClient, ids: string[]): Promise<Map<string, Named>> {
   const unique = [...new Set(ids.filter(Boolean))];
@@ -58,12 +48,6 @@ async function resolveExtension(
   raw: Record<string, unknown>,
   eventId: string,
 ): Promise<Record<string, unknown>> {
-  // Collect credits for opera/ballet/classical/theatre
-  const creditsRes = ["opera", "ballet", "classical", "theatre"].includes(type)
-    ? await sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order")
-    : { data: null };
-  const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
-
   if (type === "music") {
     const castIds = [...strArr(raw.support_act_person_ids), str(raw.headliner_person_id)];
     const ensIds = [...strArr(raw.support_act_ensemble_ids), str(raw.headliner_ensemble_id)];
@@ -80,10 +64,12 @@ async function resolveExtension(
   }
 
   if (type === "classical") {
-    const [persons, ensembles] = await Promise.all([
+    const [persons, ensembles, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id)]),
       lookupEnsembles(sb, [str(raw.ensemble_id)]),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
+    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
       ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
       conductor: persons.get(str(raw.conductor_id)) ?? null,
@@ -97,12 +83,14 @@ async function resolveExtension(
   if (type === "opera") {
     const castMap = raw.cast as Record<string, string> | null;
     const castPersonIds = castMap ? Object.values(castMap) : [];
-    const [persons, ensembles, works, productions] = await Promise.all([
+    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id), str(raw.director_id), ...strArr(raw.composers), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.ensemble_id)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
+    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
       work: works.get(str(raw.work_id)) ?? null,
       production: productions.get(str(raw.production_id)) ?? null,
@@ -120,12 +108,14 @@ async function resolveExtension(
   if (type === "ballet") {
     const castMap = raw.cast as Record<string, string> | null;
     const castPersonIds = castMap ? Object.values(castMap) : [];
-    const [persons, ensembles, works, productions] = await Promise.all([
+    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.company_id), str(raw.orchestra_id), ...strArr(raw.additional_company_ids)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
+    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
       work: works.get(str(raw.work_id)) ?? null,
       production: productions.get(str(raw.production_id)) ?? null,
@@ -168,12 +158,14 @@ async function resolveExtension(
   if (type === "theatre") {
     const castMap = raw.cast as Record<string, string> | null;
     const castPersonIds = castMap ? Object.values(castMap) : [];
-    const [persons, ensembles, works, productions] = await Promise.all([
+    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.director_id), str(raw.playwright_id), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.company_id)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
+    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
       work: works.get(str(raw.work_id)) ?? null,
       production: productions.get(str(raw.production_id)) ?? null,

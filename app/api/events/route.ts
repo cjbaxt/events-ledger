@@ -1,15 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { extensionTable } from "@/lib/event-types";
 import type { EventListItem } from "@/lib/types";
-
-const EXT_TABLE: Record<string, string> = {
-  music: "event_music", classical: "event_classical", opera: "event_opera",
-  ballet: "event_ballet", dance: "event_dance", circus: "event_circus",
-  theatre: "event_theatre", cabaret: "event_cabaret", comedy: "event_comedy",
-  spoken_word: "event_spoken_word", talk: "event_talk",
-  exhibition: "event_exhibition", screening: "event_screening",
-};
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -34,7 +27,7 @@ export async function POST(req: NextRequest) {
   const { data: event, error: eventErr } = await supabase.from("event").insert(baseInsert).select("id").single();
   if (eventErr || !event) return NextResponse.json({ error: eventErr?.message ?? "Insert failed" }, { status: 500 });
 
-  const extTable = EXT_TABLE[type];
+  const extTable = extensionTable(type);
   if (extTable && Object.keys(extInsert).length) {
     const { error: extErr } = await supabase.from(extTable).insert({ event_id: event.id, ...extInsert });
     if (extErr) console.error("Extension insert error:", extErr);
@@ -98,5 +91,7 @@ export async function GET(req: NextRequest) {
     has_essay: r.has_essay as boolean,
   }));
 
-  return NextResponse.json(items);
+  const res = NextResponse.json(items);
+  res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=300");
+  return res;
 }
