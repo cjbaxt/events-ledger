@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
   ]);
   if (eventsResult.error) return new NextResponse("Error fetching events", { status: 500 });
 
+  const debug = req.nextUrl.searchParams.has("debug");
   const venueCountry = new Map<string, string | null>();
   for (const v of (venuesResult.data ?? [])) venueCountry.set(v.id, v.country);
 
@@ -106,7 +107,6 @@ export async function GET(req: NextRequest) {
   lines.push("END:VCALENDAR");
 
   const body = lines.join("\r\n");
-  const debug = req.nextUrl.searchParams.has("debug");
   return new NextResponse(body, {
     headers: {
       "Content-Type": debug ? "text/plain; charset=utf-8" : "text/calendar; charset=utf-8",
