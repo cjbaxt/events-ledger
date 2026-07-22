@@ -20,7 +20,7 @@ function isEuropeanSummerTime(ts: number): boolean {
 function utcOffsetMinutes(country: string | null, ts: number): number {
   const c = (country ?? "GB").toUpperCase();
   const summer = isEuropeanSummerTime(ts);
-  if (c === "GB" || c === "IE") return summer ? 60 : 0;
+  if (c === "GB" || c === "UK" || c === "IE") return summer ? 60 : 0;
   // CET zone: NL, FR, DE, BE, CZ, AT, ES, IT, PL, and default for unknown EU
   return summer ? 120 : 60;
 }
