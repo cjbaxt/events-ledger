@@ -16,11 +16,13 @@ function isEuropeanSummerTime(ts: number): boolean {
   return ts >= lastSundayOf(year, 2) && ts < lastSundayOf(year, 9);
 }
 
+const UK_VARIANTS = new Set(["GB", "UK", "UNITED KINGDOM", "GREAT BRITAIN", "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND", "IE", "IRELAND"]);
+
 // Returns UTC offset in minutes for a country on a given UTC timestamp
 function utcOffsetMinutes(country: string | null, ts: number): number {
   const c = (country ?? "GB").toUpperCase();
   const summer = isEuropeanSummerTime(ts);
-  if (c === "GB" || c === "UK" || c === "IE") return summer ? 60 : 0;
+  if (UK_VARIANTS.has(c)) return summer ? 60 : 0;
   // CET zone: NL, FR, DE, BE, CZ, AT, ES, IT, PL, and default for unknown EU
   return summer ? 120 : 60;
 }
