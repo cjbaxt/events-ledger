@@ -240,15 +240,15 @@ function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: s
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [directorName, setDirectorName] = useState<string | null>(null);
+  const [result, setResult] = useState<{ title: string; director_name: string | null } | null>(null);
   async function fetch_() {
     if (!url.trim()) return;
-    setLoading(true); setErr(""); setDirectorName(null);
+    setLoading(true); setErr(""); setResult(null);
     try {
       const res = await fetch(`/api/tmdb?url=${encodeURIComponent(url.trim())}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      setDirectorName(data.director_name);
+      setResult({ title: data.title, director_name: data.director_name });
       onFetch(data);
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Failed"); }
     setLoading(false);
@@ -261,7 +261,12 @@ function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: s
         <button type="button" onClick={fetch_} disabled={!url.trim() || loading} className="px-3 py-2 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-700 disabled:opacity-40 flex-shrink-0">{loading ? "…" : "Fetch"}</button>
       </div>
       {err && <p className="text-xs text-red-400">{err}</p>}
-      {directorName && <p className="text-xs text-neutral-400">Director: <span className="text-neutral-700">{directorName}</span> — search in details step</p>}
+      {result && (
+        <div className="text-xs text-neutral-400 space-y-0.5">
+          <p>Title: <span className="text-neutral-700">{result.title || "—"}</span></p>
+          {result.director_name && <p>Director: <span className="text-neutral-700">{result.director_name}</span> — search in details step</p>}
+        </div>
+      )}
     </div>
   );
 }
