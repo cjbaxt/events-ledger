@@ -1,79 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-// All European countries switch DST on the same schedule (last Sun March/October)
-// UK: GMT (UTC+0) → BST (UTC+1); EU: CET (UTC+1) → CEST (UTC+2)
-function lastSundayOf(year: number, month: number): number {
-  // month: 0-indexed. Returns UTC timestamp at 01:00 UTC that day.
-  const lastDay = new Date(Date.UTC(year, month + 1, 0));
-  lastDay.setUTCDate(lastDay.getUTCDate() - lastDay.getUTCDay());
-  lastDay.setUTCHours(1, 0, 0, 0);
-  return lastDay.getTime();
+// Map ISO country codes to IANA timezone IDs
+const COUNTRY_TZ: Record<string, string> = {
+  AT: "Europe/Vienna",   BE: "Europe/Brussels",  HR: "Europe/Zagreb",
+  CZ: "Europe/Prague",   DK: "Europe/Copenhagen", FI: "Europe/Helsinki",
+  FR: "Europe/Paris",    DE: "Europe/Berlin",     GR: "Europe/Athens",
+  HU: "Europe/Budapest", IE: "Europe/Dublin",     IT: "Europe/Rome",
+  LU: "Europe/Luxembourg", MT: "Europe/Malta",    NL: "Europe/Amsterdam",
+  NO: "Europe/Oslo",     PL: "Europe/Warsaw",     PT: "Europe/Lisbon",
+  RO: "Europe/Bucharest", SK: "Europe/Bratislava", SI: "Europe/Ljubljana",
+  ES: "Europe/Madrid",   SE: "Europe/Stockholm",  CH: "Europe/Zurich",
+  GB: "Europe/London",   UK: "Europe/London",
+  AU: "Australia/Sydney",  NZ: "Pacific/Auckland",
+  JP: "Asia/Tokyo",      KR: "Asia/Seoul",        CN: "Asia/Shanghai",
+  SG: "Asia/Singapore",  HK: "Asia/Hong_Kong",   IN: "Asia/Kolkata",
+  AE: "Asia/Dubai",      IL: "Asia/Jerusalem",    EG: "Africa/Cairo",
+  ZA: "Africa/Johannesburg", MA: "Africa/Casablanca",
+  US: "America/New_York",  CA: "America/Toronto",  MX: "America/Mexico_City",
+  AR: "America/Argentina/Buenos_Aires", BR: "America/Sao_Paulo",
+};
+
+// Variant spellings found in the DB → canonical ISO code
+const COUNTRY_ALIAS: Record<string, string> = {
+  "UNITED KINGDOM": "GB", "GREAT BRITAIN": "GB", "ENGLAND": "GB",
+  "SCOTLAND": "GB", "WALES": "GB", "NORTHERN IRELAND": "GB",
+  "IRELAND": "IE", "NETHERLANDS": "NL", "THE NETHERLANDS": "NL",
+  "HOLLAND": "NL", "AUSTRALIA": "AU", "CZECHIA": "CZ",
+  "CZECH REPUBLIC": "CZ", "NEW ZEALAND": "NZ", "SOUTH AFRICA": "ZA",
+  "UNITED ARAB EMIRATES": "AE", "UAE": "AE", "UNITED STATES": "US", "USA": "US",
+};
+
+function countryToTz(country: string | null): string {
+  if (!country) return "Europe/London";
+  const upper = country.trim().toUpperCase();
+  const code = COUNTRY_ALIAS[upper] ?? upper;
+  return COUNTRY_TZ[code] ?? "Europe/London";
 }
 
-function isEuropeanSummerTime(ts: number): boolean {
-  const year = new Date(ts).getUTCFullYear();
-  return ts >= lastSundayOf(year, 2) && ts < lastSundayOf(year, 9);
-}
-
-const UK_VARIANTS = new Set(["GB", "UK", "UNITED KINGDOM", "GREAT BRITAIN", "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND", "IE", "IRELAND"]);
-
-function isAustralianSummerTime(ts: number): boolean {
-  // AEDT (UTC+11): first Sun Oct → first Sun Apr; AEST (UTC+10) otherwise
-  const d = new Date(ts);
-  const year = d.getUTCFullYear();
-  const firstSundayOf = (y: number, m: number) => {
-    const d = new Date(Date.UTC(y, m, 1));
-    return new Date(Date.UTC(y, m, 1 + ((7 - d.getUTCDay()) % 7))).getTime();
-  };
-  const start = firstSundayOf(year, 9);  // first Sun October
-  const end = firstSundayOf(year + 1, 3); // first Sun April next year
-  const prevEnd = firstSundayOf(year, 3); // first Sun April this year
-  return ts >= start || ts < prevEnd;
-}
-
-// Returns UTC offset in minutes for a country on a given UTC timestamp
-function utcOffsetMinutes(country: string | null, ts: number): number {
-  const c = (country ?? "GB").toUpperCase();
-  const summer = isEuropeanSummerTime(ts);
-  if (UK_VARIANTS.has(c)) return summer ? 60 : 0;
-  if (c === "AU") return isAustralianSummerTime(ts) ? 660 : 600; // AEDT/AEST (Sydney/Melbourne)
-  if (c === "NZ") return isAustralianSummerTime(ts) ? 780 : 720; // NZDT/NZST
-  if (c === "JP" || c === "KR") return 540;   // JST/KST — no DST
-  if (c === "CN" || c === "SG" || c === "HK") return 480; // CST/SGT — no DST
-  if (c === "IN") return 330;  // IST — no DST
-  if (c === "AE") return 240;  // GST — no DST
-  if (c === "IL") return summer ? 180 : 120;  // IDT/IST
-  if (c === "EG" || c === "ZA") return 120;   // EET/SAST — no DST
-  if (c === "MA") return summer ? 60 : 0;     // WET/WEST
-  if (c === "US") return summer ? -240 : -300; // ET (most arts venues — NYC/LA differ but close enough)
-  if (c === "CA") return summer ? -240 : -300; // ET
-  if (c === "MX") return summer ? -300 : -360; // CT
-  if (c === "AR") return -180; // ART — no DST
-  if (c === "BR") return summer ? -120 : -180; // BRT/BRST (São Paulo)
-  // CET zone default: NL, FR, DE, BE, CZ, AT, ES, IT, PL, HR, DK, NO, SE, CH etc
-  return summer ? 120 : 60;
-}
-
-function localToUtcZ(dateStr: string, timeStr: string, country: string | null): string {
+// Convert local date+time to a UTC ICS stamp using Intl for correct DST handling.
+function localToUtcZ(dateStr: string, timeStr: string, tz: string): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, m] = timeStr.split(":").map(Number);
-  // Approximate: use noon UTC on that day to determine summer/winter
-  const approx = Date.UTC(y, mo - 1, d, 12, 0, 0);
-  const offsetMin = utcOffsetMinutes(country, approx);
-  const utcMs = Date.UTC(y, mo - 1, d, h, m, 0) - offsetMin * 60_000;
-  const utc = new Date(utcMs);
+  // Start by treating the local time as if it were UTC
+  const assumed = new Date(Date.UTC(y, mo - 1, d, h, m, 0));
+  // Ask Intl what the target timezone shows for that UTC moment
+  // 'sv' locale gives "YYYY-MM-DD HH:MM:SS" — unambiguous to parse
+  const localStr = assumed.toLocaleString("sv", { timeZone: tz });
+  const localDate = new Date(localStr.replace(" ", "T") + "Z");
+  // offsetMs = how far ahead of UTC the timezone is at that moment
+  const offsetMs = localDate.getTime() - assumed.getTime();
+  // True UTC = local time − offset
+  const utc = new Date(assumed.getTime() - offsetMs);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${utc.getUTCFullYear()}${pad(utc.getUTCMonth() + 1)}${pad(utc.getUTCDate())}T${pad(utc.getUTCHours())}${pad(utc.getUTCMinutes())}00Z`;
 }
 
-function localPlusHoursUtcZ(dateStr: string, timeStr: string, country: string | null, hours: number): string {
-  const [y, mo, d] = dateStr.split("-").map(Number);
-  const [h, m] = timeStr.split(":").map(Number);
-  const approx = Date.UTC(y, mo - 1, d, 12, 0, 0);
-  const offsetMin = utcOffsetMinutes(country, approx);
-  const utcMs = Date.UTC(y, mo - 1, d, h, m, 0) - offsetMin * 60_000 + hours * 3_600_000;
-  const utc = new Date(utcMs);
+function localPlusHoursUtcZ(dateStr: string, timeStr: string, tz: string, hours: number): string {
+  const startZ = localToUtcZ(dateStr, timeStr, tz);
+  const startMs = new Date(
+    startZ.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, "$1-$2-$3T$4:$5:$6Z")
+  ).getTime();
+  const utc = new Date(startMs + hours * 3_600_000);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${utc.getUTCFullYear()}${pad(utc.getUTCMonth() + 1)}${pad(utc.getUTCDate())}T${pad(utc.getUTCHours())}${pad(utc.getUTCMinutes())}00Z`;
 }
@@ -119,17 +107,18 @@ export async function GET(req: NextRequest) {
     const date = e.date as string;
     const time = (e.time as string | null) ?? "19:00";
     const country = venueCountry.get(e.venue_id as string) ?? null;
+    const tz = countryToTz(country);
     const duration = isFringeEvent(e.festival_name as string | null) ? 1 : 2;
 
     lines.push(
       "BEGIN:VEVENT",
       `UID:${e.id as string}@ledger.claireheaded.com`,
       `DTSTAMP:${now}`,
-      `DTSTART:${localToUtcZ(date, time, country)}`,
-      `DTEND:${localPlusHoursUtcZ(date, time, country, duration)}`,
+      `DTSTART:${localToUtcZ(date, time, tz)}`,
+      `DTEND:${localPlusHoursUtcZ(date, time, tz, duration)}`,
       `SUMMARY:${escapeIcs(`🎟️ ${e.title as string}`)}`,
       `LOCATION:${escapeIcs((e.venue_name as string) ?? "")}`,
-      ...(debug ? [`X-DEBUG:country=${country ?? "null"} venue_id=${e.venue_id as string}`] : []),
+      ...(debug ? [`X-DEBUG:country=${country ?? "null"} tz=${tz} venue_id=${e.venue_id as string}`] : []),
       "END:VEVENT",
     );
   }
