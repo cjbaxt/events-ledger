@@ -9,10 +9,18 @@ function icsDate(date: string, time: string): string {
   return `${y}${pad(mo)}${pad(d)}T${pad(h)}${pad(m)}00`;
 }
 
-function icsDatePlus2h(date: string, time: string): string {
+const FRINGE_KEYWORDS = ["fringe", "amsterdam", "prague"];
+
+function isFringeEvent(festivalName: string | null): boolean {
+  if (!festivalName) return false;
+  const lower = festivalName.toLowerCase();
+  return FRINGE_KEYWORDS.some((k) => lower.includes(k));
+}
+
+function icsDatePlusHours(date: string, time: string, hours: number): string {
   const [h, m] = time.split(":").map(Number);
   const [y, mo, d] = date.split("-").map(Number);
-  const dt = new Date(y, mo - 1, d, h + 2, m);
+  const dt = new Date(y, mo - 1, d, h + hours, m);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
 }
@@ -48,13 +56,14 @@ export async function GET(req: NextRequest) {
     const time = (e.time as string | null) ?? "19:00";
     const title = `🎟️ ${e.title as string}`;
     const venue = (e.venue_name as string) ?? "";
+    const duration = isFringeEvent(e.festival_name as string | null) ? 1 : 2;
 
     lines.push(
       "BEGIN:VEVENT",
       `UID:${e.id as string}@ledger.claireheaded.com`,
       `DTSTAMP:${now}`,
       `DTSTART:${icsDate(date, time)}`,
-      `DTEND:${icsDatePlus2h(date, time)}`,
+      `DTEND:${icsDatePlusHours(date, time, duration)}`,
       `SUMMARY:${escapeIcs(title)}`,
       `LOCATION:${escapeIcs(venue)}`,
       "END:VEVENT",
