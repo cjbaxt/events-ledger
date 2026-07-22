@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
+const TZ = "Europe/London";
+
+// VTIMEZONE block for Europe/London covering GMT/BST transitions
+const VTIMEZONE = [
+  "BEGIN:VTIMEZONE",
+  `TZID:${TZ}`,
+  "BEGIN:STANDARD",
+  "TZNAME:GMT",
+  "DTSTART:19701025T020000",
+  "RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10",
+  "TZOFFSETFROM:+0100",
+  "TZOFFSETTO:+0000",
+  "END:STANDARD",
+  "BEGIN:DAYLIGHT",
+  "TZNAME:BST",
+  "DTSTART:19700329T010000",
+  "RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3",
+  "TZOFFSETFROM:+0000",
+  "TZOFFSETTO:+0100",
+  "END:DAYLIGHT",
+  "END:VTIMEZONE",
+].join("\r\n");
+
 function icsDate(date: string, time: string): string {
-  // Returns floating local time in ICS format: YYYYMMDDTHHMMSS
   const [h, m] = time.split(":").map(Number);
   const [y, mo, d] = date.split("-").map(Number);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${y}${pad(mo)}${pad(d)}T${pad(h)}${pad(m)}00`;
-}
-
-const FRINGE_KEYWORDS = ["fringe", "amsterdam", "prague"];
-
-function isFringeEvent(festivalName: string | null): boolean {
-  if (!festivalName) return false;
-  const lower = festivalName.toLowerCase();
-  return FRINGE_KEYWORDS.some((k) => lower.includes(k));
 }
 
 function icsDatePlusHours(date: string, time: string, hours: number): string {
@@ -29,6 +43,14 @@ function escapeIcs(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 }
 
+const FRINGE_KEYWORDS = ["fringe", "amsterdam", "prague"];
+
+function isFringeEvent(festivalName: string | null): boolean {
+  if (!festivalName) return false;
+  const lower = festivalName.toLowerCase();
+  return FRINGE_KEYWORDS.some((k) => lower.includes(k));
+}
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (!token || token !== process.env.CALENDAR_TOKEN) {
@@ -41,14 +63,16 @@ export async function GET(req: NextRequest) {
   });
   if (error) return new NextResponse("Error fetching events", { status: 500 });
 
-  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Events Ledger//EN",
     "X-WR-CALNAME:Events Ledger",
+    `X-WR-TIMEZONE:${TZ}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
+    VTIMEZONE,
   ];
 
   for (const e of (data ?? []) as Array<Record<string, unknown>>) {
@@ -62,8 +86,8 @@ export async function GET(req: NextRequest) {
       "BEGIN:VEVENT",
       `UID:${e.id as string}@ledger.claireheaded.com`,
       `DTSTAMP:${now}`,
-      `DTSTART:${icsDate(date, time)}`,
-      `DTEND:${icsDatePlusHours(date, time, duration)}`,
+      `DTSTART;TZID=${TZ}:${icsDate(date, time)}`,
+      `DTEND;TZID=${TZ}:${icsDatePlusHours(date, time, duration)}`,
       `SUMMARY:${escapeIcs(title)}`,
       `LOCATION:${escapeIcs(venue)}`,
       "END:VEVENT",
