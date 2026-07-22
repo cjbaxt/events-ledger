@@ -90,7 +90,21 @@ function VenueCreateForm({ initialName, onCreated, onCancel }: { initialName: st
       <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-1">New venue</div>
       <input autoFocus className={iCls} placeholder="Name *" value={name} onChange={(e) => setName(e.target.value)} />
       <input className={iCls} placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-      <input className={iCls} placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
+      <select className={iCls} value={country} onChange={(e) => setCountry(e.target.value)}>
+        <option value="">Country (optional)</option>
+        <option value="GB">United Kingdom</option>
+        <option value="NL">Netherlands</option>
+        <option value="IE">Ireland</option>
+        <option value="FR">France</option>
+        <option value="DE">Germany</option>
+        <option value="BE">Belgium</option>
+        <option value="CZ">Czech Republic</option>
+        <option value="AT">Austria</option>
+        <option value="ES">Spain</option>
+        <option value="IT">Italy</option>
+        <option value="US">United States</option>
+        <option value="AU">Australia</option>
+      </select>
       <div className="relative">
         {parent ? (
           <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded px-2 py-1.5"><span className="text-xs text-neutral-700 flex-1">↳ {parent.name}</span><button type="button" onClick={() => setParent(null)} className="text-neutral-300 hover:text-neutral-500 text-xs">✕</button></div>
