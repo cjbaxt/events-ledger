@@ -98,7 +98,7 @@ function VenueCreateForm({ initialName, onCreated, onCancel }: { initialName: st
         <option value="FR">France</option>
         <option value="DE">Germany</option>
         <option value="BE">Belgium</option>
-        <option value="CZ">Czech Republic</option>
+        <option value="CZ">Czechia</option>
         <option value="AT">Austria</option>
         <option value="ES">Spain</option>
         <option value="IT">Italy</option>
