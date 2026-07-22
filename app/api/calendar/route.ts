@@ -104,11 +104,13 @@ export async function GET(req: NextRequest) {
 
   lines.push("END:VCALENDAR");
 
-  return new NextResponse(lines.join("\r\n"), {
+  const body = lines.join("\r\n");
+  const debug = req.nextUrl.searchParams.has("debug");
+  return new NextResponse(body, {
     headers: {
-      "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="events-ledger.ics"',
-      "Cache-Control": "private, max-age=3600",
+      "Content-Type": debug ? "text/plain; charset=utf-8" : "text/calendar; charset=utf-8",
+      ...(!debug && { "Content-Disposition": 'attachment; filename="events-ledger.ics"' }),
+      "Cache-Control": "private, no-store",
     },
   });
 }
