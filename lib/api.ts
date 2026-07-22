@@ -187,7 +187,7 @@ export async function searchEntities(endpoint: string, q: string, limit?: number
 }
 
 export async function createEntity(kind: string, data: Record<string, unknown>): Promise<{ id: string; name?: string; title?: string }> {
-  const res = await apiFetch(`/api/${kind}s`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  const res = await apiFetch(`/api/${kind}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error(`Failed to create ${kind}`);
   return res.json();
 }
