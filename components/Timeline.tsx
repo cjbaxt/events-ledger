@@ -205,7 +205,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(() => {
-    try { const s = localStorage.getItem("timeline-hidden-types"); return s ? new Set(JSON.parse(s)) : new Set(["exhibition", "talk"]); } catch { return new Set(["exhibition", "talk"]); }
+    try { const s = localStorage.getItem("timeline-hidden-types"); return s ? new Set(JSON.parse(s)) : new Set(["exhibition", "talk", "screening"]); } catch { return new Set(["exhibition", "talk", "screening"]); }
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(hiddenTypes));
@@ -292,7 +292,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
               <span className="text-[10px] uppercase tracking-widest text-neutral-400">Filter by type</span>
               <div className="flex items-center gap-3">
                 <button onClick={() => setPendingHidden(new Set())} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">All</button>
-                <button onClick={() => setPendingHidden(new Set(["exhibition", "talk"].filter((t) => presentTypes.has(t))))} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">Default</button>
+                <button onClick={() => setPendingHidden(new Set(["exhibition", "talk", "screening"].filter((t) => presentTypes.has(t))))} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">Default</button>
                 <button onClick={() => setPendingHidden(new Set(ALL_TYPES.filter((t) => presentTypes.has(t))))} className="text-[10px] uppercase tracking-widest text-neutral-400 hover:text-neutral-700 transition-colors">None</button>
                 <button onClick={() => setFilterOpen(false)} className="text-neutral-300 hover:text-neutral-600 transition-colors text-lg leading-none">✕</button>
               </div>

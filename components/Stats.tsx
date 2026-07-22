@@ -169,7 +169,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
   const [hovered, setHovered] = useState<{ type: string; subtype: string; count: number } | null>(null);
   const byType = new Map<string, EventListItem[]>();
   for (const e of events) { if (!byType.has(e.type)) byType.set(e.type, []); byType.get(e.type)!.push(e); }
-  const SECONDARY = new Set(["exhibition", "talk"]);
+  const SECONDARY = new Set(["exhibition", "talk", "screening"]);
   const primaryTypes = [...byType.entries()].filter(([t]) => !SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   const secondaryTypes = [...byType.entries()].filter(([t]) => SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   if (drill) {
@@ -281,9 +281,9 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
 }
 
 function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
-  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
   const [filterOpen, setFilterOpen] = useState(false);
-  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk"]));
+  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const presentTypes = new Set(events.map((e) => e.type));
   const filtered = events.filter((e) => !hiddenTypes.has(e.type));
