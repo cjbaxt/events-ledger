@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     "festival_id", "payment_method_id", "notes", "rating", "rating_context", "review",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "subtype", "links"]);
 
-  const baseInsert: Record<string, unknown> = { id: randomUUID(), type };
+  const baseInsert: Record<string, unknown> = { id: randomUUID(), type, created_at: new Date().toISOString() };
   const extInsert: Record<string, unknown> = {};
 
   for (const [k, v] of Object.entries(fields)) {
