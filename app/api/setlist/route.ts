@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")?.trim();
   if (!url) return NextResponse.json({ error: "url param required" }, { status: 400 });
-  if (!url.includes("setlist.fm")) return NextResponse.json({ error: "Only setlist.fm URLs are supported" }, { status: 400 });
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return NextResponse.json({ error: "Invalid URL" }, { status: 400 }); }
+  if (parsed.hostname !== "setlist.fm" && !parsed.hostname.endsWith(".setlist.fm")) return NextResponse.json({ error: "Only setlist.fm URLs are supported" }, { status: 400 });
 
   let html: string;
   try {

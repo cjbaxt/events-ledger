@@ -4,8 +4,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { extensionTable } from "@/lib/event-types";
 import type { EventListItem } from "@/lib/types";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
+import { requireOwner } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const deny = await requireOwner(); if (deny) return deny;
   if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   const { type, ...fields } = body as { type: string } & Record<string, unknown>;

@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { extensionTable } from "@/lib/event-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
+import { requireOwner } from "@/lib/auth";
 
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
@@ -327,6 +328,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deny = await requireOwner(); if (deny) return deny;
   if (isGuestRequest(req)) return guestDenied();
   const { id } = await params;
   const body = await req.json();
@@ -364,6 +366,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deny = await requireOwner(); if (deny) return deny;
   if (isGuestRequest(_req)) return guestDenied();
   const { id } = await params;
   const supabase = createServiceClient();

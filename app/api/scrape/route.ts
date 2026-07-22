@@ -101,8 +101,10 @@ async function parseEdfringe(url: string) {
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")?.trim();
   if (!url) return NextResponse.json({ error: "url param required" }, { status: 400 });
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return NextResponse.json({ error: "Invalid URL" }, { status: 400 }); }
   try {
-    if (url.includes("edfringe.com")) return NextResponse.json(await parseEdfringe(url));
+    if (parsed.hostname === "edfringe.com" || parsed.hostname.endsWith(".edfringe.com")) return NextResponse.json(await parseEdfringe(url));
     return NextResponse.json({ error: "Unsupported source. Supported: edfringe.com" }, { status: 400 });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Scrape failed" }, { status: 502 });
