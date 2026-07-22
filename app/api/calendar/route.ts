@@ -18,11 +18,26 @@ function isEuropeanSummerTime(ts: number): boolean {
 
 const UK_VARIANTS = new Set(["GB", "UK", "UNITED KINGDOM", "GREAT BRITAIN", "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND", "IE", "IRELAND"]);
 
+function isAustralianSummerTime(ts: number): boolean {
+  // AEDT (UTC+11): first Sun Oct → first Sun Apr; AEST (UTC+10) otherwise
+  const d = new Date(ts);
+  const year = d.getUTCFullYear();
+  const firstSundayOf = (y: number, m: number) => {
+    const d = new Date(Date.UTC(y, m, 1));
+    return new Date(Date.UTC(y, m, 1 + ((7 - d.getUTCDay()) % 7))).getTime();
+  };
+  const start = firstSundayOf(year, 9);  // first Sun October
+  const end = firstSundayOf(year + 1, 3); // first Sun April next year
+  const prevEnd = firstSundayOf(year, 3); // first Sun April this year
+  return ts >= start || ts < prevEnd;
+}
+
 // Returns UTC offset in minutes for a country on a given UTC timestamp
 function utcOffsetMinutes(country: string | null, ts: number): number {
   const c = (country ?? "GB").toUpperCase();
   const summer = isEuropeanSummerTime(ts);
   if (UK_VARIANTS.has(c)) return summer ? 60 : 0;
+  if (c === "AU" || c === "AUSTRALIA") return isAustralianSummerTime(ts) ? 660 : 600; // AEDT/AEST
   // CET zone: NL, FR, DE, BE, CZ, AT, ES, IT, PL, and default for unknown EU
   return summer ? 120 : 60;
 }
