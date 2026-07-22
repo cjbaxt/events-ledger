@@ -92,18 +92,57 @@ function VenueCreateForm({ initialName, onCreated, onCancel }: { initialName: st
       <input className={iCls} placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
       <select className={iCls} value={country} onChange={(e) => setCountry(e.target.value)}>
         <option value="">Country (optional)</option>
-        <option value="GB">United Kingdom</option>
-        <option value="NL">Netherlands</option>
-        <option value="IE">Ireland</option>
-        <option value="FR">France</option>
-        <option value="DE">Germany</option>
-        <option value="BE">Belgium</option>
-        <option value="CZ">Czechia</option>
-        <option value="AT">Austria</option>
-        <option value="ES">Spain</option>
-        <option value="IT">Italy</option>
-        <option value="US">United States</option>
-        <option value="AU">Australia</option>
+        <optgroup label="Europe">
+          <option value="AT">Austria</option>
+          <option value="BE">Belgium</option>
+          <option value="HR">Croatia</option>
+          <option value="CZ">Czechia</option>
+          <option value="DK">Denmark</option>
+          <option value="FI">Finland</option>
+          <option value="FR">France</option>
+          <option value="DE">Germany</option>
+          <option value="GR">Greece</option>
+          <option value="HU">Hungary</option>
+          <option value="IE">Ireland</option>
+          <option value="IT">Italy</option>
+          <option value="LU">Luxembourg</option>
+          <option value="MT">Malta</option>
+          <option value="NL">Netherlands</option>
+          <option value="NO">Norway</option>
+          <option value="PL">Poland</option>
+          <option value="PT">Portugal</option>
+          <option value="RO">Romania</option>
+          <option value="SK">Slovakia</option>
+          <option value="SI">Slovenia</option>
+          <option value="ES">Spain</option>
+          <option value="SE">Sweden</option>
+          <option value="CH">Switzerland</option>
+          <option value="GB">United Kingdom</option>
+        </optgroup>
+        <optgroup label="Americas">
+          <option value="AR">Argentina</option>
+          <option value="BR">Brazil</option>
+          <option value="CA">Canada</option>
+          <option value="MX">Mexico</option>
+          <option value="US">United States</option>
+        </optgroup>
+        <optgroup label="Asia Pacific">
+          <option value="AU">Australia</option>
+          <option value="CN">China</option>
+          <option value="HK">Hong Kong</option>
+          <option value="IN">India</option>
+          <option value="JP">Japan</option>
+          <option value="KR">South Korea</option>
+          <option value="NZ">New Zealand</option>
+          <option value="SG">Singapore</option>
+        </optgroup>
+        <optgroup label="Middle East &amp; Africa">
+          <option value="EG">Egypt</option>
+          <option value="IL">Israel</option>
+          <option value="MA">Morocco</option>
+          <option value="ZA">South Africa</option>
+          <option value="AE">United Arab Emirates</option>
+        </optgroup>
       </select>
       <div className="relative">
         {parent ? (

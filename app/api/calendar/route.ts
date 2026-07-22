@@ -37,8 +37,21 @@ function utcOffsetMinutes(country: string | null, ts: number): number {
   const c = (country ?? "GB").toUpperCase();
   const summer = isEuropeanSummerTime(ts);
   if (UK_VARIANTS.has(c)) return summer ? 60 : 0;
-  if (c === "AU" || c === "AUSTRALIA") return isAustralianSummerTime(ts) ? 660 : 600; // AEDT/AEST
-  // CET zone: NL, FR, DE, BE, CZ, AT, ES, IT, PL, and default for unknown EU
+  if (c === "AU") return isAustralianSummerTime(ts) ? 660 : 600; // AEDT/AEST (Sydney/Melbourne)
+  if (c === "NZ") return isAustralianSummerTime(ts) ? 780 : 720; // NZDT/NZST
+  if (c === "JP" || c === "KR") return 540;   // JST/KST — no DST
+  if (c === "CN" || c === "SG" || c === "HK") return 480; // CST/SGT — no DST
+  if (c === "IN") return 330;  // IST — no DST
+  if (c === "AE") return 240;  // GST — no DST
+  if (c === "IL") return summer ? 180 : 120;  // IDT/IST
+  if (c === "EG" || c === "ZA") return 120;   // EET/SAST — no DST
+  if (c === "MA") return summer ? 60 : 0;     // WET/WEST
+  if (c === "US") return summer ? -240 : -300; // ET (most arts venues — NYC/LA differ but close enough)
+  if (c === "CA") return summer ? -240 : -300; // ET
+  if (c === "MX") return summer ? -300 : -360; // CT
+  if (c === "AR") return -180; // ART — no DST
+  if (c === "BR") return summer ? -120 : -180; // BRT/BRST (São Paulo)
+  // CET zone default: NL, FR, DE, BE, CZ, AT, ES, IT, PL, HR, DK, NO, SE, CH etc
   return summer ? 120 : 60;
 }
 
