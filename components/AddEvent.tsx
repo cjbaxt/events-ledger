@@ -236,6 +236,36 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
   );
 }
 
+function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: string; director_name: string | null; year: string | null; tmdb_url: string }) => void }) {
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [directorName, setDirectorName] = useState<string | null>(null);
+  async function fetch_() {
+    if (!url.trim()) return;
+    setLoading(true); setErr(""); setDirectorName(null);
+    try {
+      const res = await fetch(`/api/tmdb?url=${encodeURIComponent(url.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setDirectorName(data.director_name);
+      onFetch(data);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Failed"); }
+    setLoading(false);
+  }
+  return (
+    <div className="space-y-2 pb-1">
+      <label className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1.5">Import from TMDb</label>
+      <div className="flex gap-2">
+        <input className={`${inputCls} flex-1`} placeholder="https://www.themoviedb.org/movie/…" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <button type="button" onClick={fetch_} disabled={!url.trim() || loading} className="px-3 py-2 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-700 disabled:opacity-40 flex-shrink-0">{loading ? "…" : "Fetch"}</button>
+      </div>
+      {err && <p className="text-xs text-red-400">{err}</p>}
+      {directorName && <p className="text-xs text-neutral-400">Director: <span className="text-neutral-700">{directorName}</span> — search in details step</p>}
+    </div>
+  );
+}
+
 function SetlistFetcher({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   const [url, setUrl] = useState((ext.setlist_fm_url as string) ?? "");
   const [loading, setLoading] = useState(false);
@@ -589,6 +619,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-6">{!editMode && <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>}Basic info</h2>
           <div className="space-y-5">
+            {type === "screening" && !editMode && <TmdbFetcher onFetch={(data) => { setBaseField("title", data.title); setBaseField("full_description", data.overview); setBaseField("description_source_url", data.tmdb_url); }} />}
             <Field label="Title" required><input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus autoCapitalize="none" /></Field>
             {performances.length > 1 ? (
               <Field label="Performance" required>
