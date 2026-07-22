@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
       `DTEND:${localPlusHoursUtcZ(date, time, country, duration)}`,
       `SUMMARY:${escapeIcs(`🎟️ ${e.title as string}`)}`,
       `LOCATION:${escapeIcs((e.venue_name as string) ?? "")}`,
+      ...(debug ? [`X-DEBUG:country=${country ?? "null"} venue_id=${e.venue_id as string}`] : []),
       "END:VEVENT",
     );
   }
