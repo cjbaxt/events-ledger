@@ -5,6 +5,7 @@ import { extensionTable } from "@/lib/event-types";
 import type { EventListItem } from "@/lib/types";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
 import { requireOwner } from "@/lib/auth";
+import { upsertGCalEvent } from "@/lib/google-calendar";
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
@@ -43,6 +44,40 @@ export async function POST(req: NextRequest) {
     if (credits.length) {
       await supabase.from("event_credit").insert(credits.map((c) => ({ event_id: event.id, ...c })));
     }
+  }
+
+  // Push to Google Calendar (non-blocking — don't fail the request if GCal is down)
+  if (baseInsert.date && baseInsert.title) {
+    const venueId = baseInsert.venue_id as string | undefined;
+    Promise.resolve().then(async () => {
+      try {
+        let venueCountry: string | null = null;
+        let venueCity: string | null = null;
+        let festivalName: string | null = null;
+        if (venueId) {
+          const { data: v } = await supabase.from("venue").select("country, city").eq("id", venueId).single();
+          venueCountry = v?.country ?? null;
+          venueCity = v?.city ?? null;
+        }
+        if (baseInsert.festival_id) {
+          const { data: f } = await supabase.from("festival").select("name, edition").eq("id", baseInsert.festival_id as string).single();
+          if (f) festivalName = [f.name, f.edition].filter(Boolean).join(" ");
+        }
+        await upsertGCalEvent({
+          id: event.id,
+          title: baseInsert.title as string,
+          date: baseInsert.date as string,
+          time: (baseInsert.time as string | null) ?? null,
+          venue_name: null,
+          venue_city: venueCity,
+          venue_country: venueCountry,
+          festival_name: festivalName,
+          notes: (baseInsert.notes as string | null) ?? null,
+        });
+      } catch (e) {
+        console.error("GCal sync error (create):", e);
+      }
+    });
   }
 
   return NextResponse.json({ id: event.id });

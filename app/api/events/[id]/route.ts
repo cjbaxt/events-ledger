@@ -4,6 +4,7 @@ import { extensionTable } from "@/lib/event-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isGuestRequest, guestDenied } from "@/lib/guest";
 import { requireOwner } from "@/lib/auth";
+import { upsertGCalEvent, deleteGCalEvent } from "@/lib/google-calendar";
 
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
@@ -362,6 +363,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Re-sync GCal with updated event data (non-blocking)
+  Promise.resolve().then(async () => {
+    try {
+      const { data: ev } = await supabase
+        .from("event")
+        .select("id, title, date, time, venue_id, festival_id, notes")
+        .eq("id", id)
+        .single();
+      if (!ev) return;
+      let venueCountry: string | null = null;
+      let venueCity: string | null = null;
+      let festivalName: string | null = null;
+      if (ev.venue_id) {
+        const { data: v } = await supabase.from("venue").select("country, city").eq("id", ev.venue_id).single();
+        venueCountry = v?.country ?? null;
+        venueCity = v?.city ?? null;
+      }
+      if (ev.festival_id) {
+        const { data: f } = await supabase.from("festival").select("name, edition").eq("id", ev.festival_id).single();
+        if (f) festivalName = [f.name, f.edition].filter(Boolean).join(" ");
+      }
+      await upsertGCalEvent({
+        id: ev.id, title: ev.title, date: ev.date, time: ev.time,
+        venue_city: venueCity, venue_country: venueCountry,
+        festival_name: festivalName, notes: ev.notes,
+      });
+    } catch (e) {
+      console.error("GCal sync error (update):", e);
+    }
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -381,5 +413,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { error } = await supabase.from("event").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Remove from GCal (non-blocking)
+  deleteGCalEvent(id).catch((e) => console.error("GCal sync error (delete):", e));
+
   return NextResponse.json({ ok: true });
 }
