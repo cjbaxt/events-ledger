@@ -9,6 +9,7 @@ export interface PaymentMethodRef {
 export interface NamedRef {
   id: string;
   name: string;
+  city?: string | null;
 }
 
 export interface EventListItem {
@@ -20,6 +21,7 @@ export interface EventListItem {
   title: string;
   venue_id: string;
   venue_name: string;
+  venue_city: string | null;
   festival_id: string | null;
   festival_name: string | null;
   price_paid: string | null;

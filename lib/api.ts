@@ -155,7 +155,7 @@ export async function fetchPerson(id: string): Promise<{ id: string; name: strin
   });
 }
 
-export async function fetchVenue(id: string): Promise<{ id: string; name: string }> {
+export async function fetchVenue(id: string): Promise<{ id: string; name: string; city?: string | null; country?: string | null }> {
   return cachedFetch(`venue:${id}`, async () => {
     const res = await apiFetch(`/api/venues/${id}`);
     if (!res.ok) throw new Error(`Failed to fetch venue: ${res.status}`);

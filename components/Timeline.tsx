@@ -7,7 +7,7 @@ import EventTypeIcon from "./EventTypeIcon";
 import { IconWriting, IconArticle } from "@tabler/icons-react";
 
 const PAGE_SIZE = 30;
-const PRE_YEAR = 2015;
+const PRE_YEAR = 2022;
 const PRE_BUCKET = `pre-${PRE_YEAR}`;
 
 const MONTH_NAMES = [
@@ -97,7 +97,7 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, totalTypeCount
     <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-baseline gap-3">
-          <h2 className="font-serif text-3xl text-neutral-900">{year === PRE_BUCKET ? `Before ${PRE_YEAR}` : year}</h2>
+          <h2 className="font-serif text-3xl text-neutral-900">{year === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : year}</h2>
           {(year === PRE_BUCKET || parseInt(year) < 2025) && (
             <span className="text-[10px] uppercase tracking-widest text-orange-300">memory gaps</span>
           )}
@@ -154,7 +154,7 @@ function EventCard({ event, onClick, active }: { event: EventListItem; onClick: 
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-serif text-sm font-medium text-neutral-900 truncate">{event.title}</div>
-        <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
+        <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ""}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
@@ -233,6 +233,16 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
     return +b - +a;
   }), [grouped]);
 
+  const yearsWithEvents = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of allEvents) {
+      if (hiddenTypes.has(e.type)) continue;
+      const yr = parseInt(e.date.slice(0, 4));
+      set.add(yr < PRE_YEAR ? PRE_BUCKET : e.date.slice(0, 4));
+    }
+    return set;
+  }, [allEvents, hiddenTypes]);
+
   const yearEvents = useMemo(() => selectedYear ? allEvents.filter((e) => {
     const matches = selectedYear === PRE_BUCKET ? parseInt(e.date.slice(0, 4)) < PRE_YEAR : e.date.startsWith(selectedYear);
     return matches && !hiddenTypes.has(e.type);
@@ -267,19 +277,29 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
         )}
         <div className="sticky bottom-16 md:bottom-0 z-10 mt-2 border-t border-neutral-100 bg-white">
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 md:hidden">
-            {years.map((y) => (
-              <button key={y} onClick={() => { setSelectedYear(y); setPageSize(PAGE_SIZE); }} className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
-                {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
-              </button>
-            ))}
+            {years.map((y) => {
+              const active = y === selectedYear;
+              const empty = !yearsWithEvents.has(y);
+              return (
+                <button key={y} onClick={() => { if (!empty) { setSelectedYear(y); setPageSize(PAGE_SIZE); } }} disabled={empty}
+                  className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "border-neutral-900 text-neutral-900 bg-neutral-50" : empty ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : "border-neutral-200 text-neutral-400"}`}>
+                  {y === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : y}
+                </button>
+              );
+            })}
           </div>
           <div className="flex items-center px-4 pb-3 md:py-3">
             <div className="hidden md:flex gap-2 overflow-x-auto no-scrollbar">
-              {years.map((y) => (
-                <button key={y} onClick={() => { setSelectedYear(y); setPageSize(PAGE_SIZE); }} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${y === selectedYear ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400"}`}>
-                  {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
-                </button>
-              ))}
+              {years.map((y) => {
+                const active = y === selectedYear;
+                const empty = !yearsWithEvents.has(y);
+                return (
+                  <button key={y} onClick={() => { if (!empty) { setSelectedYear(y); setPageSize(PAGE_SIZE); } }} disabled={empty}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "border-neutral-900 text-neutral-900 bg-neutral-50" : empty ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : "border-neutral-200 text-neutral-400"}`}>
+                    {y === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : y}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

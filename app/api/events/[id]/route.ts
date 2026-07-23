@@ -266,7 +266,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       price_paid, currency,
       rating, rating_context, notes, review, links,
       data_completeness, full_description, ai_summary, description_source_url,
-      venue:venue_id(id, name, parent_id, parent:parent_id(id, name, parent_id, grandparent:parent_id(id, name)))
+      venue:venue_id(id, name, city, parent_id, parent:parent_id(id, name, parent_id, grandparent:parent_id(id, name)))
     `)
     .eq("id", id)
     .single();
@@ -284,7 +284,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ]);
 
   // Build venue path from nested join result (no extra round trips)
-  type VenueRow = { id: string; name: string; parent_id?: string | null; parent?: VenueRow | null; grandparent?: VenueRow | null };
+  type VenueRow = { id: string; name: string; city?: string | null; parent_id?: string | null; parent?: VenueRow | null; grandparent?: VenueRow | null };
   const venueData = e.venue as unknown as VenueRow | null;
   const venue = venueData ?? { id: e.venue_id, name: "Unknown" };
   const venuePath: Named[] = [];
@@ -305,7 +305,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const response = NextResponse.json({
     id: e.id, date: e.date, time: e.time, type: e.type, subtype: e.subtype, title: e.title,
-    venue: { id: venue.id, name: venue.name },
+    venue: { id: venue.id, name: venue.name, city: (venue as VenueRow).city ?? null },
     venue_path: venuePath,
     festival,
     price_paid: e.price_paid != null ? String(e.price_paid) : null,

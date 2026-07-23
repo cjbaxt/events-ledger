@@ -206,7 +206,7 @@ const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", 
 async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<string> {
   if (hint) return hint;
   if (kind === "person") return (await fetchPerson(id)).name;
-  if (kind === "venue") return (await fetchVenue(id)).name;
+  if (kind === "venue") { const v = await fetchVenue(id); return [v.name, v.city].filter(Boolean).join(", "); }
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
   if (kind === "payment_method") return id;
   return (await fetchEnsemble(id)).name;
@@ -484,7 +484,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   {(event.ai_summary || event.full_description) && <DescriptionBlock aiSummary={event.ai_summary} fullDescription={event.full_description} sourceUrl={event.description_source_url} />}
 
                   <div className="space-y-0.5">
-                    <Field label="Venue"><button onClick={() => navigate("venue", event.venue.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.venue.name}</button></Field>
+                    <Field label="Venue"><button onClick={() => navigate("venue", event.venue.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.venue.name}{event.venue.city ? `, ${event.venue.city}` : ""}</button></Field>
                     {event.venue_path.map((v: NamedRef) => <div key={v.id} className="text-xs text-neutral-400"><button onClick={() => navigate("venue", v.id)} className="hover:text-neutral-700 hover:underline underline-offset-2">{v.name}</button></div>)}
                   </div>
 
