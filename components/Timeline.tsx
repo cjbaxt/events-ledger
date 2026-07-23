@@ -154,7 +154,7 @@ function EventCard({ event, onClick, active }: { event: EventListItem; onClick: 
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-serif text-sm font-medium text-neutral-900 truncate">{event.title}</div>
-        <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ""}</div>
+        <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
