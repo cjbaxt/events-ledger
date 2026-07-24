@@ -289,11 +289,11 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
   );
 }
 
-function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: string; director_name: string | null; year: string | null; tmdb_url: string }) => void }) {
+function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: string; director_name: string | null; director_ref: NamedRef | null; year: string | null; tmdb_url: string }) => void }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [result, setResult] = useState<{ title: string; director_name: string | null } | null>(null);
+  const [result, setResult] = useState<{ title: string; director_name: string | null; director_ref: NamedRef | null } | null>(null);
   async function fetch_() {
     if (!url.trim()) return;
     setLoading(true); setErr(""); setResult(null);
@@ -301,8 +301,17 @@ function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: s
       const res = await fetch(`/api/tmdb?url=${encodeURIComponent(url.trim())}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      setResult({ title: data.title, director_name: data.director_name });
-      onFetch(data);
+      let director_ref: NamedRef | null = null;
+      if (data.director_name) {
+        const hits = await searchEntities("persons", data.director_name);
+        if (hits.length === 1) director_ref = { id: hits[0].id, name: hits[0].name ?? data.director_name };
+        else {
+          const exact = hits.find((h) => (h.name ?? "").toLowerCase() === data.director_name.toLowerCase());
+          if (exact) director_ref = { id: exact.id, name: exact.name ?? data.director_name };
+        }
+      }
+      setResult({ title: data.title, director_name: data.director_name, director_ref });
+      onFetch({ ...data, director_ref });
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Failed"); }
     setLoading(false);
   }
@@ -317,7 +326,11 @@ function TmdbFetcher({ onFetch }: { onFetch: (data: { title: string; overview: s
       {result && (
         <div className="text-xs text-neutral-400 space-y-0.5">
           <p>Title: <span className="text-neutral-700">{result.title || "—"}</span></p>
-          {result.director_name && <p>Director: <span className="text-neutral-700">{result.director_name}</span> — search in details step</p>}
+          {result.director_name && (
+            <p>Director: <span className="text-neutral-700">{result.director_name}</span>
+              {result.director_ref ? <span className="text-green-600 ml-1">✓ matched</span> : <span className="text-amber-500 ml-1">— not in DB yet, fill in details step</span>}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -458,7 +471,7 @@ function ExhibitionFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown)
 function ScreeningFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
     <SearchCombo label="Work / Film" endpoint="works" value={ext.work as NamedRef | null} onChange={(v) => set("work", v)} displayFn={(i) => (i.title as string) ?? ""} />
-    <SearchCombo label="Director" endpoint="persons" value={ext.director as NamedRef | null} onChange={(v) => set("director", v)} />
+    <SearchCombo key={ext.director_query as string || "dir"} label="Director" endpoint="persons" value={ext.director as NamedRef | null} onChange={(v) => set("director", v)} initialQuery={(ext.director_query as string) ?? ""} />
     <SearchCombo label="Ensemble" endpoint="ensembles" value={ext.ensemble as NamedRef | null} onChange={(v) => set("ensemble", v)} />
   </div>;
 }
@@ -677,7 +690,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-6">{!editMode && <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>}Basic info</h2>
           <div className="space-y-5">
-            {type === "screening" && !editMode && <TmdbFetcher onFetch={(data) => { setBaseField("title", data.title); setBaseField("full_description", data.overview); setBaseField("description_source_url", data.tmdb_url); }} />}
+            {type === "screening" && !editMode && <TmdbFetcher onFetch={(data) => { setBaseField("title", data.title); setBaseField("full_description", data.overview); setBaseField("description_source_url", data.tmdb_url); if (data.director_ref) { setExtField("director", data.director_ref); setExtField("director_query", ""); } else if (data.director_name) { setExtField("director_query", data.director_name); } }} />}
             <Field label="Title" required><input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus autoCapitalize="none" /></Field>
             {performances.length > 1 ? (
               <Field label="Performance" required>

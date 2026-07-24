@@ -12,6 +12,7 @@ export const EXTENSION_TABLE: Record<string, string> = {
   talk: "event_talk",
   exhibition: "event_exhibition",
   screening: "event_screening",
+  other: "event_other",
 };
 
 export function extensionTable(type: string): string | null {

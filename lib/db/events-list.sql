@@ -65,6 +65,8 @@ RETURNS TABLE (
       ens_classical.name,
       ens_opera.name,
       ens_dance.name,
+      ens_theatre.name,
+      ens_other.name,
       p_cabaret.name,
       ens_cabaret.name,
       p_talk.name,
@@ -80,6 +82,8 @@ RETURNS TABLE (
       ecl.ensemble_id,
       eo.ensemble_id,
       edan.company_id,
+      eth.company_id,
+      eoth.company_id,
       ecab.headliner_id,
       ecab.ensemble_id,
       etalk.speaker_id,
@@ -95,6 +99,8 @@ RETURNS TABLE (
       WHEN ecl.ensemble_id IS NOT NULL THEN 'ensemble'
       WHEN eo.ensemble_id IS NOT NULL THEN 'ensemble'
       WHEN edan.company_id IS NOT NULL THEN 'ensemble'
+      WHEN eth.company_id IS NOT NULL THEN 'ensemble'
+      WHEN eoth.company_id IS NOT NULL THEN 'ensemble'
       WHEN ecab.headliner_id IS NOT NULL THEN 'person'
       WHEN ecab.ensemble_id IS NOT NULL THEN 'ensemble'
       WHEN etalk.speaker_id IS NOT NULL THEN 'person'
@@ -130,6 +136,12 @@ RETURNS TABLE (
   -- dance
   LEFT JOIN event_dance edan ON edan.event_id = e.id AND e.type = 'dance'
   LEFT JOIN ensemble ens_dance ON ens_dance.id = edan.company_id
+  -- theatre
+  LEFT JOIN event_theatre eth ON eth.event_id = e.id AND e.type = 'theatre'
+  LEFT JOIN ensemble ens_theatre ON ens_theatre.id = eth.company_id
+  -- other
+  LEFT JOIN event_other eoth ON eoth.event_id = e.id AND e.type = 'other'
+  LEFT JOIN ensemble ens_other ON ens_other.id = eoth.company_id
   -- cabaret (headliner person takes priority over ensemble)
   LEFT JOIN event_cabaret ecab ON ecab.event_id = e.id AND e.type = 'cabaret'
   LEFT JOIN person p_cabaret ON p_cabaret.id = ecab.headliner_id
