@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const store = await cookies();
-  const isGuest = store.get("guest_session")?.value === "1";
+  const guestToken = process.env.GUEST_TOKEN;
+  const isGuest = !!guestToken && store.get("guest_session")?.value === guestToken;
   return (
     <html lang="en" className={`h-full ${inter.variable} ${playfair.variable}`}>
       <body className="min-h-full antialiased">

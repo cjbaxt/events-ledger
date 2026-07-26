@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.searchParams.delete("token");
     const res = NextResponse.redirect(url);
-    res.cookies.set(GUEST_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    res.cookies.set(GUEST_COOKIE, token, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
     return res;
   }
 
@@ -38,8 +38,8 @@ export async function proxy(request: NextRequest) {
   // Authenticated users always get full access — guest cookie is ignored
   if (user) return supabaseResponse;
 
-  // No real session: fall back to guest cookie for read-only access
-  if (request.cookies.get(GUEST_COOKIE)?.value === "1") {
+  // No real session: fall back to guest cookie — validate against current token so rotation kicks existing sessions out
+  if (process.env.GUEST_TOKEN && request.cookies.get(GUEST_COOKIE)?.value === process.env.GUEST_TOKEN) {
     return NextResponse.next({ request });
   }
 
