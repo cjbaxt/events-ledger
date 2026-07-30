@@ -190,7 +190,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
     const lastSeenEntityKind = lastSeenEvt?.primary_entity_kind ?? null;
     return (
       <div key={type} onClick={() => setDrill({ type })} className="border border-neutral-100 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all">
-        <div className="flex items-center gap-1.5 text-neutral-400"><EventTypeIcon type={type} size={12} /><span className="hidden sm:inline text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span></div>
+        <div className="flex items-center gap-1.5 text-neutral-400"><EventTypeIcon type={type} size={12} /><span className="text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span></div>
         <div className="flex items-end gap-2"><span className="font-serif text-3xl text-neutral-900 leading-none">{evts.length}</span>{avgRating !== null && <span className="text-[10px] text-neutral-400 mb-0.5">{avgRating.toFixed(1)}★</span>}</div>
         {subtypes.length > 0 && (
           <div className="relative">
