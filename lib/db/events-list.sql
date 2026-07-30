@@ -16,6 +16,8 @@ RETURNS TABLE (
   venue_id uuid,
   venue_name text,
   venue_city text,
+  venue_parent_id uuid,
+  venue_parent_name text,
   festival_id uuid,
   festival_name text,
   price_paid numeric,
@@ -43,6 +45,8 @@ RETURNS TABLE (
       ELSE v.name
     END AS venue_name,
     v.city AS venue_city,
+    v.parent_id AS venue_parent_id,
+    vp.name AS venue_parent_name,
     e.festival_id,
     CASE
       WHEN f.id IS NOT NULL THEN trim(f.name || ' ' || coalesce(f.edition, ''))

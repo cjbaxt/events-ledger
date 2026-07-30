@@ -22,6 +22,8 @@ export interface EventListItem {
   venue_id: string;
   venue_name: string;
   venue_city: string | null;
+  venue_parent_id: string | null;
+  venue_parent_name: string | null;
   festival_id: string | null;
   festival_name: string | null;
   price_paid: string | null;

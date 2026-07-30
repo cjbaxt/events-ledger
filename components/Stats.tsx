@@ -256,25 +256,37 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
 }
 
 function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; n: number; types: Set<string> }>();
+  const counts = new Map<string, { name: string; id: string; parentId: string | null; parentName: string | null; n: number; types: Set<string> }>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
       const prev = counts.get(e.venue_id);
       if (prev) { prev.n++; prev.types.add(e.type); }
-      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, n: 1, types: new Set([e.type]) });
+      else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, parentId: e.venue_parent_id ?? null, parentName: e.venue_parent_name ?? null, n: 1, types: new Set([e.type]) });
     }
   }
-  const ranked = [...counts.values()].filter((v) => v.n > 1).sort((a, b) => b.n - a.n);
-  if (!ranked.length) return <p className="text-sm text-neutral-400">No repeat venues yet.</p>;
+  // IDs that appear as a parent of another venue in this event set — suppress them as top-level rows
+  const childParentIds = new Set([...counts.values()].map((v) => v.parentId).filter(Boolean) as string[]);
+  const ranked = [...counts.values()]
+    .filter((v) => !childParentIds.has(v.id))
+    .sort((a, b) => b.n - a.n);
+  if (!ranked.length) return <p className="text-sm text-neutral-400">No venues yet.</p>;
   return (
     <div className="space-y-1">
       {ranked.map((v, i) => (
-        <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors text-left group">
+        <div key={v.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
-          <span className="flex-1 text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{v.name}</span>
+          <span className="flex-1 text-sm min-w-0">
+            <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-900 hover:underline underline-offset-2 truncate">{v.name}</button>
+            {v.parentId && v.parentName && (
+              <span className="text-neutral-400">
+                <span className="mx-1">·</span>
+                <button onClick={() => onVenueClick(v.parentId!, v.parentName!)} className="hover:underline underline-offset-2">{v.parentName}</button>
+              </span>
+            )}
+          </span>
           <span className="flex gap-1 flex-shrink-0">{[...v.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
           <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
-        </button>
+        </div>
       ))}
     </div>
   );
