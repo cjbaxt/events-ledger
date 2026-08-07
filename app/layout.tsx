@@ -14,8 +14,6 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Ledger" },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -24,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Events Ledger",
     description: "Personal cultural events tracker",
-    images: [{ url: "/icon-512.png", width: 512, height: 512 }],
+    images: [{ url: "https://ledger.claireheaded.com/icon-512.png", width: 512, height: 512 }],
   },
 };
 
