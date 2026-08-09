@@ -348,8 +348,7 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
           {hasEssay && <IconArticle size={12} />}
           My take
         </div>
-        {!editing && !review && <div className="flex items-center gap-2"><EditableRating rating={rating} onRate={onRate} />{ratingContext && <RatingContextBadge context={ratingContext} />}</div>}
-        {!editing && review && rating !== null && <div className="flex items-center gap-2"><span className="text-xs text-neutral-400">{rating}★</span>{ratingContext && <RatingContextBadge context={ratingContext} />}</div>}
+        <div className="flex items-center gap-2"><EditableRating rating={rating} onRate={onRate} />{ratingContext && <RatingContextBadge context={ratingContext} />}</div>
       </div>
       {editing ? (
         <div className="space-y-2">
