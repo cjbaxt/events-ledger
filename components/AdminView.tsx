@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchEvents, updateEvent, patchEventRating, searchEntities } from "@/lib/api";
+import { fetchEvents, updateEvent, patchEventRating, searchEntities, createEntity } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -31,12 +31,18 @@ function StarRating({ rating, onRate }: { rating: number | null; onRate: (r: num
   );
 }
 
-function EntitySearch({ endpoint, placeholder, onSelect, allowCreate = false }: {
-  endpoint: string; placeholder: string; onSelect: (id: string, name: string) => void; allowCreate?: boolean;
+type CreateOption = { endpoint: string; label: string; field: string };
+
+function EntitySearch({ endpoint, placeholder, onSelect, createOptions }: {
+  endpoint: string;
+  placeholder: string;
+  onSelect: (id: string, name: string, field?: string) => void;
+  createOptions?: CreateOption[];
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<{ id: string; name?: string; title?: string }[]>([]);
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -56,20 +62,43 @@ function EntitySearch({ endpoint, placeholder, onSelect, allowCreate = false }: 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  async function handleCreate(opt: CreateOption) {
+    if (!q.trim() || creating) return;
+    setCreating(true);
+    try {
+      const res = await createEntity(opt.endpoint, { name: q.trim() });
+      onSelect(res.id, res.name ?? q.trim(), opt.field);
+      setQ("");
+      setOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const showCreate = createOptions && q.trim().length > 0;
+
   return (
     <div ref={ref} className="relative w-48">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder}
         className="w-full border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400" />
-      {open && (results.length > 0 || (allowCreate && q.trim())) && (
-        <div className="absolute z-20 top-full mt-1 left-0 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden">
+      {open && (results.length > 0 || showCreate) && (
+        <div className="absolute z-20 top-full mt-1 left-0 w-60 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden">
           {results.map((r) => (
             <button key={r.id} className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50"
               onClick={() => { onSelect(r.id, r.name ?? r.title ?? q); setQ(""); setOpen(false); }}>
               {r.name ?? r.title}
             </button>
           ))}
-          {allowCreate && q.trim() && results.length === 0 && (
-            <div className="px-3 py-2 text-xs text-neutral-400 italic">No results</div>
+          {showCreate && (
+            <div className={results.length > 0 ? "border-t border-neutral-100" : ""}>
+              {createOptions.map((opt) => (
+                <button key={opt.endpoint} disabled={creating}
+                  className="w-full text-left px-3 py-2 text-xs text-neutral-400 hover:bg-neutral-50 hover:text-neutral-700 disabled:opacity-50"
+                  onClick={() => handleCreate(opt)}>
+                  + Add &ldquo;{q.trim()}&rdquo; as {opt.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -100,7 +129,7 @@ const ALL_TYPES = [
   "exhibition", "music", "opera", "screening", "spoken_word", "talk", "theatre",
 ];
 
-type TypeMeta = { events: EventListItem[]; field: string; endpoint: string; fieldLabel: string; multi: boolean };
+type TypeMeta = { events: EventListItem[]; field: string; endpoint: string; fieldLabel: string; multi: boolean; createOptions?: CreateOption[] };
 
 function RatingTab({ events }: { events: EventListItem[] }) {
   const today = new Date().toLocaleDateString("sv");
@@ -132,7 +161,7 @@ function VenueTab({ events }: { events: EventListItem[] }) {
   const missing = events.filter((e) => !e.venue_id).sort((a, b) => b.date.localeCompare(a.date));
   const [saved, setSaved] = useState<Set<string>>(new Set());
 
-  async function handleSelect(eventId: string, venueId: string) {
+  async function handleSelect(eventId: string, venueId: string, _field?: string) {
     await updateEvent(eventId, { venue_id: venueId });
     setSaved((s) => new Set([...s, eventId]));
   }
@@ -146,7 +175,8 @@ function VenueTab({ events }: { events: EventListItem[] }) {
       {visible.map((e) => (
         <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
           <EventMeta event={e} />
-          <EntitySearch endpoint="venues" placeholder="Find venue…" onSelect={(id) => handleSelect(e.id, id)} />
+          <EntitySearch endpoint="venues" placeholder="Find venue…" onSelect={(id) => handleSelect(e.id, id)}
+            createOptions={[{ endpoint: "venues", label: "venue", field: "venue_id" }]} />
         </div>
       ))}
     </div>
@@ -219,9 +249,9 @@ function TypeFieldsTab({ events }: { events: EventListItem[] }) {
 
   useEffect(() => { load(type); }, [type, load]);
 
-  async function handleSelect(eventId: string, fieldValue: string) {
+  async function handleSelect(eventId: string, fieldValue: string, fieldOverride?: string) {
     if (!meta) return;
-    await updateEvent(eventId, { [meta.field]: fieldValue });
+    await updateEvent(eventId, { [fieldOverride ?? meta.field]: fieldValue });
     setSaved((s) => new Set([...s, eventId]));
   }
 
@@ -244,7 +274,8 @@ function TypeFieldsTab({ events }: { events: EventListItem[] }) {
             <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
               <EventMeta event={e} />
               <EntitySearch endpoint={meta.endpoint} placeholder={`Find ${meta.fieldLabel.toLowerCase()}…`}
-                onSelect={(id) => handleSelect(e.id, id)} />
+                onSelect={(id, _name, field) => handleSelect(e.id, id, field)}
+                createOptions={meta.createOptions} />
             </div>
           ))}
         </div>
