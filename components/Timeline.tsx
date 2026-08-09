@@ -272,12 +272,12 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
           <YearSummary year={selectedYear} events={yearEvents} paymentMethods={paymentMethods} hiddenTypes={hiddenTypes} totalTypeCount={presentTypes.size}
             onFilter={() => { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }}
             onTypeClick={(type) => {
-              const allInYear = [...new Set(yearEvents.map((e) => e.type))];
-              const isolated = allInYear.every((t) => t === type || hiddenTypes.has(t));
+              const allTypesInYear = [...new Set(allEvents.filter((e) => selectedYear === PRE_BUCKET ? parseInt(e.date.slice(0, 4)) < PRE_YEAR : e.date.startsWith(selectedYear)).map((e) => e.type))];
+              const isolated = allTypesInYear.every((t) => t === type || hiddenTypes.has(t));
               if (isolated) {
                 setHiddenTypes(new Set());
               } else {
-                setHiddenTypes(new Set(allInYear.filter((t) => t !== type)));
+                setHiddenTypes(new Set(allTypesInYear.filter((t) => t !== type)));
               }
               setPageSize(PAGE_SIZE);
             }}
