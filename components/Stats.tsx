@@ -399,7 +399,7 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("By type");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("sv");
   useEffect(() => {
     fetchEvents({ limit: 500 }).then((evts) => setEvents(evts.filter((e) => e.date <= today))).catch(() => {}).finally(() => setLoading(false));
   }, []);

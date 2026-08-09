@@ -5,10 +5,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const [comedyRes, musicRes, cabaretRes, talkRes, spokenWordRes, theatreRes, operaRes, balletRes, classicalRes, creditRes] = await Promise.all([
+  const [comedyRes, comedySupportRes, musicRes, musicSupportRes, cabaretRes, cabaretSupportRes, talkRes, spokenWordRes, theatreRes, operaRes, balletRes, classicalRes, creditRes] = await Promise.all([
     supabase.from("event_comedy").select("event_id").eq("performer_id", id),
+    supabase.from("event_comedy").select("event_id").contains("support_acts", [id]),
     supabase.from("event_music").select("event_id").eq("headliner_person_id", id),
+    supabase.from("event_music").select("event_id").contains("support_act_person_ids", [id]),
     supabase.from("event_cabaret").select("event_id").eq("headliner_id", id),
+    supabase.from("event_cabaret").select("event_id").contains("supporting_cast", [id]),
     supabase.from("event_talk").select("event_id").contains("speaker_ids", [id]),
     supabase.from("event_spoken_word").select("event_id").contains("performers", [id]),
     supabase.from("event_theatre").select("event_id").eq("director_id", id),
@@ -19,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ]);
 
   const ids = new Set<string>();
-  for (const res of [comedyRes, musicRes, cabaretRes, talkRes, spokenWordRes, theatreRes, operaRes, balletRes, classicalRes, creditRes]) {
+  for (const res of [comedyRes, comedySupportRes, musicRes, musicSupportRes, cabaretRes, cabaretSupportRes, talkRes, spokenWordRes, theatreRes, operaRes, balletRes, classicalRes, creditRes]) {
     for (const row of res.data ?? []) ids.add(row.event_id);
   }
 

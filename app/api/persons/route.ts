@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
-  if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   if (!body.name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
   const supabase = createServiceClient();

@@ -9,7 +9,6 @@ import { upsertGCalEvent } from "@/lib/google-calendar";
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
-  if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   const { type, ...fields } = body as { type: string } & Record<string, unknown>;
   if (!type) return NextResponse.json({ error: "type required" }, { status: 400 });

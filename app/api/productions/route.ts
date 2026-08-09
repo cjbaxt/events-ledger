@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
-  if (isGuestRequest(req)) return guestDenied();
   const body = await req.json();
   if (!body.title?.trim()) return NextResponse.json({ error: "Title required" }, { status: 400 });
   const supabase = createServiceClient();

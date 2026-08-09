@@ -330,7 +330,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const deny = await requireOwner(); if (deny) return deny;
-  if (isGuestRequest(req)) return guestDenied();
   const { id } = await params;
   const body = await req.json();
   const supabase = createServiceClient();
@@ -346,18 +345,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (body.extension && typeof body.extension === "object") {
+  // Extension fields: accept either body.extension (explicit) or top-level non-base fields (legacy form format)
+  const baseAllowedSet = new Set([...baseAllowed, "type", "credits"]);
+  const rawExt = body.extension && typeof body.extension === "object"
+    ? body.extension as Record<string, unknown>
+    : Object.fromEntries(Object.entries(body).filter(([k]) => !baseAllowedSet.has(k)));
+  const creditsArr = Array.isArray(body.extension?.credits) ? body.extension.credits
+    : Array.isArray(body.credits) ? body.credits : null;
+
+  const hasExt = Object.keys(rawExt).length > 0;
+  if (hasExt || creditsArr) {
     const { data: ev } = await supabase.from("event").select("type").eq("id", id).single();
     if (ev) {
       const extTable = extensionTable(ev.type);
-      if (extTable) {
-        const ext = body.extension as Record<string, unknown>;
-        const { error: extErr } = await supabase.from(extTable).upsert({ event_id: id, ...ext });
+      if (extTable && hasExt) {
+        const { error: extErr } = await supabase.from(extTable).upsert({ event_id: id, ...rawExt });
         if (extErr) console.error("Extension update error:", extErr);
       }
-      if (Array.isArray(body.extension.credits)) {
+      if (creditsArr) {
         await supabase.from("event_credit").delete().eq("event_id", id);
-        const credits = body.extension.credits as Array<{ role: string; person_id: string; sort_order: number }>;
+        const credits = creditsArr as Array<{ role: string; person_id: string; sort_order: number }>;
         if (credits.length) await supabase.from("event_credit").insert(credits.map((c) => ({ event_id: id, ...c })));
       }
     }
@@ -399,7 +406,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const deny = await requireOwner(); if (deny) return deny;
-  if (isGuestRequest(_req)) return guestDenied();
   const { id } = await params;
   const supabase = createServiceClient();
 
