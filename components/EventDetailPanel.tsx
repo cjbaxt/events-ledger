@@ -330,13 +330,14 @@ function DescriptionBlock({ aiSummary, fullDescription, sourceUrl }: { aiSummary
   );
 }
 
-function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onRate }: {
-  review: string | null; links: Array<{ url: string; label?: string; description?: string }> | null;
+function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveReview, onRate }: {
+  eventId: string; review: string | null; links: Array<{ url: string; label?: string; description?: string }> | null;
   rating: number | null; ratingContext: string | null;
   onSaveReview: (text: string | null) => void; onRate: (r: number | null) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(review ?? "");
+  const storageKey = `review_draft_${eventId}`;
+  const [draft, setDraft] = useState(() => { try { return localStorage.getItem(storageKey) ?? review ?? ""; } catch { return review ?? ""; } });
+  const [editing, setEditing] = useState(() => { try { return !!localStorage.getItem(storageKey); } catch { return false; } });
   const hasContent = review || (links && links.length > 0);
   const hasEssay = !!(links && links.some(l => l.url?.includes("cultural-dispatch")));
   return (
@@ -352,11 +353,11 @@ function ReviewSection({ review, links, rating, ratingContext, onSaveReview, onR
       </div>
       {editing ? (
         <div className="space-y-2">
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write something…" autoFocus rows={4} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed" />
+          <textarea value={draft} onChange={(e) => { setDraft(e.target.value); try { localStorage.setItem(storageKey, e.target.value); } catch {} }} placeholder="Write something…" autoFocus rows={4} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed" />
           <div className="flex items-center gap-2">
-            <button onClick={() => { onSaveReview(draft.trim() || null); setEditing(false); }} className="flex items-center gap-1 text-xs text-neutral-700 border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50"><IconCheck size={12} /> Save</button>
-            <button onClick={() => { setDraft(review ?? ""); setEditing(false); }} className="text-xs text-neutral-400">Cancel</button>
-            {review && <button onClick={() => { setDraft(""); onSaveReview(null); setEditing(false); }} className="text-xs text-neutral-300 hover:text-red-400 ml-auto">Remove</button>}
+            <button onClick={() => { onSaveReview(draft.trim() || null); try { localStorage.removeItem(storageKey); } catch {} setEditing(false); }} className="flex items-center gap-1 text-xs text-neutral-700 border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50"><IconCheck size={12} /> Save</button>
+            <button onClick={() => { setDraft(review ?? ""); try { localStorage.removeItem(storageKey); } catch {} setEditing(false); }} className="text-xs text-neutral-400">Cancel</button>
+            {review && <button onClick={() => { setDraft(""); onSaveReview(null); try { localStorage.removeItem(storageKey); } catch {} setEditing(false); }} className="text-xs text-neutral-300 hover:text-red-400 ml-auto">Remove</button>}
           </div>
         </div>
       ) : (
@@ -475,7 +476,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                     ) : null
                   ) : (
                     <ReviewSection
-                      review={event.review} links={event.links} rating={event.rating} ratingContext={event.rating_context}
+                      eventId={event.id} review={event.review} links={event.links} rating={event.rating} ratingContext={event.rating_context}
                       onSaveReview={(text) => { setEvent((prev) => prev ? { ...prev, review: text } : prev); patchEventReview(event.id, text).catch(() => fetchEvent(event.id).then(setEvent)); }}
                       onRate={(r) => { setEvent((prev) => prev ? { ...prev, rating: r } : prev); patchEventRating(event.id, r).catch(() => fetchEvent(event.id).then(setEvent)); }}
                     />

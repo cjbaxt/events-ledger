@@ -85,14 +85,16 @@ function SpendStat({ spend }: { spend: number }) {
   );
 }
 
-function YearSummary({ events, year, paymentMethods, hiddenTypes, totalTypeCount, onFilter }: {
+function YearSummary({ events, year, paymentMethods, hiddenTypes, totalTypeCount, onFilter, onTypeClick }: {
   events: EventListItem[]; year: string; paymentMethods: PaymentMethod[];
   hiddenTypes: Set<string>; totalTypeCount: number; onFilter: () => void;
+  onTypeClick: (type: string) => void;
 }) {
   const types = topTypes(events);
   const rated = events.filter((e) => e.rating);
   const avgRating = rated.length ? rated.reduce((s, e) => s + (e.rating ?? 0), 0) / rated.length : null;
   const spend = totalSpendEur(events, paymentMethods, year);
+  const allTypesInYear = [...new Set(events.map((e) => e.type))];
   return (
     <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4">
       <div className="flex items-baseline justify-between mb-3">
@@ -123,13 +125,17 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, totalTypeCount
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
           <span className="text-[10px] uppercase tracking-widest text-neutral-400 flex-shrink-0">Top</span>
-          {types.map(([type, count]) => (
-            <div key={type} className="flex items-center gap-1 bg-neutral-50 border border-neutral-100 rounded-full px-2 py-1 flex-shrink-0">
-              <div className="w-4 h-4 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-500"><EventTypeIcon type={type} size={10} /></div>
-              <span className="hidden sm:inline text-xs text-neutral-500 capitalize">{type.replace("_", " ")}</span>
-              <span className="text-xs text-neutral-300">{count}</span>
-            </div>
-          ))}
+          {types.map(([type, count]) => {
+            const isolated = allTypesInYear.every((t) => t === type || hiddenTypes.has(t));
+            return (
+              <button key={type} onClick={() => onTypeClick(type)}
+                className={`flex items-center gap-1 rounded-full px-2 py-1 flex-shrink-0 border transition-colors ${isolated ? "bg-neutral-900 border-neutral-900" : "bg-neutral-50 border-neutral-100 hover:border-neutral-300"}`}>
+                <div className={`w-4 h-4 border rounded-full flex items-center justify-center ${isolated ? "border-white/30 text-white" : "border-neutral-200 text-neutral-500"}`}><EventTypeIcon type={type} size={10} /></div>
+                <span className={`hidden sm:inline text-xs capitalize ${isolated ? "text-white" : "text-neutral-500"}`}>{type.replace("_", " ")}</span>
+                <span className={`text-xs ${isolated ? "text-white/70" : "text-neutral-300"}`}>{count}</span>
+              </button>
+            );
+          })}
         </div>
         <button
           onClick={onFilter}
@@ -263,7 +269,19 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
     <>
       <div>
         {selectedYear && (
-          <YearSummary year={selectedYear} events={yearEvents} paymentMethods={paymentMethods} hiddenTypes={hiddenTypes} totalTypeCount={presentTypes.size} onFilter={() => { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }} />
+          <YearSummary year={selectedYear} events={yearEvents} paymentMethods={paymentMethods} hiddenTypes={hiddenTypes} totalTypeCount={presentTypes.size}
+            onFilter={() => { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }}
+            onTypeClick={(type) => {
+              const allInYear = [...new Set(yearEvents.map((e) => e.type))];
+              const isolated = allInYear.every((t) => t === type || hiddenTypes.has(t));
+              if (isolated) {
+                setHiddenTypes(new Set());
+              } else {
+                setHiddenTypes(new Set(allInYear.filter((t) => t !== type)));
+              }
+              setPageSize(PAGE_SIZE);
+            }}
+          />
         )}
         {selectedYear && Object.keys(pagedMonthGrouped).sort((a, b) => b.localeCompare(a)).map((month) => (
           <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} openEventId={openEventId} />
