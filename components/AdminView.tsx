@@ -186,7 +186,7 @@ function PriceRow({ event, onSaved }: { event: EventListItem; onSaved: () => voi
 }
 
 function PriceTab({ events }: { events: EventListItem[] }) {
-  const missing = events.filter((e) => e.price_paid === null).sort((a, b) => b.date.localeCompare(a.date));
+  const missing = events.filter((e) => e.price_paid === null && !(e.type === "exhibition" && e.payment_method_id)).sort((a, b) => b.date.localeCompare(a.date));
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const visible = missing.filter((e) => !saved.has(e.id));
   if (visible.length === 0) return <Empty label="All events have a price" />;
