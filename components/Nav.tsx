@@ -50,6 +50,9 @@ export default function Nav() {
             </div>
           ) : (
             <>
+              <Link href="/admin" className={`text-sm transition-colors ${pathname === "/admin" ? "text-neutral-900" : "text-neutral-400 hover:text-neutral-700"}`}>
+                Admin
+              </Link>
               <Link href="/add" className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
                 <IconPlus size={16} />
                 Add event

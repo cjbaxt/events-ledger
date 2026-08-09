@@ -1,0 +1,291 @@
+"use client";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { fetchEvents, updateEvent, patchEventRating, searchEntities } from "@/lib/api";
+import type { EventListItem } from "@/lib/types";
+import EventTypeIcon from "./EventTypeIcon";
+
+// ── Tiny inline components ────────────────────────────────────────────────────
+
+function StarRating({ rating, onRate }: { rating: number | null; onRate: (r: number | null) => void }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const displayed = hover ?? rating ?? 0;
+  return (
+    <div className="flex gap-0.5" onMouseLeave={() => setHover(null)}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fill = Math.min(1, Math.max(0, displayed - (star - 1)));
+        const half = fill === 0.5;
+        const full = fill === 1;
+        return (
+          <div key={star} className="cursor-pointer w-5 h-5 flex items-center justify-center"
+            onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover(e.clientX - r.left < r.width / 2 ? star - 0.5 : star); }}
+            onClick={() => { const next = hover ?? null; onRate(next === rating ? null : next); }}>
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <defs><clipPath id={`h${star}`}><rect x="0" y="0" width="8" height="16" /></clipPath></defs>
+              <path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z" fill={full ? "#a3a3a3" : "none"} stroke="#d4d4d4" strokeWidth="1" />
+              {half && <path d="M8 1l1.8 3.6 4 .6-2.9 2.8.7 4L8 10l-3.6 1.9.7-4L2.2 5.2l4-.6z" fill="#a3a3a3" clipPath={`url(#h${star})`} />}
+            </svg>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EntitySearch({ endpoint, placeholder, onSelect, allowCreate = false }: {
+  endpoint: string; placeholder: string; onSelect: (id: string, name: string) => void; allowCreate?: boolean;
+}) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<{ id: string; name?: string; title?: string }[]>([]);
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); setOpen(false); return; }
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      const items = await searchEntities(endpoint, q);
+      setResults(items);
+      setOpen(true);
+    }, 200);
+  }, [q, endpoint]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative w-48">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder}
+        className="w-full border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400" />
+      {open && (results.length > 0 || (allowCreate && q.trim())) && (
+        <div className="absolute z-20 top-full mt-1 left-0 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden">
+          {results.map((r) => (
+            <button key={r.id} className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50"
+              onClick={() => { onSelect(r.id, r.name ?? r.title ?? q); setQ(""); setOpen(false); }}>
+              {r.name ?? r.title}
+            </button>
+          ))}
+          {allowCreate && q.trim() && results.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-400 italic">No results</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Row components ────────────────────────────────────────────────────────────
+
+function EventMeta({ event }: { event: EventListItem }) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-neutral-400">
+        <EventTypeIcon type={event.type} size={14} />
+      </span>
+      <span className="text-[10px] text-neutral-400 flex-shrink-0 w-20">{event.date}</span>
+      <span className="text-sm text-neutral-800 truncate">{event.title}</span>
+    </div>
+  );
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+const CURRENCIES = ["GBP", "EUR", "USD", "CHF", "SEK", "DKK", "NOK"];
+
+const ALL_TYPES = [
+  "ballet", "cabaret", "circus", "classical", "comedy", "dance",
+  "exhibition", "music", "opera", "screening", "spoken_word", "talk", "theatre",
+];
+
+type TypeMeta = { events: EventListItem[]; field: string; endpoint: string; fieldLabel: string; multi: boolean };
+
+function RatingTab({ events }: { events: EventListItem[] }) {
+  const missing = events.filter((e) => e.rating === null).sort((a, b) => b.date.localeCompare(a.date));
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+
+  async function handleRate(id: string, r: number | null) {
+    await patchEventRating(id, r);
+    if (r !== null) setSaved((s) => new Set([...s, id]));
+  }
+
+  const visible = missing.filter((e) => !saved.has(e.id));
+  if (visible.length === 0) return <Empty label="All events have a rating" />;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{visible.length} events without a rating</div>
+      {visible.map((e) => (
+        <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+          <EventMeta event={e} />
+          <StarRating rating={null} onRate={(r) => handleRate(e.id, r)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VenueTab({ events }: { events: EventListItem[] }) {
+  const missing = events.filter((e) => !e.venue_id).sort((a, b) => b.date.localeCompare(a.date));
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+
+  async function handleSelect(eventId: string, venueId: string) {
+    await updateEvent(eventId, { venue_id: venueId });
+    setSaved((s) => new Set([...s, eventId]));
+  }
+
+  const visible = missing.filter((e) => !saved.has(e.id));
+  if (visible.length === 0) return <Empty label="All events have a venue" />;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{visible.length} events without a venue</div>
+      {visible.map((e) => (
+        <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+          <EventMeta event={e} />
+          <EntitySearch endpoint="venues" placeholder="Find venue…" onSelect={(id) => handleSelect(e.id, id)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PriceRow({ event, onSaved }: { event: EventListItem; onSaved: () => void }) {
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("GBP");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!amount.trim()) return;
+    setSaving(true);
+    await updateEvent(event.id, { price_paid: amount.trim(), currency });
+    onSaved();
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+      <EventMeta event={event} />
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <select value={currency} onChange={(e) => setCurrency(e.target.value)}
+          className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400">
+          {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+        </select>
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          className="w-20 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400" />
+        <button onClick={save} disabled={saving || !amount.trim()}
+          className="px-2.5 py-1.5 text-xs bg-neutral-900 text-white rounded-lg disabled:opacity-30 hover:bg-neutral-700 transition-colors">
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PriceTab({ events }: { events: EventListItem[] }) {
+  const missing = events.filter((e) => e.price_paid === null).sort((a, b) => b.date.localeCompare(a.date));
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const visible = missing.filter((e) => !saved.has(e.id));
+  if (visible.length === 0) return <Empty label="All events have a price" />;
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{visible.length} events without a price</div>
+      {visible.map((e) => (
+        <PriceRow key={e.id} event={e} onSaved={() => setSaved((s) => new Set([...s, e.id]))} />
+      ))}
+    </div>
+  );
+}
+
+function TypeFieldsTab({ events }: { events: EventListItem[] }) {
+  const [type, setType] = useState<string>("music");
+  const [meta, setMeta] = useState<TypeMeta | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+
+  const load = useCallback(async (t: string) => {
+    setLoading(true);
+    setSaved(new Set());
+    const res = await fetch(`/api/admin/missing?type=${t}`);
+    const data = await res.json();
+    // Join with full event list for title/date/type
+    const byId = new Map(events.map((e) => [e.id, e]));
+    setMeta({ ...data, events: (data.events ?? []).map((r: { id: string }) => byId.get(r.id)).filter(Boolean) });
+    setLoading(false);
+  }, [events]);
+
+  useEffect(() => { load(type); }, [type, load]);
+
+  async function handleSelect(eventId: string, fieldValue: string) {
+    if (!meta) return;
+    await updateEvent(eventId, { [meta.field]: fieldValue });
+    setSaved((s) => new Set([...s, eventId]));
+  }
+
+  const visible = (meta?.events ?? []).filter((e: EventListItem) => !saved.has(e.id));
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <select value={type} onChange={(e) => setType(e.target.value)}
+          className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 focus:outline-none focus:border-neutral-400">
+          {ALL_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
+        </select>
+        {meta && <span className="text-[10px] uppercase tracking-widest text-neutral-400">{visible.length} missing {meta.fieldLabel.toLowerCase()}</span>}
+      </div>
+      {loading && <div className="text-sm text-neutral-400">Loading…</div>}
+      {!loading && visible.length === 0 && meta && <Empty label={`All ${type} events have a ${meta.fieldLabel.toLowerCase()}`} />}
+      {!loading && visible.length > 0 && meta && (
+        <div className="space-y-1">
+          {visible.map((e: EventListItem) => (
+            <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+              <EventMeta event={e} />
+              <EntitySearch endpoint={meta.endpoint} placeholder={`Find ${meta.fieldLabel.toLowerCase()}…`}
+                onSelect={(id) => handleSelect(e.id, id)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Empty({ label }: { label: string }) {
+  return <div className="py-12 text-center text-sm text-neutral-300">{label}</div>;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+const TABS = ["Rating", "Venue", "Price", "Type fields"] as const;
+type Tab = typeof TABS[number];
+
+export default function AdminView() {
+  const [events, setEvents] = useState<EventListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>("Rating");
+
+  useEffect(() => {
+    fetchEvents({ limit: 500 }).then(setEvents).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-20 text-center text-sm text-neutral-300 tracking-widest uppercase">Loading…</div>;
+
+  return (
+    <div>
+      <div className="flex gap-1 mb-8 border-b border-neutral-100">
+        {TABS.map((t) => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-sm transition-colors border-b-2 -mb-px ${tab === t ? "border-neutral-900 text-neutral-900 font-medium" : "border-transparent text-neutral-400 hover:text-neutral-700"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {tab === "Rating"      && <RatingTab events={events} />}
+      {tab === "Venue"       && <VenueTab events={events} />}
+      {tab === "Price"       && <PriceTab events={events} />}
+      {tab === "Type fields" && <TypeFieldsTab events={events} />}
+    </div>
+  );
+}
