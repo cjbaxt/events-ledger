@@ -103,7 +103,8 @@ const ALL_TYPES = [
 type TypeMeta = { events: EventListItem[]; field: string; endpoint: string; fieldLabel: string; multi: boolean };
 
 function RatingTab({ events }: { events: EventListItem[] }) {
-  const missing = events.filter((e) => e.rating === null).sort((a, b) => b.date.localeCompare(a.date));
+  const today = new Date().toLocaleDateString("sv");
+  const missing = events.filter((e) => e.rating === null && e.date <= today).sort((a, b) => b.date.localeCompare(a.date));
   const [saved, setSaved] = useState<Set<string>>(new Set());
 
   async function handleRate(id: string, r: number | null) {
