@@ -284,13 +284,55 @@ function TypeFieldsTab({ events }: { events: EventListItem[] }) {
   );
 }
 
+function VenueScaleTab() {
+  const [venues, setVenues] = useState<{ id: string; name: string; city: string | null; country: string | null }[]>([]);
+  const [scaleOptions, setScaleOptions] = useState<string[]>([]);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/venue-scale").then((r) => r.json()).then((d) => {
+      setVenues(d.venues ?? []);
+      setScaleOptions(d.scaleOptions ?? []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  async function handleScale(id: string, scale: string) {
+    await fetch("/api/admin/venue-scale", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, scale }) });
+    setSaved((s) => new Set([...s, id]));
+  }
+
+  if (loading) return <div className="text-sm text-neutral-400">Loading…</div>;
+  const visible = venues.filter((v) => !saved.has(v.id));
+  if (visible.length === 0) return <Empty label="All venues have a scale" />;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{visible.length} venues without a scale</div>
+      {visible.map((v) => (
+        <div key={v.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+          <div className="min-w-0">
+            <div className="text-sm text-neutral-800 truncate">{v.name}</div>
+            {(v.city || v.country) && <div className="text-xs text-neutral-400">{[v.city, v.country].filter(Boolean).join(", ")}</div>}
+          </div>
+          <select defaultValue="" onChange={(e) => { if (e.target.value) handleScale(v.id, e.target.value); }}
+            className="flex-shrink-0 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-neutral-400">
+            <option value="" disabled>Pick scale…</option>
+            {scaleOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Empty({ label }: { label: string }) {
   return <div className="py-12 text-center text-sm text-neutral-300">{label}</div>;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const TABS = ["Rating", "Venue", "Price", "Type fields"] as const;
+const TABS = ["Rating", "Venue", "Price", "Type fields", "Venue scale"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminView() {
@@ -318,6 +360,7 @@ export default function AdminView() {
       {tab === "Venue"       && <VenueTab events={events} />}
       {tab === "Price"       && <PriceTab events={events} />}
       {tab === "Type fields" && <TypeFieldsTab events={events} />}
+      {tab === "Venue scale" && <VenueScaleTab />}
     </div>
   );
 }

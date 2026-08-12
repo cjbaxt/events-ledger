@@ -193,9 +193,9 @@ function SimpleCreateForm({ endpoint, initialName, fields, onCreated, onCancel }
   );
 }
 
-function SearchCombo({ label, endpoint, value, onChange, optional = true, displayFn, allowCreate = true, initialQuery = "" }: {
+function SearchCombo({ label, endpoint, value, onChange, optional = true, displayFn, allowCreate = true, initialQuery = "", showOnFocus = false }: {
   label: string; endpoint: string; value: NamedRef | null; onChange: (v: NamedRef | null) => void;
-  optional?: boolean; displayFn?: (item: Record<string, unknown>) => string; allowCreate?: boolean; initialQuery?: string;
+  optional?: boolean; displayFn?: (item: Record<string, unknown>) => string; allowCreate?: boolean; initialQuery?: string; showOnFocus?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<NamedRef[]>([]);
@@ -208,16 +208,17 @@ function SearchCombo({ label, endpoint, value, onChange, optional = true, displa
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+  const minLen = showOnFocus ? 0 : 2;
   useEffect(() => {
-    if (query.length < 2) { setResults([]); setOpen(false); return; }
+    if (query.length < minLen) { setResults([]); setOpen(false); return; }
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       const items = await searchEntities(endpoint, query);
       setResults(items.map((i) => ({ id: i.id, name: displayFn ? displayFn(i as Record<string, unknown>) : (i.name ?? i.title ?? String(i.id)) })));
-      setOpen(true);
+      setOpen(items.length > 0);
     }, 280);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [query, endpoint, displayFn]);
+  }, [query, endpoint, displayFn, minLen]);
   const canCreate = allowCreate && (endpoint in CREATE_FIELDS || endpoint === "venues");
   function handleCreated(v: NamedRef) { onChange(v); setQuery(""); setOpen(false); setCreating(false); }
   if (value) {
@@ -232,7 +233,8 @@ function SearchCombo({ label, endpoint, value, onChange, optional = true, displa
     <div ref={ref}>
       <label className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1.5">{label}{!optional && <span className="text-red-400 ml-0.5">*</span>}</label>
       <div className="relative">
-        <input type="text" value={query} onChange={(e) => { setQuery(e.target.value); setCreating(false); }} placeholder={`Search ${label.toLowerCase()}…`} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400" />
+        <input type="text" value={query} onChange={(e) => { setQuery(e.target.value); setCreating(false); }} placeholder={`Search ${label.toLowerCase()}…`} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400"
+          onFocus={() => { if (showOnFocus && query.length < 2) { searchEntities(endpoint, query).then((items) => { setResults(items.map((i) => ({ id: i.id, name: displayFn ? displayFn(i as Record<string, unknown>) : (i.name ?? i.title ?? String(i.id)) }))); setOpen(items.length > 0); }); } }} />
         {open && (results.length > 0 || canCreate) && !creating && (
           <div className="absolute z-20 top-full mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
             {results.map((r) => <button key={r.id} type="button" onMouseDown={() => { onChange(r); setQuery(""); setOpen(false); }} className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">{r.name}</button>)}
@@ -709,7 +711,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
               <div className="col-span-2"><Field label="Price paid"><input type="number" step="0.01" className={inputCls} value={(base.price_paid as string) ?? ""} onChange={(e) => setBaseField("price_paid", e.target.value)} placeholder="0.00" /></Field></div>
               <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
             </div>
-            <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} />
+            <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} showOnFocus />
             {SUBTYPES[type!] && (
               <Field label="Subtype">
                 <input className={inputCls} list={`subtypes-${type}`} value={(base.subtype as string) ?? ""} onChange={(e) => setBaseField("subtype", e.target.value)} placeholder="select or type a subtype" />
