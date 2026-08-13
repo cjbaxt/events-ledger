@@ -360,7 +360,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const extTable = extensionTable(ev.type);
       if (extTable && hasExt) {
         const { error: extErr } = await supabase.from(extTable).upsert({ event_id: id, ...rawExt });
-        if (extErr) console.error("Extension update error:", extErr);
+        if (extErr) return NextResponse.json({ error: extErr.message }, { status: 500 });
       }
       if (creditsArr) {
         await supabase.from("event_credit").delete().eq("event_id", id);
