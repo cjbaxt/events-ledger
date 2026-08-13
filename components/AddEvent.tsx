@@ -215,7 +215,7 @@ function SearchCombo({ label, endpoint, value, onChange, optional = true, displa
     timer.current = setTimeout(async () => {
       const items = await searchEntities(endpoint, query);
       setResults(items.map((i) => ({ id: i.id, name: displayFn ? displayFn(i as Record<string, unknown>) : (i.name ?? i.title ?? String(i.id)) })));
-      setOpen(items.length > 0);
+      setOpen(items.length > 0 || allowCreate);
     }, 280);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query, endpoint, displayFn, minLen]);
