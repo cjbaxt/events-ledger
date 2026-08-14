@@ -136,7 +136,7 @@ export default async function Fringe2026Page() {
         `}</style>
 
         {/* Masthead */}
-        <div className="border-b-2 border-[#002B49] pb-8 pt-10">
+        <div className="border-b-2 border-[#002B49] pb-8 pt-24 md:pt-24">
           <div className="max-w-3xl mx-auto px-6">
             <div className="flex items-start gap-6 sm:gap-8 mb-5">
               <img src="/logo-ed-fringe-roundel.svg" width="96" height="96" alt="Edinburgh Festival Fringe" className="shrink-0 mt-1" />
