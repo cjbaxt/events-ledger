@@ -6,7 +6,14 @@ import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 import { IconWriting, IconArticle } from "@tabler/icons-react";
 
-function FringeBadge() {
+function FringeBadge({ year }: { year: string }) {
+  if (year === "2026") {
+    return (
+      <a href="/fringe/2026" onClick={e => e.stopPropagation()} title="Edinburgh Fringe 2026 — your year in review">
+        <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0 hover:opacity-70 transition-opacity" />
+      </a>
+    );
+  }
   return <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0" />;
 }
 
@@ -163,7 +170,7 @@ function EventCard({ event, onClick, active }: { event: EventListItem; onClick: 
         <EventTypeIcon type={event.type} size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-serif text-sm font-medium text-neutral-900 truncate flex items-center gap-1.5">{event.festival_name?.toLowerCase().includes("fringe") && <FringeBadge />}{event.title}</div>
+        <div className="font-serif text-sm font-medium text-neutral-900 truncate flex items-center gap-1.5">{event.festival_name?.toLowerCase().includes("fringe") && <FringeBadge year={event.date.slice(0, 4)} />}{event.title}</div>
         <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">

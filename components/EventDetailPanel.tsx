@@ -486,7 +486,13 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                 return (
                   <div>
                     <div className="flex items-start gap-2 mb-1">
-                      {(("festival_name" in e ? e.festival_name : (e as EventDetail).festival?.name) ?? "").toLowerCase().includes("fringe") && <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />}
+                      {(("festival_name" in e ? e.festival_name : (e as EventDetail).festival?.name) ?? "").toLowerCase().includes("fringe") && (() => {
+                        const year = e.date.slice(0, 4);
+                        const img = <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />;
+                        return year === "2026"
+                          ? <a href="/fringe/2026" title="Edinburgh Fringe 2026 — your year in review" className="hover:opacity-70 transition-opacity flex-shrink-0">{img}</a>
+                          : img;
+                      })()}
                       <h2 className="font-serif text-2xl text-neutral-900 leading-snug">{e.title}</h2>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-neutral-400">
