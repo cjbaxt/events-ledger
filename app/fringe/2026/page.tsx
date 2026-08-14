@@ -27,12 +27,6 @@ async function getFringeEvents(): Promise<FringeEvent[]> {
   return (data ?? []) as unknown as FringeEvent[];
 }
 
-function stars(r: number) {
-  const full = Math.floor(r);
-  const half = r % 1 >= 0.5;
-  return "★".repeat(full) + (half ? "½" : "");
-}
-
 function avg(events: FringeEvent[]) {
   const rated = events.filter(e => e.rating !== null);
   if (!rated.length) return null;
@@ -99,11 +93,13 @@ const PULLQUOTES: Array<{ text: string; source: string }> = [
   { text: "Did I join a cult? I think I did. OH JILL!", source: "Jill's Tupperware Party" },
   { text: "Pure fringe — weird and wonderful, queer art.", source: "Bi-Curious George" },
   { text: "Broadway level singing, they had some Pipes.", source: "Heated Rivalry" },
-  { text: "The creepiest bit was the woman whispering right in your ear ‘what about this one?’", source: "COMA" },
+  { text: "The creepiest bit was the woman whispering right in your ear 'what about this one?'", source: "COMA" },
   { text: "Seriously fringe. Seriously insane. Seriously loved it.", source: "Jill's Tupperware Party" },
   { text: "One of the best parts was looking across at the blank stares of the two Gen Z-ers in the front row who were missing half of the references.", source: "YUCK Circus: Naughties" },
 ];
 // ──────────────────────────────────────────────────────────────────────────
+
+const N = { navy: "#002B49", darkNavy: "#00243D", blue: "#E3ECF3", salmon: "#E85462", yellow: "#FFCE00", muted: "#6B8FA8", border: "#1A4462" };
 
 export default async function Fringe2026Page() {
   const events = await getFringeEvents();
@@ -119,225 +115,239 @@ export default async function Fringe2026Page() {
     return b.rating - a.rating;
   });
   const byType = TYPE_ORDER.map(t => ({ type: t, events: events.filter(e => e.type === t) })).filter(g => g.events.length);
+  const fiveStars = events.filter(e => e.rating === 5);
   const generated = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+  const sans: React.CSSProperties = { fontFamily: "var(--font-sans), system-ui, sans-serif" };
+  const serif: React.CSSProperties = { fontFamily: "var(--font-serif), Georgia, serif" };
 
   return (
     <>
       <Nav />
-      <main className="min-h-screen bg-[#FAFAF8]">
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap');
-          .fringe-display { font-family: 'DM Serif Display', var(--font-serif), Georgia, serif; }
-          .fringe-serif   { font-family: var(--font-serif), Georgia, serif; }
-          .fringe-sans    { font-family: var(--font-sans), system-ui, sans-serif; }
-          .fringe-navy    { color: #002B49; }
-          .fringe-salmon  { color: #E85462; }
-          .fringe-yellow  { color: #FFCE00; }
-        `}</style>
+      <main style={{ ...sans, minHeight: "100vh" }}>
 
-        {/* Masthead */}
-        <div className="border-b-2 border-[#002B49] pb-8 pt-24 md:pt-24">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="flex items-start gap-6 sm:gap-8 mb-5">
-              <img src="/logo-ed-fringe-roundel.svg" width="96" height="96" alt="Edinburgh Festival Fringe" className="shrink-0 mt-1" />
+        {/* ── HERO — full navy ─────────────────────────────── */}
+        <section style={{ background: N.navy, paddingTop: "calc(3.5rem + 56px)", paddingBottom: "4rem" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "2rem", marginBottom: "2rem" }}>
+              <img src="/logo-ed-fringe-roundel.svg" width="72" height="72" alt="Edinburgh Festival Fringe" style={{ flexShrink: 0, marginTop: "0.25rem" }} />
               <div>
-                <div className="fringe-sans text-[0.6rem] font-bold tracking-[0.22em] uppercase text-[#002B49] mb-4">Edinburgh Festival Fringe · August 2026</div>
-                <h1 className="fringe-display text-5xl sm:text-7xl font-bold leading-none tracking-tight mb-4 text-neutral-900">
-                  Edinburgh<br /><span className="text-[#002B49]">Fringe 2026.</span>
-                </h1>
-                <p className="fringe-sans text-sm text-[#8A8078] max-w-md leading-relaxed">
-                  A retrospective of {events.length} shows across {days.length} days, 8–17 August 2026.
+                <p style={{ color: N.muted, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
+                  Edinburgh Festival Fringe · August 2026
                 </p>
+                <h1 style={{ color: "#fff", fontSize: "clamp(2.75rem, 8vw, 5.5rem)", fontWeight: 900, lineHeight: 1, letterSpacing: "-0.03em", margin: 0 }}>
+                  Edinburgh<br /><span style={{ color: N.yellow }}>Fringe</span> 2026.
+                </h1>
               </div>
             </div>
-            <div className="flex gap-0 mt-7 pt-6 border-t border-[#D4DDE6] flex-wrap">
+            <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
+              A retrospective of {events.length} shows across {days.length} days, 8–17 August 2026.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderTop: `1px solid ${N.border}` }}>
               {[
-                { val: events.length.toString(), label: "Shows" },
+                { val: String(events.length), label: "Shows seen" },
                 { val: `£${gbp.toFixed(0)}${eur > 0 ? ` + €${eur.toFixed(0)}` : ""}`, label: "Spent" },
-                { val: overallAvg ? overallAvg : "—", label: "Avg rating", star: !!overallAvg },
-                { val: rated.length.toString(), label: "Reviews written" },
+                { val: overallAvg ? String(overallAvg) : "—", label: "Avg rating", star: !!overallAvg },
+                { val: String(fiveStars.length), label: "Five-star nights" },
               ].map((s, i, arr) => (
-                <div key={s.label} className={`pr-8 mr-8 ${i < arr.length - 1 ? "border-r border-[#D4DDE6]" : ""} mb-4`}>
-                  <div className="fringe-sans text-3xl font-bold text-[#002B49] tabular-nums leading-none">{s.val}{"star" in s && s.star && <span className="text-[#FFCE00]">★</span>}</div>
-                  <div className="fringe-sans text-[0.6rem] tracking-[0.12em] uppercase text-[#8A8078] mt-1">{s.label}</div>
+                <div key={s.label} style={{ paddingRight: "2.5rem", marginRight: i < arr.length - 1 ? "2.5rem" : 0, borderRight: i < arr.length - 1 ? `1px solid ${N.border}` : "none", paddingTop: "1.5rem" }}>
+                  <div style={{ color: "#fff", fontSize: "clamp(1.75rem, 5vw, 2.75rem)", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                    {s.val}{"star" in s && s.star && <span style={{ color: N.yellow }}>★</span>}
+                  </div>
+                  <div style={{ color: N.muted, fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", marginTop: "0.3rem" }}>{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Genre breakdown */}
-        <section className="border-t border-[#D4DDE6] py-14">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-8">What you saw</div>
+        {/* ── WHAT YOU SAW — white ─────────────────────────── */}
+        <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "0.4rem" }}>What you saw</p>
+            <h2 style={{ ...serif, color: N.navy, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", fontWeight: 700, lineHeight: 1.15, marginBottom: "3rem" }}>
+              {events.length} shows.<br />{byType.length} genres.<br />Zero regrets.
+            </h2>
             {byType.map(({ type, events: te }) => {
               const typeAvg = avg(te);
               const analysis = GENRE_ANALYSIS[type];
               return (
-                <div key={type} className="mb-10 last:mb-0">
-                  <div className="flex items-baseline gap-4 pb-3 border-b border-[#D4DDE6] mb-3">
-                    <div className="fringe-sans text-base font-bold capitalize text-[#E85462]">{type}</div>
-                    <div className="fringe-sans text-[0.65rem] tracking-widest uppercase text-[#8A8078]">{te.length} show{te.length > 1 ? "s" : ""}</div>
-                    {typeAvg && <div className="fringe-sans text-[0.7rem] text-[#8A8078] ml-auto tabular-nums">avg <strong className="text-neutral-900">{typeAvg}<span className="text-[#FFCE00]">★</span></strong></div>}
-                  </div>
-                  <div className="flex gap-2 flex-wrap mb-3">
-                    {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
-                      <div key={e.id} className={`fringe-sans text-[0.65rem] px-2 py-1 border rounded-sm flex items-center gap-1.5 ${e.rating && e.rating >= 4.5 ? "border-[#002B49] text-[#002B49]" : e.rating && e.rating <= 2.5 ? "border-[#D4DDE6] opacity-50" : "border-[#D4DDE6] text-neutral-700"}`}>
-                        <span className="truncate max-w-[200px]">{e.title}</span>
-                        {e.rating !== null && <span className="text-[#8A8078] tabular-nums">{e.rating}<span className="text-[#FFCE00]">★</span></span>}
-                        {e.rating === null && <span className="italic text-[#8A8078]">WIP</span>}
+                <div key={type} style={{ borderTop: "1px solid #E0E8EF", paddingTop: "2rem", paddingBottom: "2rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "1.5rem", alignItems: "start", marginBottom: "1rem" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.6rem" }}>
+                        <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
+                        <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
                       </div>
-                    ))}
+                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, maxWidth: "34rem", margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
+                      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                        {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
+                          <span key={e.id} style={{
+                            fontSize: "0.7rem", padding: "0.2rem 0.55rem", borderRadius: "2px",
+                            border: `1px solid ${e.rating && e.rating >= 4.5 ? N.navy : "#D4DDE6"}`,
+                            color: e.rating && e.rating >= 4.5 ? N.navy : e.rating && e.rating <= 2.5 ? "#B0BEC8" : "#4A5C6A",
+                            fontWeight: e.rating && e.rating >= 4.5 ? 600 : 400,
+                          }}>
+                            {e.title}{e.rating !== null
+                              ? <span style={{ color: "#9AADBC" }}> {e.rating}<span style={{ color: N.yellow }}>★</span></span>
+                              : <span style={{ color: "#B0BEC8", fontStyle: "italic" }}> WIP</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {typeAvg && (
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ color: N.navy, fontSize: "2.25rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>{typeAvg}<span style={{ color: N.yellow }}>★</span></div>
+                        <div style={{ color: "#9AADBC", fontSize: "0.55rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>avg</div>
+                      </div>
+                    )}
                   </div>
-                  {analysis && (
-                    <p className="fringe-sans text-sm text-[#8A8078] leading-relaxed max-w-xl" dangerouslySetInnerHTML={{ __html: analysis.body }} />
-                  )}
                 </div>
               );
             })}
           </div>
         </section>
 
-        {/* Sentiment */}
-        <section className="border-t border-[#D4DDE6] py-14">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-6">How you felt</div>
-            <div className="flex h-1 max-w-lg mb-1 overflow-hidden rounded-full">
-              <div style={{ width: `${SENTIMENT.bar.enthusiastic}%` }} className="bg-[#002B49]" />
-              <div style={{ width: `${SENTIMENT.bar.mixed}%` }} className="bg-[#E85462]" />
-              <div style={{ width: `${SENTIMENT.bar.meh}%` }} className="bg-[#D4DDE6]" />
+        {/* ── SENTIMENT — salmon full-bleed ────────────────── */}
+        <section style={{ background: N.salmon, padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1rem" }}>How you felt</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <span style={{ ...serif, color: "#fff", fontSize: "clamp(4.5rem, 16vw, 9rem)", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.04em" }}>{SENTIMENT.bar.enthusiastic}%</span>
+              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "1.1rem", fontWeight: 600 }}>enthusiastic</span>
             </div>
-            <div className="flex fringe-sans text-[0.6rem] tracking-widest uppercase max-w-lg mb-10">
-              <span style={{ width: `${SENTIMENT.bar.enthusiastic}%` }} className="shrink-0 text-[#002B49]">Enthusiastic {SENTIMENT.bar.enthusiastic}%</span>
-              <span style={{ width: `${SENTIMENT.bar.mixed}%` }} className="shrink-0 text-[#E85462]">Mixed {SENTIMENT.bar.mixed}%</span>
-              <span style={{ width: `${SENTIMENT.bar.meh}%` }} className="shrink-0 text-[#8A8078]">Meh {SENTIMENT.bar.meh}%</span>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.9rem", lineHeight: 1.65, maxWidth: "36rem", marginBottom: "2.5rem" }}>
+              {SENTIMENT.up.body}
+            </p>
+            {/* bar */}
+            <div style={{ display: "flex", height: "5px", borderRadius: "3px", overflow: "hidden", maxWidth: "36rem", marginBottom: "0.4rem", background: "rgba(255,255,255,0.15)" }}>
+              <div style={{ width: `${SENTIMENT.bar.enthusiastic}%`, background: "#fff" }} />
+              <div style={{ width: `${SENTIMENT.bar.mixed}%`, background: "rgba(255,255,255,0.4)" }} />
+              <div style={{ width: `${SENTIMENT.bar.meh}%` }} />
             </div>
-
-            <div className="grid sm:grid-cols-2 gap-px bg-[#D4DDE6] mb-10">
-              {[SENTIMENT.up, SENTIMENT.down].map((card, i) => (
-                <div key={i} className="bg-[#E3ECF3] p-6">
-                  <div className="fringe-sans text-[0.6rem] font-bold tracking-[0.18em] uppercase text-[#8A8078] mb-2">{i === 0 ? "What lit you up" : "What made you mark down"}</div>
-                  <div className="fringe-sans text-base font-bold mb-2 text-neutral-900">{card.title}</div>
-                  <p className="fringe-sans text-[0.82rem] text-[#8A8078] leading-relaxed">{card.body}</p>
-                </div>
-              ))}
+            <div style={{ display: "flex", maxWidth: "36rem", fontSize: "0.58rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "2.5rem" }}>
+              <span style={{ width: `${SENTIMENT.bar.enthusiastic}%`, color: "#fff" }}>Enthusiastic</span>
+              <span style={{ width: `${SENTIMENT.bar.mixed}%`, color: "rgba(255,255,255,0.55)" }}>Mixed</span>
+              <span style={{ width: `${SENTIMENT.bar.meh}%`, color: "rgba(255,255,255,0.35)" }}>Meh</span>
             </div>
 
-            <div className="divide-y divide-[#D4DDE6]">
+            <div style={{ background: "rgba(0,0,0,0.12)", borderRadius: "4px", padding: "1.5rem", maxWidth: "36rem", marginBottom: "2.5rem" }}>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.58rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "0.4rem" }}>What made you mark down</p>
+              <p style={{ color: "#fff", fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.4rem" }}>{SENTIMENT.down.title}</p>
+              <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.875rem", lineHeight: 1.65, margin: 0 }}>{SENTIMENT.down.body}</p>
+            </div>
+
+            <div style={{ maxWidth: "36rem" }}>
               {SENTIMENT.themes.map(theme => (
-                <div key={theme.label} className="grid sm:grid-cols-[160px_1fr] gap-4 py-4">
-                  <div className="fringe-sans text-[0.65rem] font-bold tracking-[0.12em] uppercase text-[#002B49] pt-0.5">{theme.label}</div>
-                  <p className="fringe-sans text-[0.875rem] text-[#8A8078] leading-relaxed">{theme.desc}</p>
+                <div key={theme.label} style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "1rem", borderTop: "1px solid rgba(255,255,255,0.15)", padding: "0.9rem 0" }}>
+                  <span style={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", paddingTop: "0.1rem" }}>{theme.label}</span>
+                  <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>{theme.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Five star club */}
-        <section className="border-t border-[#D4DDE6] py-14">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-6">Five-star club</div>
-            <div className="grid sm:grid-cols-2 gap-px bg-[#D4DDE6]">
-              {events.filter(e => e.rating === 5).map(e => (
-                <div key={e.id} className="bg-[#FAFAF8] p-6">
-                  <div className="fringe-sans text-[0.55rem] font-bold tracking-[0.18em] uppercase text-[#002B49] mb-2">{e.type}</div>
-                  <div className="fringe-sans text-base font-bold leading-snug mb-1 text-neutral-900">{e.title}</div>
-                  <div className="fringe-sans text-[0.7rem] text-[#8A8078] mb-4">{e.venue?.name}{e.price_paid !== null && ` · ${e.notes?.toLowerCase().includes("gift") || e.notes?.toLowerCase().includes("gifted") || e.price_paid === 0 ? "gifted ticket" : formatMoney(e.price_paid, e.currency ?? "GBP")}`}</div>
-                  {e.review && <div className="fringe-sans text-sm leading-relaxed border-l-2 border-[#E85462] pl-4 text-neutral-600">{e.review.slice(0, 200)}{e.review.length > 200 ? "…" : ""}</div>}
+        {/* ── IN YOUR WORDS — light blue ───────────────────── */}
+        <section style={{ background: N.blue, padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "2.5rem" }}>In your words</p>
+            {PULLQUOTES.map((q, i) => (
+              <div key={i} style={{ borderTop: "1px solid #C4D6E0", padding: "1.75rem 0" }}>
+                <p style={{ ...serif, color: N.navy, fontSize: "clamp(1rem, 2.5vw, 1.3rem)", lineHeight: 1.45, margin: "0 0 0.6rem", fontWeight: 400 }}>
+                  <span style={{ color: N.salmon, fontSize: "1.6em", lineHeight: 0, verticalAlign: "-0.12em", marginRight: "0.1em" }}>"</span>{q.text}
+                </p>
+                <p style={{ color: "#7A9BB0", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{q.source}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── FIVE STAR CLUB — navy ────────────────────────── */}
+        <section style={{ background: N.navy, padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <p style={{ color: N.yellow, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "0.5rem" }}>Five-star club</p>
+            <h2 style={{ ...serif, color: "#fff", fontSize: "clamp(1.5rem, 4vw, 2.25rem)", fontWeight: 700, lineHeight: 1.2, marginBottom: "2.5rem" }}>
+              {fiveStars.length} show{fiveStars.length !== 1 ? "s" : ""} that earned the full five.
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(18rem, 1fr))", gap: "1px", background: N.border }}>
+              {fiveStars.map(e => (
+                <div key={e.id} style={{ background: N.darkNavy, padding: "1.5rem" }}>
+                  <p style={{ color: N.yellow, fontSize: "0.58rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "0.4rem" }}>{e.type} · ★★★★★</p>
+                  <p style={{ color: "#fff", fontSize: "1rem", fontWeight: 700, lineHeight: 1.3, marginBottom: "0.3rem" }}>{e.title}</p>
+                  <p style={{ color: N.muted, fontSize: "0.7rem", marginBottom: e.review ? "1rem" : 0 }}>
+                    {e.venue?.name}{e.price_paid !== null && ` · ${e.notes?.toLowerCase().includes("gift") || e.notes?.toLowerCase().includes("gifted") || e.price_paid === 0 ? "gifted ticket" : formatMoney(e.price_paid, e.currency ?? "GBP")}`}
+                  </p>
+                  {e.review && <p style={{ color: "#8BAABF", fontSize: "0.825rem", lineHeight: 1.65, borderLeft: `2px solid ${N.salmon}`, paddingLeft: "0.75rem", margin: 0 }}>{e.review.slice(0, 200)}{e.review.length > 200 ? "…" : ""}</p>}
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Pullquotes */}
-        <section className="border-t border-[#D4DDE6] py-14 bg-[#E3ECF3]">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-4">In your words</div>
-            <div className="divide-y divide-[#D4DDE6]">
-              {PULLQUOTES.map((q, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto] gap-6 py-5 items-baseline">
-                  <div className="fringe-sans text-base sm:text-lg leading-snug text-neutral-900">
-                    <span className="text-[#E85462] mr-0.5 text-xl leading-none align-[-0.1em]">"</span>{q.text}
-                  </div>
-                  <div className="fringe-sans text-[0.6rem] tracking-widest uppercase text-[#8A8078] whitespace-nowrap text-right">{q.source}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* ── DAY BY DAY + RANKED — white ──────────────────── */}
+        <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "start" }}>
 
-        {/* Day by day */}
-        <section className="border-t border-[#D4DDE6] py-14">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-6">Day by day</div>
-            <div className="divide-y divide-[#D4DDE6]">
-              {days.map(date => {
-                const dayEvents = events.filter(e => e.date === date);
-                const dayRated = dayEvents.filter(e => e.rating !== null);
-                const dayAvg = dayRated.length ? Math.round(dayRated.reduce((s, e) => s + e.rating!, 0) / dayRated.length * 100) / 100 : null;
-                const dateObj = new Date(date + "T00:00:00");
-                const label = dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-                return (
-                  <div key={date} className="grid grid-cols-[100px_1fr_auto] gap-4 py-4 items-start">
-                    <div className="fringe-sans text-[0.65rem] font-bold tracking-widest uppercase text-neutral-900 pt-0.5">{label}</div>
-                    <div className="flex flex-col gap-1">
+              <div>
+                <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1.5rem" }}>Day by day</p>
+                {days.map(date => {
+                  const dayEvents = events.filter(e => e.date === date);
+                  const dayRated = dayEvents.filter(e => e.rating !== null);
+                  const dayAvg = dayRated.length ? Math.round(dayRated.reduce((s, e) => s + e.rating!, 0) / dayRated.length * 100) / 100 : null;
+                  const label = new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+                  return (
+                    <div key={date} style={{ borderTop: "1px solid #E0E8EF", padding: "0.75rem 0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.2rem" }}>
+                        <span style={{ fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: N.navy }}>{label}</span>
+                        {dayAvg !== null && <span style={{ fontSize: "0.75rem", fontWeight: 700, color: N.navy, fontVariantNumeric: "tabular-nums" }}>{dayAvg}<span style={{ color: N.yellow }}>★</span></span>}
+                      </div>
                       {dayEvents.map(e => (
-                        <div key={e.id} className="flex items-baseline gap-2">
-                          <span className="fringe-sans text-sm text-neutral-900">{e.title}</span>
-                          {e.rating !== null ? <span className="fringe-sans text-[0.7rem] text-neutral-700 tabular-nums">{e.rating}<span className="text-[#FFCE00]">★</span></span> : <span className="fringe-sans text-[0.65rem] italic text-[#8A8078]">WIP</span>}
+                        <div key={e.id} style={{ fontSize: "0.775rem", color: "#6B7D8C", lineHeight: 1.7 }}>
+                          {e.title}
+                          {e.rating !== null && <span style={{ color: N.yellow, marginLeft: "0.2rem" }}>{"★".repeat(Math.floor(e.rating))}{e.rating % 1 >= 0.5 ? "½" : ""}</span>}
+                          {e.rating === null && <span style={{ color: "#B0BEC8", fontStyle: "italic" }}> WIP</span>}
                         </div>
                       ))}
                     </div>
-                    <div className="text-right fringe-sans">
-                      {dayAvg !== null ? (
-                        <>
-                          <div className="fringe-sans text-lg font-bold text-neutral-900 tabular-nums">{dayAvg}<span className="text-[#FFCE00]">★</span></div>
-                          <div className="text-[0.55rem] tracking-widest uppercase text-[#8A8078]">avg</div>
-                        </>
-                      ) : (
-                        <div className="text-[0.65rem] italic text-[#8A8078]">Pending</div>
-                      )}
-                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1.5rem" }}>All {events.length}, ranked</p>
+                {ranked.map((e, i) => (
+                  <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1.25rem 1fr auto", gap: "0.5rem", borderTop: "1px solid #E0E8EF", padding: "0.45rem 0", alignItems: "baseline" }}>
+                    <span style={{ fontSize: "0.58rem", color: "#B0BEC8", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{e.rating !== null ? i + 1 : "—"}</span>
+                    <span style={{ fontSize: "0.8rem", color: "#1A2E3D", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                    {e.rating !== null
+                      ? <span style={{ fontSize: "0.7rem", fontVariantNumeric: "tabular-nums", color: e.rating >= 4.5 ? N.navy : e.rating <= 2.5 ? "#C8D8E4" : "#7A9BB0", fontWeight: e.rating >= 4.5 ? 700 : 400 }}>{e.rating}<span style={{ color: N.yellow }}>★</span></span>
+                      : <span style={{ fontSize: "0.65rem", color: "#B0BEC8", fontStyle: "italic" }}>WIP</span>
+                    }
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
             </div>
           </div>
         </section>
 
-        {/* Ranked list */}
-        <section className="border-t border-[#D4DDE6] py-14 bg-[#E3ECF3]">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="fringe-sans text-xl font-bold tracking-tight text-[#002B49] mb-4">All {events.length} shows, ranked</div>
-            <div className="divide-y divide-[#D4DDE6]">
-              {ranked.map((e, i) => (
-                <div key={e.id} className="grid grid-cols-[1.5rem_1fr_auto_auto] gap-x-4 items-baseline py-2.5">
-                  <div className="fringe-sans text-[0.65rem] text-[#8A8078] text-right tabular-nums">{e.rating !== null ? i + 1 : "—"}</div>
-                  <div className="fringe-sans text-sm text-neutral-900 truncate">{e.title}</div>
-                  <div className="fringe-sans text-[0.6rem] tracking-widest uppercase text-[#8A8078] hidden sm:block">{e.type}</div>
-                  {e.rating !== null
-                    ? <div className={`fringe-sans text-[0.75rem] tabular-nums whitespace-nowrap ${e.rating >= 4.5 ? "text-neutral-900 font-semibold" : e.rating <= 2.5 ? "text-[#D4DDE6]" : "text-[#8A8078]"}`}>{e.rating}<span className="text-[#FFCE00]">★</span></div>
-                    : <div className="fringe-sans text-[0.65rem] italic text-[#8A8078]">WIP</div>
-                  }
-                </div>
-              ))}
+        {/* ── FOOTER ───────────────────────────────────────── */}
+        <div style={{ background: N.navy, padding: "2rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <img src="/logo-ed-fringe-roundel.svg" width="22" height="22" alt="" style={{ opacity: 0.5 }} />
+              <span style={{ color: N.muted, fontSize: "0.65rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Edinburgh Festival Fringe 2026</span>
             </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <div className="border-t border-[#D4DDE6] py-10">
-          <div className="max-w-3xl mx-auto px-6 flex justify-between items-end flex-wrap gap-4">
-            <div className="fringe-sans font-bold text-sm text-[#002B49]">Edinburgh Festival Fringe 2026</div>
-            <div className="fringe-sans text-[0.65rem] text-[#8A8078] text-right leading-relaxed">
-              Generated {generated}<br />
-              {events.filter(e => e.rating === null).length > 0 && `${events.filter(e => e.rating === null).length} show${events.filter(e => e.rating === null).length > 1 ? "s" : ""} pending verdict`}<br />
-              <Link href="/" className="hover:text-neutral-700 transition-colors">← Back to ledger</Link>
+            <div style={{ color: "#4A7A9B", fontSize: "0.65rem", textAlign: "right", lineHeight: 1.8 }}>
+              Generated {generated}
+              {events.filter(e => e.rating === null).length > 0 && <> · {events.filter(e => e.rating === null).length} pending verdict</>}
+              {" · "}<Link href="/" style={{ color: N.muted, textDecoration: "none" }}>← Back to ledger</Link>
             </div>
           </div>
         </div>
+
       </main>
     </>
   );
