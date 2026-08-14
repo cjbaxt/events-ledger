@@ -132,7 +132,7 @@ export default async function Fringe2026Page() {
           .f-stat:last-child { padding-right: 0; margin-right: 0; border-right: none; }
           .f-genre-row    { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start; margin-bottom: 1rem; }
           .f-genre-avg    { text-align: right; flex-shrink: 0; }
-          .f-theme-row    { display: grid; grid-template-columns: 130px 1fr; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.15); padding: 0.9rem 0; }
+          .f-theme-row    { display: grid; grid-template-columns: 90px 1fr; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.15); padding: 0.9rem 0; }
           .f-last         { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
           .f-section-label { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 1.5rem; }
           .f-pq-row       { display: grid; grid-template-columns: 1fr auto; gap: 2rem; border-top: 1px solid #C4D6E0; padding: 1.75rem 0; align-items: baseline; }
@@ -141,9 +141,8 @@ export default async function Fringe2026Page() {
             .f-hero-inner img { width: 48px !important; height: 48px !important; flex-shrink: 0; }
             .f-stats { gap: 0; }
             .f-stat { padding-right: 1.25rem; margin-right: 1.25rem; }
-            .f-genre-row { display: block; }
-            .f-genre-avg { text-align: left; margin-bottom: 0.75rem; }
-            .f-theme-row { grid-template-columns: auto 1fr; }
+            .f-genre-avg { text-align: right; }
+            .f-theme-row { grid-template-columns: 90px 1fr; }
             .f-last { grid-template-columns: 1fr; gap: 2.5rem; }
             .f-pq-row { grid-template-columns: 1fr; gap: 0.3rem; }
             .f-pq-source { text-align: left !important; }
@@ -198,12 +197,12 @@ export default async function Fringe2026Page() {
               return (
                 <div key={type} style={{ borderTop: "1px solid #E0E8EF", paddingTop: "2rem", paddingBottom: "2rem" }}>
                   <div className="f-genre-row">
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.6rem" }}>
                         <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
                         <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
                       </div>
-                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
+                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem", maxWidth: "none" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
                       <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                         {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
                           <span key={e.id} style={{
