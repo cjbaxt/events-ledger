@@ -138,16 +138,18 @@ export default async function Fringe2026Page() {
         {/* Masthead */}
         <div className="border-b-2 border-[#002B49] pb-8 pt-10">
           <div className="max-w-3xl mx-auto px-6">
-            <div className="flex items-center gap-3 mb-5">
-              <img src="/logo-ed-fringe-roundel.svg" width="18" height="18" alt="" />
-              <span className="fringe-sans text-[0.6rem] font-bold tracking-[0.22em] uppercase text-[#002B49]">Edinburgh Festival Fringe · August 2026</span>
+            <div className="flex items-start gap-6 sm:gap-8 mb-5">
+              <img src="/logo-ed-fringe-roundel.svg" width="96" height="96" alt="Edinburgh Festival Fringe" className="shrink-0 mt-1" />
+              <div>
+                <div className="fringe-sans text-[0.6rem] font-bold tracking-[0.22em] uppercase text-[#002B49] mb-4">Edinburgh Festival Fringe · August 2026</div>
+                <h1 className="fringe-serif text-5xl sm:text-7xl font-bold italic leading-none tracking-tight mb-4 text-neutral-900">
+                  Edinburgh<br /><span className="text-[#002B49]">Fringe 2026.</span>
+                </h1>
+                <p className="fringe-sans text-sm text-[#8A8078] max-w-md leading-relaxed">
+                  {events.length} shows across {days.length} days, 8–17 August 2026.
+                </p>
+              </div>
             </div>
-            <h1 className="fringe-serif text-5xl sm:text-7xl font-bold italic leading-none tracking-tight mb-5 text-neutral-900">
-              Edinburgh<br /><span className="text-[#002B49]">Fringe 2026.</span>
-            </h1>
-            <p className="fringe-sans text-sm text-[#8A8078] max-w-md leading-relaxed">
-              {events.length} shows across {days.length} days, 8–17 August 2026.
-            </p>
             <div className="flex gap-0 mt-7 pt-6 border-t border-[#D4DDE6] flex-wrap">
               {[
                 { val: events.length.toString(), label: "Shows" },
