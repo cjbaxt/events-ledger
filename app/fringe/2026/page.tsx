@@ -166,7 +166,7 @@ export default async function Fringe2026Page() {
               </div>
             </div>
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
-              A retrospective of {events.length} shows, 8–17 August 2026.
+              {events.length} shows. {byType.length} genres. Zero regrets.
             </p>
             <div className="f-stats">
               {[
@@ -190,9 +190,6 @@ export default async function Fringe2026Page() {
         <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
             <p className="f-section-label" style={{ color: N.salmon, marginBottom: "0.4rem" }}>What you saw</p>
-            <h2 style={{ ...serif, color: N.navy, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", fontWeight: 700, lineHeight: 1.15, marginBottom: "3rem" }}>
-              {events.length} shows.<br />{byType.length} genres.<br />Zero regrets.
-            </h2>
             {byType.map(({ type, events: te }) => {
               const typeAvg = avg(te);
               const analysis = GENRE_ANALYSIS[type];
