@@ -487,7 +487,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   <div>
                     <div className="flex items-start gap-2 mb-1">
                       <h2 className="font-serif text-2xl text-neutral-900 leading-snug">{e.title}</h2>
-                      {e.festival_name?.toLowerCase().includes("fringe") && <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />}
+                      {(("festival_name" in e ? e.festival_name : (e as EventDetail).festival?.name) ?? "").toLowerCase().includes("fringe") && <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-neutral-400">
                       <span>{formatDate(e.date)}{e.date.slice(0, 4) !== new Date().getFullYear().toString() && `, ${e.date.slice(0, 4)}`}</span>
