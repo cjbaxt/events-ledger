@@ -126,12 +126,13 @@ export default async function Fringe2026Page() {
       <Nav />
       <main className="min-h-screen bg-[#FAFAF8]">
         <style>{`
-          .fringe-serif { font-family: var(--font-serif), Georgia, serif; }
-          .fringe-sans  { font-family: var(--font-sans), system-ui, sans-serif; }
-          .fringe-border { border-color: #D4DDE6; }
-          .fringe-muted  { color: #8A8078; }
-          .fringe-navy   { color: #002B49; }
-          .fringe-bg2    { background: #E3ECF3; }
+          @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap');
+          .fringe-display { font-family: 'DM Serif Display', var(--font-serif), Georgia, serif; }
+          .fringe-serif   { font-family: var(--font-serif), Georgia, serif; }
+          .fringe-sans    { font-family: var(--font-sans), system-ui, sans-serif; }
+          .fringe-navy    { color: #002B49; }
+          .fringe-salmon  { color: #E85462; }
+          .fringe-yellow  { color: #FFCE00; }
         `}</style>
 
         {/* Masthead */}
@@ -151,11 +152,11 @@ export default async function Fringe2026Page() {
               {[
                 { val: events.length.toString(), label: "Shows" },
                 { val: `£${gbp.toFixed(0)}${eur > 0 ? ` + €${eur.toFixed(0)}` : ""}`, label: "Spent" },
-                { val: overallAvg ? `${overallAvg}★` : "—", label: "Avg rating" },
+                { val: overallAvg ? overallAvg : "—", label: "Avg rating", star: !!overallAvg },
                 { val: rated.length.toString(), label: "Reviews written" },
               ].map((s, i, arr) => (
                 <div key={s.label} className={`pr-8 mr-8 ${i < arr.length - 1 ? "border-r border-[#D4DDE6]" : ""} mb-4`}>
-                  <div className="fringe-serif text-3xl font-bold text-[#002B49] tabular-nums leading-none">{s.val}</div>
+                  <div className="fringe-serif text-3xl font-bold text-[#002B49] tabular-nums leading-none">{s.val}{"star" in s && s.star && <span className="text-[#FFCE00]">★</span>}</div>
                   <div className="fringe-sans text-[0.6rem] tracking-[0.12em] uppercase text-[#8A8078] mt-1">{s.label}</div>
                 </div>
               ))}
@@ -173,15 +174,15 @@ export default async function Fringe2026Page() {
               return (
                 <div key={type} className="mb-10 last:mb-0">
                   <div className="flex items-baseline gap-4 pb-3 border-b border-[#D4DDE6] mb-3">
-                    <div className="fringe-serif text-xl font-bold italic capitalize text-neutral-900">{type}</div>
+                    <div className="fringe-serif text-xl font-bold italic capitalize text-[#E85462]">{type}</div>
                     <div className="fringe-sans text-[0.65rem] tracking-widest uppercase text-[#8A8078]">{te.length} show{te.length > 1 ? "s" : ""}</div>
-                    {typeAvg && <div className="fringe-sans text-[0.7rem] text-[#8A8078] ml-auto tabular-nums">avg <strong className="text-neutral-900">{typeAvg}★</strong></div>}
+                    {typeAvg && <div className="fringe-sans text-[0.7rem] text-[#8A8078] ml-auto tabular-nums">avg <strong className="text-neutral-900">{typeAvg}<span className="text-[#FFCE00]">★</span></strong></div>}
                   </div>
                   <div className="flex gap-2 flex-wrap mb-3">
                     {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
                       <div key={e.id} className={`fringe-sans text-[0.65rem] px-2 py-1 border rounded-sm flex items-center gap-1.5 ${e.rating && e.rating >= 4.5 ? "border-[#002B49] text-[#002B49]" : e.rating && e.rating <= 2.5 ? "border-[#D4DDE6] opacity-50" : "border-[#D4DDE6] text-neutral-700"}`}>
                         <span className="truncate max-w-[200px]">{e.title}</span>
-                        {e.rating !== null && <span className="text-[#8A8078] tabular-nums">{e.rating}★</span>}
+                        {e.rating !== null && <span className="text-[#8A8078] tabular-nums">{e.rating}<span className="text-[#FFCE00]">★</span></span>}
                         {e.rating === null && <span className="italic text-[#8A8078]">WIP</span>}
                       </div>
                     ))}
@@ -201,12 +202,12 @@ export default async function Fringe2026Page() {
             <div className="fringe-sans text-[0.6rem] font-bold tracking-[0.2em] uppercase text-[#8A8078] mb-6">How you felt</div>
             <div className="flex h-1 max-w-lg mb-1 overflow-hidden rounded-full">
               <div style={{ width: `${SENTIMENT.bar.enthusiastic}%` }} className="bg-[#002B49]" />
-              <div style={{ width: `${SENTIMENT.bar.mixed}%` }} className="bg-[#9A6500]" />
+              <div style={{ width: `${SENTIMENT.bar.mixed}%` }} className="bg-[#E85462]" />
               <div style={{ width: `${SENTIMENT.bar.meh}%` }} className="bg-[#D4DDE6]" />
             </div>
             <div className="flex fringe-sans text-[0.6rem] tracking-widest uppercase max-w-lg mb-10">
               <span className="flex-1 text-[#002B49]">Enthusiastic {SENTIMENT.bar.enthusiastic}%</span>
-              <span className="flex-1 text-[#9A6500]">Mixed {SENTIMENT.bar.mixed}%</span>
+              <span className="flex-1 text-[#E85462]">Mixed {SENTIMENT.bar.mixed}%</span>
               <span className="flex-1 text-[#8A8078]">Meh {SENTIMENT.bar.meh}%</span>
             </div>
 
@@ -241,7 +242,7 @@ export default async function Fringe2026Page() {
                   <div className="fringe-sans text-[0.55rem] font-bold tracking-[0.18em] uppercase text-[#002B49] mb-2">{e.type}</div>
                   <div className="fringe-serif text-lg font-bold italic leading-snug mb-1 text-neutral-900">{e.title}</div>
                   <div className="fringe-sans text-[0.7rem] text-[#8A8078] mb-4">{e.venue?.name}{e.price_paid !== null && ` · ${e.notes?.toLowerCase().includes("gift") || e.notes?.toLowerCase().includes("gifted") || e.price_paid === 0 ? "gifted ticket" : formatMoney(e.price_paid, e.currency ?? "GBP")}`}</div>
-                  {e.review && <div className="fringe-serif text-[0.875rem] italic leading-relaxed border-l-2 border-[#002B49] pl-4 text-neutral-800">{e.review.slice(0, 200)}{e.review.length > 200 ? "…" : ""}</div>}
+                  {e.review && <div className="fringe-serif text-[0.875rem] italic leading-relaxed border-l-2 border-[#E85462] pl-4 text-neutral-800">{e.review.slice(0, 200)}{e.review.length > 200 ? "…" : ""}</div>}
                 </div>
               ))}
             </div>
@@ -256,7 +257,7 @@ export default async function Fringe2026Page() {
               {PULLQUOTES.map((q, i) => (
                 <div key={i} className="grid grid-cols-[1fr_auto] gap-6 py-5 items-baseline">
                   <div className="fringe-serif italic text-base sm:text-lg leading-snug text-neutral-900">
-                    <span className="text-[#002B49] mr-0.5 not-italic text-xl leading-none align-[-0.1em]">"</span>{q.text}
+                    <span className="text-[#E85462] mr-0.5 not-italic text-xl leading-none align-[-0.1em]">"</span>{q.text}
                   </div>
                   <div className="fringe-sans text-[0.6rem] tracking-widest uppercase text-[#8A8078] whitespace-nowrap text-right">{q.source}</div>
                 </div>
@@ -283,14 +284,14 @@ export default async function Fringe2026Page() {
                       {dayEvents.map(e => (
                         <div key={e.id} className="flex items-baseline gap-2">
                           <span className="fringe-serif italic text-[0.875rem] text-neutral-900">{e.title}</span>
-                          {e.rating !== null ? <span className="fringe-sans text-[0.7rem] text-[#002B49] tabular-nums">{e.rating}★</span> : <span className="fringe-sans text-[0.65rem] italic text-[#8A8078]">WIP</span>}
+                          {e.rating !== null ? <span className="fringe-sans text-[0.7rem] text-neutral-700 tabular-nums">{e.rating}<span className="text-[#FFCE00]">★</span></span> : <span className="fringe-sans text-[0.65rem] italic text-[#8A8078]">WIP</span>}
                         </div>
                       ))}
                     </div>
                     <div className="text-right fringe-sans">
                       {dayAvg !== null ? (
                         <>
-                          <div className="fringe-serif italic text-lg text-neutral-900 tabular-nums">{dayAvg}★</div>
+                          <div className="fringe-serif italic text-lg text-neutral-900 tabular-nums">{dayAvg}<span className="text-[#FFCE00]">★</span></div>
                           <div className="text-[0.55rem] tracking-widest uppercase text-[#8A8078]">avg</div>
                         </>
                       ) : (
@@ -315,7 +316,7 @@ export default async function Fringe2026Page() {
                   <div className="fringe-serif italic text-[0.9rem] text-neutral-900 truncate">{e.title}</div>
                   <div className="fringe-sans text-[0.6rem] tracking-widest uppercase text-[#8A8078] hidden sm:block">{e.type}</div>
                   {e.rating !== null
-                    ? <div className={`fringe-sans text-[0.75rem] tabular-nums whitespace-nowrap ${e.rating >= 4.5 ? "text-[#002B49] font-semibold" : e.rating <= 2.5 ? "text-[#D4DDE6]" : "text-[#8A8078]"}`}>{e.rating}★</div>
+                    ? <div className={`fringe-sans text-[0.75rem] tabular-nums whitespace-nowrap ${e.rating >= 4.5 ? "text-neutral-900 font-semibold" : e.rating <= 2.5 ? "text-[#D4DDE6]" : "text-[#8A8078]"}`}>{e.rating}<span className="text-[#FFCE00]">★</span></div>
                     : <div className="fringe-sans text-[0.65rem] italic text-[#8A8078]">WIP</div>
                   }
                 </div>
