@@ -208,9 +208,9 @@ export default async function Fringe2026Page() {
               <div style={{ width: `${SENTIMENT.bar.meh}%` }} className="bg-[#D4DDE6]" />
             </div>
             <div className="flex fringe-sans text-[0.6rem] tracking-widest uppercase max-w-lg mb-10">
-              <span className="flex-1 text-[#002B49]">Enthusiastic {SENTIMENT.bar.enthusiastic}%</span>
-              <span className="flex-1 text-[#E85462]">Mixed {SENTIMENT.bar.mixed}%</span>
-              <span className="flex-1 text-[#8A8078]">Meh {SENTIMENT.bar.meh}%</span>
+              <span style={{ width: `${SENTIMENT.bar.enthusiastic}%` }} className="shrink-0 text-[#002B49]">Enthusiastic {SENTIMENT.bar.enthusiastic}%</span>
+              <span style={{ width: `${SENTIMENT.bar.mixed}%` }} className="shrink-0 text-[#E85462]">Mixed {SENTIMENT.bar.mixed}%</span>
+              <span style={{ width: `${SENTIMENT.bar.meh}%` }} className="shrink-0 text-[#8A8078]">Meh {SENTIMENT.bar.meh}%</span>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-px bg-[#D4DDE6] mb-10">
