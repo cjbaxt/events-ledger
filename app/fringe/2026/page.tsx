@@ -25,9 +25,15 @@ async function getFringeEvents(): Promise<FringeEvent[]> {
     .from("event")
     .select("id, title, type, date, time, rating, review, description, price_paid, currency, notes, venue:venue_id(name)")
     .eq("festival_id", FESTIVAL_ID)
-    .order("date", { ascending: true })
-    .order("time", { ascending: true, nullsFirst: false });
-  return (data ?? []) as unknown as FringeEvent[];
+    .order("date", { ascending: true });
+  const raw = (data ?? []) as unknown as FringeEvent[];
+  return raw.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    if (!a.time && !b.time) return 0;
+    if (!a.time) return 1;
+    if (!b.time) return -1;
+    return a.time.localeCompare(b.time);
+  });
 }
 
 function avg(events: FringeEvent[]) {
