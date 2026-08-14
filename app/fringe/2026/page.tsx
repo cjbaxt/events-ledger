@@ -12,7 +12,7 @@ type FringeEvent = {
   time: string | null;
   rating: number | null;
   review: string | null;
-  description: string | null;
+  full_description: string | null;
   price_paid: number | null;
   currency: string | null;
   notes: string | null;
@@ -23,7 +23,7 @@ async function getFringeEvents(): Promise<FringeEvent[]> {
   const sb = createServiceClient();
   const { data } = await sb
     .from("event")
-    .select("id, title, type, date, time, rating, review, description, price_paid, currency, notes, venue:venue_id(name)")
+    .select("id, title, type, date, time, rating, review, full_description, price_paid, currency, notes, venue:venue_id(name)")
     .eq("festival_id", FESTIVAL_ID)
     .order("date", { ascending: true });
   const raw = (data ?? []) as unknown as FringeEvent[];
