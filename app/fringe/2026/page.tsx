@@ -125,6 +125,9 @@ export default async function Fringe2026Page() {
   });
   const byType = TYPE_ORDER.map(t => ({ type: t, events: events.filter(e => e.type === t) })).filter(g => g.events.length);
   const fiveStars = events.filter(e => e.rating === 5);
+  const firstDay = days[0] ? new Date(days[0] + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
+  const lastDay = days[days.length - 1] ? new Date(days[days.length - 1] + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
+  const dateRange = firstDay && lastDay ? (firstDay === lastDay ? firstDay : `${firstDay}–${lastDay}`) : null;
   const generated = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   const sans: React.CSSProperties = { fontFamily: "var(--font-sans), system-ui, sans-serif" };
@@ -175,7 +178,7 @@ export default async function Fringe2026Page() {
               </div>
             </div>
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
-              A retrospective. {events.length} shows. {byType.length} genres. Zero regrets.
+              A retrospective. {events.length} shows. {byType.length} genres. Zero regrets.{dateRange ? ` ${dateRange}.` : ""}
             </p>
             <div className="f-stats">
               {[
