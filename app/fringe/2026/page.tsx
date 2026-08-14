@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { isGuestServer } from "@/lib/guest";
 import Nav from "@/components/Nav";
 import Link from "next/link";
 
@@ -111,6 +112,26 @@ const PULLQUOTES: Array<{ text: string; source: string }> = [
 const N = { navy: "#002B49", darkNavy: "#00243D", blue: "#E3ECF3", salmon: "#E85462", yellow: "#FFCE00", muted: "#6B8FA8", border: "#1A4462" };
 
 export default async function Fringe2026Page() {
+  if (await isGuestServer()) {
+    return (
+      <>
+        <Nav />
+        <main style={{ background: "#002B49", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans), system-ui, sans-serif", padding: "2rem" }}>
+          <div style={{ textAlign: "center", maxWidth: "28rem" }}>
+            <img src="/logo-ed-fringe-roundel.svg" width="64" height="64" alt="" style={{ marginBottom: "2rem", opacity: 0.8 }} />
+            <h1 style={{ color: "#fff", fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "1rem", lineHeight: 1.1 }}>
+              Edinburgh<br /><span style={{ color: "#FFCE00" }}>Fringe</span> 2026.
+            </h1>
+            <p style={{ color: "#6B8FA8", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "2rem" }}>
+              The retrospective is still being written.<br />Check back soon.
+            </p>
+            <Link href="/" style={{ color: "#E85462", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", textDecoration: "none" }}>← Back to ledger</Link>
+          </div>
+        </main>
+      </>
+    );
+  }
+
   const events = await getFringeEvents();
   const rated = events.filter(e => e.rating !== null);
   const overallAvg = avg(events);
