@@ -127,8 +127,8 @@ export default async function Fringe2026Page() {
       <main style={{ ...sans, minHeight: "100vh" }}>
         <style>{`
           .f-hero-inner   { display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; }
-          .f-stats        { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid ${N.border}; }
-          .f-stat         { padding-right: 2.5rem; margin-right: 2.5rem; border-right: 1px solid ${N.border}; padding-top: 1.5rem; }
+          .f-stats        { display: flex; flex-wrap: nowrap; gap: 0; border-top: 1px solid ${N.border}; }
+          .f-stat         { padding-right: 2.5rem; margin-right: 2.5rem; border-right: 1px solid ${N.border}; padding-top: 1.5rem; flex-shrink: 0; }
           .f-stat:last-child { padding-right: 0; margin-right: 0; border-right: none; }
           .f-genre-row    { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start; margin-bottom: 1rem; }
           .f-genre-avg    { text-align: right; flex-shrink: 0; }
@@ -139,8 +139,10 @@ export default async function Fringe2026Page() {
           @media (max-width: 640px) {
             .f-hero-inner { flex-direction: row; align-items: center; gap: 1rem; }
             .f-hero-inner img { width: 48px !important; height: 48px !important; flex-shrink: 0; }
-            .f-stats { gap: 0; }
-            .f-stat { padding-right: 1.25rem; margin-right: 1.25rem; }
+            .f-stats { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid ${N.border}; }
+            .f-stat { padding-right: 0; margin-right: 0; border-right: none; border-bottom: 1px solid ${N.border}; padding-bottom: 1.25rem; }
+            .f-stat:nth-child(odd) { padding-right: 1rem; }
+            .f-stat:nth-child(3), .f-stat:nth-child(4) { border-bottom: none; }
             .f-genre-avg { text-align: right; }
             .f-theme-row { grid-template-columns: 90px 1fr; }
             .f-last { grid-template-columns: 1fr; gap: 2.5rem; }
@@ -171,7 +173,7 @@ export default async function Fringe2026Page() {
                 { val: String(events.length), label: "Shows seen" },
                 { val: `£${gbp.toFixed(0)}${eur > 0 ? ` + €${eur.toFixed(0)}` : ""}`, label: "Spent" },
                 { val: overallAvg ? String(overallAvg) : "—", label: "Avg rating", star: !!overallAvg },
-                { val: String(fiveStars.length), label: "Five-star nights" },
+                { val: String(rated.length), label: "Shows reviewed" },
               ].map((s) => (
                 <div key={s.label} className="f-stat">
                   <div style={{ color: "#fff", fontSize: "clamp(1.75rem, 5vw, 2.75rem)", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
