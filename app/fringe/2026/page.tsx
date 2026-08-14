@@ -126,20 +126,27 @@ export default async function Fringe2026Page() {
       <Nav />
       <main style={{ ...sans, minHeight: "100vh" }}>
         <style>{`
-          .f-hero-inner { display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; }
-          .f-stats      { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid ${N.border}; }
-          .f-stat       { padding-right: 2.5rem; margin-right: 2.5rem; border-right: 1px solid ${N.border}; padding-top: 1.5rem; }
+          .f-hero-inner   { display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; }
+          .f-stats        { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid ${N.border}; }
+          .f-stat         { padding-right: 2.5rem; margin-right: 2.5rem; border-right: 1px solid ${N.border}; padding-top: 1.5rem; }
           .f-stat:last-child { padding-right: 0; margin-right: 0; border-right: none; }
-          .f-last       { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+          .f-genre-row    { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start; margin-bottom: 1rem; }
+          .f-genre-avg    { text-align: right; flex-shrink: 0; }
+          .f-theme-row    { display: grid; grid-template-columns: 130px 1fr; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.15); padding: 0.9rem 0; }
+          .f-last         { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
           .f-section-label { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 1.5rem; }
-          .f-pq-row     { display: grid; grid-template-columns: 1fr auto; gap: 2rem; border-top: 1px solid #C4D6E0; padding: 1.75rem 0; align-items: baseline; }
+          .f-pq-row       { display: grid; grid-template-columns: 1fr auto; gap: 2rem; border-top: 1px solid #C4D6E0; padding: 1.75rem 0; align-items: baseline; }
           @media (max-width: 640px) {
-            .f-hero-inner { flex-direction: column; gap: 1rem; }
-            .f-hero-inner img { width: 52px !important; height: 52px !important; }
+            .f-hero-inner { flex-direction: row; align-items: center; gap: 1rem; }
+            .f-hero-inner img { width: 48px !important; height: 48px !important; flex-shrink: 0; }
             .f-stats { gap: 0; }
-            .f-stat { padding-right: 1.5rem; margin-right: 1.5rem; }
+            .f-stat { padding-right: 1.25rem; margin-right: 1.25rem; }
+            .f-genre-row { display: block; }
+            .f-genre-avg { text-align: left; margin-bottom: 0.75rem; }
+            .f-theme-row { grid-template-columns: auto 1fr; }
             .f-last { grid-template-columns: 1fr; gap: 2.5rem; }
-            .f-pq-row { grid-template-columns: 1fr; gap: 0.4rem; }
+            .f-pq-row { grid-template-columns: 1fr; gap: 0.3rem; }
+            .f-pq-source { text-align: left !important; }
           }
         `}</style>
 
@@ -190,13 +197,13 @@ export default async function Fringe2026Page() {
               const analysis = GENRE_ANALYSIS[type];
               return (
                 <div key={type} style={{ borderTop: "1px solid #E0E8EF", paddingTop: "2rem", paddingBottom: "2rem" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "1.5rem", alignItems: "start", marginBottom: "1rem" }}>
+                  <div className="f-genre-row">
                     <div>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.6rem" }}>
                         <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
                         <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
                       </div>
-                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, maxWidth: "34rem", margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
+                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
                       <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                         {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
                           <span key={e.id} style={{
@@ -213,7 +220,7 @@ export default async function Fringe2026Page() {
                       </div>
                     </div>
                     {typeAvg && (
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div className="f-genre-avg">
                         <div style={{ color: N.navy, fontSize: "2.25rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>{typeAvg}<span style={{ color: N.yellow }}>★</span></div>
                         <div style={{ color: "#9AADBC", fontSize: "0.55rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>avg</div>
                       </div>
@@ -256,7 +263,7 @@ export default async function Fringe2026Page() {
 
             <div style={{ maxWidth: "36rem" }}>
               {SENTIMENT.themes.map(theme => (
-                <div key={theme.label} style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: "1rem", borderTop: "1px solid rgba(255,255,255,0.15)", padding: "0.9rem 0" }}>
+                <div key={theme.label} className="f-theme-row">
                   <span style={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", paddingTop: "0.1rem" }}>{theme.label}</span>
                   <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>{theme.desc}</p>
                 </div>
@@ -274,7 +281,7 @@ export default async function Fringe2026Page() {
                 <p style={{ ...serif, color: N.navy, fontSize: "clamp(0.95rem, 2vw, 1.15rem)", lineHeight: 1.5, margin: 0, fontWeight: 400 }}>
                   <span style={{ color: N.salmon, fontSize: "1.5em", lineHeight: 0, verticalAlign: "-0.12em", marginRight: "0.1em" }}>"</span>{q.text}
                 </p>
-                <p style={{ color: "#7A9BB0", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", margin: 0, textAlign: "right", whiteSpace: "nowrap", flexShrink: 0 }}>{q.source}</p>
+                <p className="f-pq-source" style={{ color: "#7A9BB0", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", margin: 0, textAlign: "right", whiteSpace: "nowrap", flexShrink: 0 }}>{q.source}</p>
               </div>
             ))}
           </div>
