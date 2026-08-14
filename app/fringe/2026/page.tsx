@@ -125,11 +125,28 @@ export default async function Fringe2026Page() {
     <>
       <Nav />
       <main style={{ ...sans, minHeight: "100vh" }}>
+        <style>{`
+          .f-hero-inner { display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; }
+          .f-stats      { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid ${N.border}; }
+          .f-stat       { padding-right: 2.5rem; margin-right: 2.5rem; border-right: 1px solid ${N.border}; padding-top: 1.5rem; }
+          .f-stat:last-child { padding-right: 0; margin-right: 0; border-right: none; }
+          .f-last       { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+          .f-section-label { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 1.5rem; }
+          .f-pq-row     { display: grid; grid-template-columns: 1fr auto; gap: 2rem; border-top: 1px solid #C4D6E0; padding: 1.75rem 0; align-items: baseline; }
+          @media (max-width: 640px) {
+            .f-hero-inner { flex-direction: column; gap: 1rem; }
+            .f-hero-inner img { width: 52px !important; height: 52px !important; }
+            .f-stats { gap: 0; }
+            .f-stat { padding-right: 1.5rem; margin-right: 1.5rem; }
+            .f-last { grid-template-columns: 1fr; gap: 2.5rem; }
+            .f-pq-row { grid-template-columns: 1fr; gap: 0.4rem; }
+          }
+        `}</style>
 
         {/* ── HERO — full navy ─────────────────────────────── */}
         <section style={{ background: N.navy, paddingTop: "calc(3.5rem + 56px)", paddingBottom: "4rem" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "2rem", marginBottom: "2rem" }}>
+            <div className="f-hero-inner">
               <img src="/logo-ed-fringe-roundel.svg" width="72" height="72" alt="Edinburgh Festival Fringe" style={{ flexShrink: 0, marginTop: "0.25rem" }} />
               <div>
                 <p style={{ color: N.muted, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
@@ -143,14 +160,14 @@ export default async function Fringe2026Page() {
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
               A retrospective of {events.length} shows across {days.length} days, 8–17 August 2026.
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderTop: `1px solid ${N.border}` }}>
+            <div className="f-stats">
               {[
                 { val: String(events.length), label: "Shows seen" },
                 { val: `£${gbp.toFixed(0)}${eur > 0 ? ` + €${eur.toFixed(0)}` : ""}`, label: "Spent" },
                 { val: overallAvg ? String(overallAvg) : "—", label: "Avg rating", star: !!overallAvg },
                 { val: String(fiveStars.length), label: "Five-star nights" },
-              ].map((s, i, arr) => (
-                <div key={s.label} style={{ paddingRight: "2.5rem", marginRight: i < arr.length - 1 ? "2.5rem" : 0, borderRight: i < arr.length - 1 ? `1px solid ${N.border}` : "none", paddingTop: "1.5rem" }}>
+              ].map((s) => (
+                <div key={s.label} className="f-stat">
                   <div style={{ color: "#fff", fontSize: "clamp(1.75rem, 5vw, 2.75rem)", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
                     {s.val}{"star" in s && s.star && <span style={{ color: N.yellow }}>★</span>}
                   </div>
@@ -164,7 +181,7 @@ export default async function Fringe2026Page() {
         {/* ── WHAT YOU SAW — white ─────────────────────────── */}
         <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "0.4rem" }}>What you saw</p>
+            <p className="f-section-label" style={{ color: N.salmon, marginBottom: "0.4rem" }}>What you saw</p>
             <h2 style={{ ...serif, color: N.navy, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", fontWeight: 700, lineHeight: 1.15, marginBottom: "3rem" }}>
               {events.length} shows.<br />{byType.length} genres.<br />Zero regrets.
             </h2>
@@ -211,7 +228,7 @@ export default async function Fringe2026Page() {
         {/* ── SENTIMENT — salmon full-bleed ────────────────── */}
         <section style={{ background: N.salmon, padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1rem" }}>How you felt</p>
+            <p className="f-section-label" style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1rem" }}>How you felt</p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
               <span style={{ ...serif, color: "#fff", fontSize: "clamp(4.5rem, 16vw, 9rem)", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.04em" }}>{SENTIMENT.bar.enthusiastic}%</span>
               <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "1.1rem", fontWeight: 600 }}>enthusiastic</span>
@@ -251,13 +268,13 @@ export default async function Fringe2026Page() {
         {/* ── IN YOUR WORDS — light blue ───────────────────── */}
         <section style={{ background: N.blue, padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "2.5rem" }}>In your words</p>
+            <p className="f-section-label" style={{ color: N.salmon, marginBottom: "2rem" }}>In your words</p>
             {PULLQUOTES.map((q, i) => (
-              <div key={i} style={{ borderTop: "1px solid #C4D6E0", padding: "1.75rem 0" }}>
-                <p style={{ ...serif, color: N.navy, fontSize: "clamp(1rem, 2.5vw, 1.3rem)", lineHeight: 1.45, margin: "0 0 0.6rem", fontWeight: 400 }}>
-                  <span style={{ color: N.salmon, fontSize: "1.6em", lineHeight: 0, verticalAlign: "-0.12em", marginRight: "0.1em" }}>"</span>{q.text}
+              <div key={i} className="f-pq-row">
+                <p style={{ ...serif, color: N.navy, fontSize: "clamp(0.95rem, 2vw, 1.15rem)", lineHeight: 1.5, margin: 0, fontWeight: 400 }}>
+                  <span style={{ color: N.salmon, fontSize: "1.5em", lineHeight: 0, verticalAlign: "-0.12em", marginRight: "0.1em" }}>"</span>{q.text}
                 </p>
-                <p style={{ color: "#7A9BB0", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{q.source}</p>
+                <p style={{ color: "#7A9BB0", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", margin: 0, textAlign: "right", whiteSpace: "nowrap", flexShrink: 0 }}>{q.source}</p>
               </div>
             ))}
           </div>
@@ -266,7 +283,7 @@ export default async function Fringe2026Page() {
         {/* ── FIVE STAR CLUB — navy ────────────────────────── */}
         <section style={{ background: N.navy, padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <p style={{ color: N.yellow, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "0.5rem" }}>Five-star club</p>
+            <p className="f-section-label" style={{ color: N.yellow, marginBottom: "0.5rem" }}>Five-star club</p>
             <h2 style={{ ...serif, color: "#fff", fontSize: "clamp(1.5rem, 4vw, 2.25rem)", fontWeight: 700, lineHeight: 1.2, marginBottom: "2.5rem" }}>
               {fiveStars.length} show{fiveStars.length !== 1 ? "s" : ""} that earned the full five.
             </h2>
@@ -288,10 +305,10 @@ export default async function Fringe2026Page() {
         {/* ── DAY BY DAY + RANKED — white ──────────────────── */}
         <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "start" }}>
+            <div className="f-last">
 
               <div>
-                <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1.5rem" }}>Day by day</p>
+                <p className="f-section-label" style={{ color: N.salmon, marginBottom: "1.25rem" }}>Day by day</p>
                 {days.map(date => {
                   const dayEvents = events.filter(e => e.date === date);
                   const dayRated = dayEvents.filter(e => e.rating !== null);
@@ -316,7 +333,7 @@ export default async function Fringe2026Page() {
               </div>
 
               <div>
-                <p style={{ color: N.salmon, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "1.5rem" }}>All {events.length}, ranked</p>
+                <p className="f-section-label" style={{ color: N.salmon, marginBottom: "1.25rem" }}>All {events.length}, ranked</p>
                 {ranked.map((e, i) => (
                   <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1.25rem 1fr auto", gap: "0.5rem", borderTop: "1px solid #E0E8EF", padding: "0.45rem 0", alignItems: "baseline" }}>
                     <span style={{ fontSize: "0.58rem", color: "#B0BEC8", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{e.rating !== null ? i + 1 : "—"}</span>
