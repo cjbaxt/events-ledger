@@ -166,14 +166,14 @@ export default async function Fringe2026Page() {
               </div>
             </div>
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
-              A retrospective of {events.length} shows across {days.length} days, 8–17 August 2026.
+              A retrospective of {events.length} shows, 8–17 August 2026.
             </p>
             <div className="f-stats">
               {[
                 { val: String(events.length), label: "Shows seen" },
                 { val: `£${gbp.toFixed(0)}${eur > 0 ? ` + €${eur.toFixed(0)}` : ""}`, label: "Spent" },
                 { val: overallAvg ? String(overallAvg) : "—", label: "Avg rating", star: !!overallAvg },
-                { val: String(rated.length), label: "Shows reviewed" },
+                { val: String(days.length), label: "Days at the Fringe" },
               ].map((s) => (
                 <div key={s.label} className="f-stat">
                   <div style={{ color: "#fff", fontSize: "clamp(1.75rem, 5vw, 2.75rem)", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
