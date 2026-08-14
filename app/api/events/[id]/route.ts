@@ -335,18 +335,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const supabase = createServiceClient();
 
   const baseAllowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context",
-    "title", "date", "time", "venue_id", "festival_id", "payment_method_id", "subtype",
+    "title", "date", "time", "venue_id", "festival_id", "payment_method_id", "subtype", "type",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "links"];
   const baseUpdate: Record<string, unknown> = {};
   for (const key of baseAllowed) { if (key in body) baseUpdate[key] = body[key]; }
+
+  // Read current type before updating so we can handle extension table transitions
+  const { data: evBefore } = await supabase.from("event").select("type").eq("id", id).single();
+  const oldType = evBefore?.type as string | undefined;
+  const newType = (body.type as string | undefined) ?? oldType;
+  const typeChanged = !!body.type && body.type !== oldType;
 
   if (Object.keys(baseUpdate).length) {
     const { error } = await supabase.from("event").update(baseUpdate).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // If type changed, delete old extension row and credits
+  if (typeChanged && oldType) {
+    const oldExtTable = extensionTable(oldType);
+    if (oldExtTable) await supabase.from(oldExtTable).delete().eq("event_id", id);
+    await supabase.from("event_credit").delete().eq("event_id", id);
+  }
+
   // Extension fields: accept either body.extension (explicit) or top-level non-base fields (legacy form format)
-  const baseAllowedSet = new Set([...baseAllowed, "type", "credits"]);
+  const baseAllowedSet = new Set([...baseAllowed, "credits"]);
   const rawExt = body.extension && typeof body.extension === "object"
     ? body.extension as Record<string, unknown>
     : Object.fromEntries(Object.entries(body).filter(([k]) => !baseAllowedSet.has(k)));
@@ -355,14 +368,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const hasExt = Object.keys(rawExt).length > 0;
   if (hasExt || creditsArr) {
-    const { data: ev } = await supabase.from("event").select("type").eq("id", id).single();
-    if (ev) {
-      const extTable = extensionTable(ev.type);
+    if (newType) {
+      const extTable = extensionTable(newType);
       if (extTable && hasExt) {
         const { error: extErr } = await supabase.from(extTable).upsert({ event_id: id, ...rawExt });
         if (extErr) return NextResponse.json({ error: extErr.message }, { status: 500 });
       }
-      if (creditsArr) {
+      if (creditsArr && !typeChanged) {
         await supabase.from("event_credit").delete().eq("event_id", id);
         const credits = creditsArr as Array<{ role: string; person_id: string; sort_order: number }>;
         if (credits.length) await supabase.from("event_credit").insert(credits.map((c) => ({ event_id: id, ...c })));

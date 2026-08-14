@@ -498,6 +498,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
   const id = (v: NamedRef | null | undefined) => v?.id ?? null;
   const ids = (arr: NamedRef[] | undefined) => arr?.map((v) => v.id) ?? [];
   const payload: Record<string, unknown> = {
+    type,
     venue_id: (base.venue as NamedRef | null)?.id, title: base.title, date: base.date, time: base.time || null,
     price_paid: base.price_paid || null, currency: base.currency || "EUR",
     festival_id: (base.festival as NamedRef | null)?.id ?? null,
@@ -630,11 +631,26 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
   }
 
   const ExtFields = type ? EXTENSION_FIELDS[type] : null;
-  const steps = editMode ? (["basic", "details", "take"] as Step[]).filter((s) => s !== "details" || !!ExtFields) : (["type", "basic", "details", "take"] as Step[]);
+  const steps = editMode
+    ? (step === "type" ? ["type", "basic", "details", "take"] : ["basic", "details", "take"]).filter((s) => s !== "details" || !!ExtFields) as Step[]
+    : (["type", "basic", "details", "take"] as Step[]);
 
   return (
     <div className="max-w-lg mx-auto">
-      {editMode && <div className="mb-6"><a href="/" className="text-xs text-neutral-400 hover:text-neutral-700">← Back</a><h1 className="font-serif text-2xl text-neutral-900 mt-2">Edit event</h1><p className="text-sm text-neutral-400 mt-1">{TYPE_LABELS[type!]} · {String(base.date)}</p></div>}
+      {editMode && (
+        <div className="mb-6">
+          <a href="/" className="text-xs text-neutral-400 hover:text-neutral-700">← Back</a>
+          <h1 className="font-serif text-2xl text-neutral-900 mt-2">Edit event</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-neutral-400">{type ? TYPE_LABELS[type] : ""} · {String(base.date)}</p>
+            <button type="button" className="text-xs text-neutral-300 hover:text-neutral-600 underline underline-offset-2" onClick={() => {
+              if (confirm("Changing the event type will clear all type-specific fields (director, cast, etc.). Continue?")) {
+                setStep("type");
+              }
+            }}>Change type</button>
+          </div>
+        </div>
+      )}
 
       {step !== "import" && (
         <div className="flex items-center gap-2 mb-8">
@@ -688,7 +704,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
           <h2 className="font-serif text-xl text-neutral-900 mb-6">What kind of event?</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {EVENT_TYPES.map((t) => (
-              <button key={t} type="button" onClick={() => { setType(t); setStep("basic"); }} className={`flex flex-col items-center gap-2 border rounded-xl py-4 px-2 transition-colors hover:border-neutral-400 ${type === t ? "border-neutral-800 bg-neutral-50" : "border-neutral-100"}`}>
+              <button key={t} type="button" onClick={() => { if (editMode && t !== type) setExt({}); setType(t); setStep("basic"); }} className={`flex flex-col items-center gap-2 border rounded-xl py-4 px-2 transition-colors hover:border-neutral-400 ${type === t ? "border-neutral-800 bg-neutral-50" : "border-neutral-100"}`}>
                 <span className="text-neutral-500"><EventTypeIcon type={t} size={20} /></span>
                 <span className="text-[11px] text-neutral-600 text-center leading-tight">{TYPE_LABELS[t]}</span>
               </button>
