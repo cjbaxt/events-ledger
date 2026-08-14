@@ -178,7 +178,7 @@ export default async function Fringe2026Page() {
               </div>
             </div>
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
-              A retrospective. {events.length} shows. {byType.length} genres. Zero regrets.{dateRange ? ` ${dateRange}.` : ""}
+              A personal retrospective. {dateRange ?? "8–17 August"}. Zero regrets.
             </p>
             <div className="f-stats">
               {[
