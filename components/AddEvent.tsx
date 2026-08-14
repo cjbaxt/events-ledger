@@ -274,20 +274,28 @@ function StarPicker({ value, onChange }: { value: number | null; onChange: (v: n
   );
 }
 
-type CreditRow = { role: string; person: NamedRef | null };
+type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null };
 type Ext = Record<string, unknown>;
 
 function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: CreditRow[]) => void }) {
   return (
     <div className="space-y-2">
-      {credits.map((c, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-40 flex-shrink-0" placeholder="Role" value={c.role} onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }} />
-          <div className="flex-1"><SearchCombo label="" endpoint="persons" value={c.person} onChange={(v) => { const next = [...credits]; next[i] = { ...c, person: v }; set(next); }} /></div>
-          <button type="button" onClick={() => set(credits.filter((_, j) => j !== i))} className="text-neutral-300 hover:text-red-400 text-xs flex-shrink-0">✕</button>
-        </div>
-      ))}
-      <button type="button" className="text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full" onClick={() => set([...credits, { role: "", person: null }])}>+ Add credit</button>
+      {credits.map((c, i) => {
+        const isEnsemble = !!c.ensemble;
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-40 flex-shrink-0" placeholder="Role" value={c.role} onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }} />
+            <button type="button" onClick={() => { const next = [...credits]; next[i] = { ...c, person: null, ensemble: null }; set(next); }} className={`text-[10px] px-2 py-1 rounded border flex-shrink-0 transition-colors ${isEnsemble ? "border-neutral-400 bg-neutral-100 text-neutral-700" : "border-neutral-200 text-neutral-400 hover:border-neutral-400"}`}>{isEnsemble ? "Company" : "Person"}</button>
+            <div className="flex-1">
+              {isEnsemble
+                ? <SearchCombo label="" endpoint="ensembles" value={c.ensemble} onChange={(v) => { const next = [...credits]; next[i] = { ...c, ensemble: v, person: null }; set(next); }} />
+                : <SearchCombo label="" endpoint="persons" value={c.person} onChange={(v) => { const next = [...credits]; next[i] = { ...c, person: v, ensemble: null }; set(next); }} />}
+            </div>
+            <button type="button" onClick={() => set(credits.filter((_, j) => j !== i))} className="text-neutral-300 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+          </div>
+        );
+      })}
+      <button type="button" className="text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full" onClick={() => set([...credits, { role: "", person: null, ensemble: null }])}>+ Add credit</button>
     </div>
   );
 }
@@ -500,7 +508,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     description_source_url: base.description_source_url || null, subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter((l) => l.url).map((l) => ({ url: l.url, ...(l.label ? { label: l.label } : {}), ...(l.description ? { description: l.description } : {}) })) ?? null,
   };
-  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && c.person).map((c, i) => ({ role: c.role, person_id: c.person!.id, sort_order: i })) ?? null;
+  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i })) ?? null;
   if (type === "music") Object.assign(payload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), support_act_ensemble_ids: ids(ext.support_ensembles as NamedRef[]), tour_name: ext.tour_name || null });
   else if (type === "classical") Object.assign(payload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload });
   else if (type === "opera") { const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map((s) => s.trim()).filter(Boolean) : null; Object.assign(payload, { work_id: id(ext.work as NamedRef), ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), director_id: id(ext.director as NamedRef), production_id: id(ext.production as NamedRef), libretto_language: ext.libretto_language || null, surtitles_languages: surtitles, credits: creditsPayload }); }
@@ -538,7 +546,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     director: ref(e.director), production: ref(e.production), composers: refs(e.composers),
     libretto_language: e.libretto_language ?? "", surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
     cast: e.cast ?? {}, setlist_fm_url: e.setlist_fm_url ?? "", setlist: Array.isArray(e.setlist) ? e.setlist : [],
-    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; person: { id: string; name: string } }>).map((c) => ({ role: c.role, person: c.person ?? null })) : [],
+    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, person: c.person ?? null, ensemble: c.ensemble ?? null })) : [],
     company: ref(e.company), orchestra: ref(e.orchestra), choreographer: ref(e.choreographer),
     headliner: ref(e.headliner), host: ref(e.host), supporting_cast: refs(e.supporting_cast),
     performer: ref(e.performer), support_acts: refs(e.support_acts), performers: refs(e.performers),

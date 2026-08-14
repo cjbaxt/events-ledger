@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { IconX, IconExternalLink, IconChevronLeft, IconCheck, IconWriting, IconArticle } from "@tabler/icons-react";
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
@@ -10,6 +10,38 @@ import {
 import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 import { useGuest } from "./GuestContext";
+
+const REVIEW_PROMPTS_ENTHUSIASM = [
+  "Name one scene or image you'd describe to someone at the pub.",
+  "What's the one line or moment you'll still be thinking about tomorrow?",
+  "Was there a moment where the room changed?",
+  "What was the most technically impressive thing — staging, voice, physicality, design?",
+  "What was it actually about underneath the surface premise?",
+  "Did it commit to its idea, or did it hedge?",
+  "What's the weird unexplainable thing that made it work?",
+  "Who was the standout, and what did they do that no one else did?",
+  "What surprised you that you weren't expecting?",
+  "When did you feel something shift — laugh, wince, hold your breath?",
+  "How Fringe was it? Could this exist anywhere else?",
+  "How did it compare to what you expected walking in?",
+  "Would you see it again?",
+];
+
+const REVIEW_PROMPTS_REFLECTION = [
+  "What (if anything) nearly let it down?",
+  "Was there anything that felt off, underdeveloped, or unearned?",
+  "Did it earn the emotion it was going for, or did it tell you how to feel?",
+  "Was it trying to do too much — or not quite enough?",
+  "Did the ending feel inevitable, or did it just... stop?",
+  "Where did your attention drift, if anywhere?",
+  "Was the concept stronger than the execution, or the other way round?",
+  "Was there a moment where you became aware you were watching a performance rather than experiencing one?",
+  "What's the one thing you'd cut?",
+  "What would have made it even better?",
+  "What's your honest case for and against recommending it?",
+  "If a friend asked \"was it good?\" — what would you actually say?",
+  "Who would hate this? (More useful than who'd love it.)",
+];
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -119,7 +151,7 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
   const cast = extension.cast as CastObj | null;
-  const credits = extension.credits as Array<{ role: string; person: NamedObj }> | null;
+  const credits = extension.credits as Array<{ role: string; person: NamedObj | null; ensemble: NamedObj | null }> | null;
   const setlist = extension.setlist as string[] | null;
   const setlistFmUrl = extension.setlist_fm_url as string | null;
   const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
@@ -127,8 +159,8 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   const ensembleFields = new Set(["ensemble", "company", "orchestra", "headliner_ensemble"]);
   const ensembleListFields = new Set(["additional_companies"]);
   const scalarEntries = Object.entries(extension).filter(([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null);
-  const creditsByRole: Map<string, NamedObj[]> = new Map();
-  if (credits) for (const c of credits) { if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push(c.person); }
+  const creditsByRole: Map<string, { entity: NamedObj; isEnsemble: boolean }[]> = new Map();
+  if (credits) for (const c of credits) { const entity = c.person ?? c.ensemble; if (!entity) continue; if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push({ entity, isEnsemble: !!c.ensemble }); }
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -189,8 +221,8 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
       )}
       {creditsByRole.size > 0 && (
         <div className="space-y-3">
-          {[...creditsByRole.entries()].map(([role, persons]) => (
-            <Field key={role} label={role}><span className="text-neutral-600">{persons.map((p, i) => <span key={p.id}>{i > 0 && ", "}<ClickableRef obj={p} onClick={onPersonClick} /></span>)}</span></Field>
+          {[...creditsByRole.entries()].map(([role, entries]) => (
+            <Field key={role} label={role}><span className="text-neutral-600">{entries.map(({ entity, isEnsemble }, i) => <span key={entity.id}>{i > 0 && ", "}<ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} /></span>)}</span></Field>
           ))}
         </div>
       )}
@@ -338,6 +370,8 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
   const storageKey = `review_draft_${eventId}`;
   const [draft, setDraft] = useState(() => { try { return localStorage.getItem(storageKey) ?? review ?? ""; } catch { return review ?? ""; } });
   const [editing, setEditing] = useState(() => { try { return !!localStorage.getItem(storageKey); } catch { return false; } });
+  const enthusiasmPrompt = useMemo(() => REVIEW_PROMPTS_ENTHUSIASM[Math.floor(Math.random() * REVIEW_PROMPTS_ENTHUSIASM.length)], []);
+  const reflectionPrompt = useMemo(() => REVIEW_PROMPTS_REFLECTION[Math.floor(Math.random() * REVIEW_PROMPTS_REFLECTION.length)], []);
   const hasContent = review || (links && links.length > 0);
   const hasEssay = !!(links && links.some(l => l.url?.includes("cultural-dispatch")));
   return (
@@ -353,6 +387,10 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
       {editing ? (
         <div className="space-y-2">
           <textarea value={draft} onChange={(e) => { setDraft(e.target.value); try { localStorage.setItem(storageKey, e.target.value); } catch {} }} placeholder="Write something…" autoFocus rows={4} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed" />
+          <div className="space-y-1 pb-1">
+            <p className="text-xs text-neutral-300 italic">{enthusiasmPrompt}</p>
+            <p className="text-xs text-neutral-300 italic">{reflectionPrompt}</p>
+          </div>
           <div className="flex items-center gap-2">
             <button onClick={() => { onSaveReview(draft.trim() || null); try { localStorage.removeItem(storageKey); } catch {} setEditing(false); }} className="flex items-center gap-1 text-xs text-neutral-700 border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50"><IconCheck size={12} /> Save</button>
             <button onClick={() => { setDraft(review ?? ""); try { localStorage.removeItem(storageKey); } catch {} setEditing(false); }} className="text-xs text-neutral-400">Cancel</button>

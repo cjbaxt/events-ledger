@@ -70,7 +70,7 @@ async function resolveExtension(
     const [persons, ensembles, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id)]),
       lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
     const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
@@ -91,7 +91,7 @@ async function resolveExtension(
       lookupEnsembles(sb, [str(raw.ensemble_id)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
     const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
@@ -116,7 +116,7 @@ async function resolveExtension(
       lookupEnsembles(sb, [str(raw.company_id), str(raw.orchestra_id), ...strArr(raw.additional_company_ids)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
     const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
@@ -166,7 +166,7 @@ async function resolveExtension(
       lookupEnsembles(sb, [str(raw.company_id)]),
       lookupWorks(sb, [str(raw.work_id)]),
       lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, person:person_id(id, name)").eq("event_id", eventId).order("sort_order"),
+      sb.from("event_credit").select("role, sort_order, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
     ]);
     const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
     return {
