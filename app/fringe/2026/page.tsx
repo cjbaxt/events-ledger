@@ -196,34 +196,32 @@ export default async function Fringe2026Page() {
               const analysis = GENRE_ANALYSIS[type];
               return (
                 <div key={type} style={{ borderTop: "1px solid #E0E8EF", paddingTop: "2rem", paddingBottom: "2rem" }}>
-                  <div className="f-genre-row">
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", marginBottom: "0.6rem" }}>
-                        <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
-                        <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
-                      </div>
-                      {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem", maxWidth: "none" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
-                      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                        {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
-                          <span key={e.id} style={{
-                            fontSize: "0.7rem", padding: "0.2rem 0.55rem", borderRadius: "2px",
-                            border: `1px solid ${e.rating && e.rating >= 4.5 ? N.navy : "#D4DDE6"}`,
-                            color: e.rating && e.rating >= 4.5 ? N.navy : e.rating && e.rating <= 2.5 ? "#B0BEC8" : "#4A5C6A",
-                            fontWeight: e.rating && e.rating >= 4.5 ? 600 : 400,
-                          }}>
-                            {e.title}{e.rating !== null
-                              ? <span style={{ color: "#9AADBC" }}> {e.rating}<span style={{ color: N.yellow }}>★</span></span>
-                              : <span style={{ color: "#B0BEC8", fontStyle: "italic" }}> WIP</span>}
-                          </span>
-                        ))}
-                      </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1.5rem", marginBottom: "0.75rem" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
+                      <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
+                      <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
                     </div>
                     {typeAvg && (
-                      <div className="f-genre-avg">
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ color: N.navy, fontSize: "2.25rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>{typeAvg}<span style={{ color: N.yellow }}>★</span></div>
                         <div style={{ color: "#9AADBC", fontSize: "0.55rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>avg</div>
                       </div>
                     )}
+                  </div>
+                  {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
+                  <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                    {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
+                      <span key={e.id} style={{
+                        fontSize: "0.7rem", padding: "0.2rem 0.55rem", borderRadius: "2px",
+                        border: `1px solid ${e.rating && e.rating >= 4.5 ? N.navy : "#D4DDE6"}`,
+                        color: e.rating && e.rating >= 4.5 ? N.navy : e.rating && e.rating <= 2.5 ? "#B0BEC8" : "#4A5C6A",
+                        fontWeight: e.rating && e.rating >= 4.5 ? 600 : 400,
+                      }}>
+                        {e.title}{e.rating !== null
+                          ? <span style={{ color: "#9AADBC" }}> {e.rating}<span style={{ color: N.yellow }}>★</span></span>
+                          : <span style={{ color: "#B0BEC8", fontStyle: "italic" }}> WIP</span>}
+                      </span>
+                    ))}
                   </div>
                 </div>
               );
