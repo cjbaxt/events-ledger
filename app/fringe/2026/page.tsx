@@ -9,8 +9,10 @@ type FringeEvent = {
   title: string;
   type: string;
   date: string;
+  time: string | null;
   rating: number | null;
   review: string | null;
+  description: string | null;
   price_paid: number | null;
   currency: string | null;
   notes: string | null;
@@ -21,9 +23,10 @@ async function getFringeEvents(): Promise<FringeEvent[]> {
   const sb = createServiceClient();
   const { data } = await sb
     .from("event")
-    .select("id, title, type, date, rating, review, price_paid, currency, notes, venue:venue_id(name)")
+    .select("id, title, type, date, time, rating, review, description, price_paid, currency, notes, venue:venue_id(name)")
     .eq("festival_id", FESTIVAL_ID)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true })
+    .order("time", { ascending: true, nullsFirst: false });
   return (data ?? []) as unknown as FringeEvent[];
 }
 
@@ -166,7 +169,7 @@ export default async function Fringe2026Page() {
               </div>
             </div>
             <p style={{ color: N.muted, fontSize: "0.875rem", marginBottom: "3rem" }}>
-              {events.length} shows. {byType.length} genres. Zero regrets.
+              A retrospective. {events.length} shows. {byType.length} genres. Zero regrets.
             </p>
             <div className="f-stats">
               {[
