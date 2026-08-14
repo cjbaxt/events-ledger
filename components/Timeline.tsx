@@ -7,12 +7,7 @@ import EventTypeIcon from "./EventTypeIcon";
 import { IconWriting, IconArticle } from "@tabler/icons-react";
 
 function FringeBadge() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Edinburgh Fringe">
-      <circle cx="7" cy="7" r="7" fill="#1E2D4E" />
-      <text x="7" y="10.5" textAnchor="middle" fill="white" fontSize="9" fontFamily="Georgia, serif" fontStyle="italic" fontWeight="700">f</text>
-    </svg>
-  );
+  return <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0" />;
 }
 
 const PAGE_SIZE = 30;
@@ -168,22 +163,19 @@ function EventCard({ event, onClick, active }: { event: EventListItem; onClick: 
         <EventTypeIcon type={event.type} size={16} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-serif text-sm font-medium text-neutral-900 truncate">{event.title}</div>
+        <div className="font-serif text-sm font-medium text-neutral-900 truncate flex items-center gap-1.5">{event.title}{event.festival_name?.toLowerCase().includes("fringe") && <FringeBadge />}</div>
         <div className="text-xs text-neutral-400 mt-0.5 truncate">{event.venue_name}</div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div className="text-xs text-neutral-400">{day} {monthShort}</div>
         <div className="flex items-center gap-1.5">
           {event.rating != null && <span className="text-[11px] text-neutral-400">{event.rating}★</span>}
-          <div className="flex items-center gap-1">
-            {event.festival_name?.toLowerCase().includes("fringe") && <FringeBadge />}
-            {(event.has_review || event.has_essay) && (
-              <div className="flex gap-1">
-                {event.has_review && <IconWriting size={13} className="text-neutral-500" />}
-                {event.has_essay && <IconArticle size={13} className="text-neutral-500" />}
-              </div>
-            )}
-          </div>
+          {(event.has_review || event.has_essay) && (
+            <div className="flex gap-1">
+              {event.has_review && <IconWriting size={13} className="text-neutral-500" />}
+              {event.has_essay && <IconArticle size={13} className="text-neutral-500" />}
+            </div>
+          )}
         </div>
       </div>
       <svg className="w-3 h-3 text-neutral-300 flex-shrink-0 -mr-1" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
