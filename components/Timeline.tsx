@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { fetchEvents, fetchPaymentMethods, eventTimestamp } from "@/lib/api";
 import type { PaymentMethod } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
@@ -7,14 +8,21 @@ import EventTypeIcon from "./EventTypeIcon";
 import { IconWriting, IconArticle } from "@tabler/icons-react";
 
 function FringeBadge({ year }: { year: string }) {
+  const router = useRouter();
+  const img = <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0" />;
   if (year === "2026") {
     return (
-      <a href="/fringe/2026" onClick={e => e.stopPropagation()} title="Edinburgh Fringe 2026 — your year in review">
-        <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0 hover:opacity-70 transition-opacity" />
-      </a>
+      <span
+        role="link"
+        title="Edinburgh Fringe 2026 — your year in review"
+        className="hover:opacity-70 transition-opacity cursor-pointer"
+        onClick={(e) => { e.stopPropagation(); router.push("/fringe/2026"); }}
+      >
+        {img}
+      </span>
     );
   }
-  return <img src="/logo-ed-fringe-roundel.svg" width="14" height="14" alt="Edinburgh Fringe" className="inline-block flex-shrink-0" />;
+  return img;
 }
 
 const PAGE_SIZE = 30;
