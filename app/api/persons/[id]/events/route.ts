@@ -14,9 +14,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     supabase.from("event_cabaret").select("event_id").contains("supporting_cast", [id]),
     supabase.from("event_talk").select("event_id").contains("speaker_ids", [id]),
     supabase.from("event_spoken_word").select("event_id").contains("performers", [id]),
-    supabase.from("event_theatre").select("event_id").eq("director_id", id),
-    supabase.from("event_opera").select("event_id").eq("conductor_id", id),
-    supabase.from("event_ballet").select("event_id").eq("choreographer_id", id),
+    supabase.from("event_theatre").select("event_id").or(`director_id.eq.${id},playwright_id.eq.${id},cast::text.ilike.*${id}*`),
+    supabase.from("event_opera").select("event_id").or(`conductor_id.eq.${id},director_id.eq.${id},cast::text.ilike.*${id}*`),
+    supabase.from("event_ballet").select("event_id").or(`conductor_id.eq.${id},cast::text.ilike.*${id}*`),
     supabase.from("event_classical").select("event_id").eq("conductor_id", id),
     supabase.from("event_credit").select("event_id").eq("person_id", id),
   ]);
