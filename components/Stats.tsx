@@ -281,33 +281,43 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
   }
   const ranked = [...groups.values()].sort((a, b) => b.total - a.total);
 
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (!ranked.length) return <p className="text-sm text-neutral-400">No venues yet.</p>;
   return (
     <div className="space-y-1">
-      {ranked.map((g, i) => (
-        <div key={g.id ?? g.name}>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-            <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
-            <span className="flex-1 text-sm min-w-0">
-              <button onClick={() => onVenueClick(g.id!, g.name)} className="text-neutral-900 hover:underline underline-offset-2">{g.name}</button>
-            </span>
-            <span className="flex gap-1 flex-shrink-0">{[...g.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
-            <span className="text-xs text-neutral-400 flex-shrink-0">×{g.total}</span>
+      {ranked.map((g, i) => {
+        const key = g.id ?? g.name;
+        const open = expanded.has(key);
+        return (
+          <div key={key}>
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+              <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
+              <span className="flex-1 text-sm min-w-0">
+                <button onClick={() => onVenueClick(g.id!, g.name)} className="text-neutral-900 hover:underline underline-offset-2">{g.name}</button>
+              </span>
+              <span className="flex gap-1 flex-shrink-0">{[...g.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
+              <span className="text-xs text-neutral-400 flex-shrink-0">×{g.total}</span>
+              {g.children.length > 0 && (
+                <button onClick={() => setExpanded(prev => { const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s; })} className="text-neutral-300 hover:text-neutral-600 transition-colors flex-shrink-0 w-4">
+                  <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}><path d="M2 3.5l3 3 3-3" /></svg>
+                </button>
+              )}
+            </div>
+            {open && g.children.sort((a, b) => b.n - a.n).map((v) => {
+              const baseName = v.parentName ? v.name.replace(`, ${v.parentName}`, "").trim() : v.name;
+              return (
+                <div key={v.id} className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
+                  <span className="w-5 flex-shrink-0" />
+                  <span className="flex-1 text-xs min-w-0 pl-3 border-l border-neutral-100">
+                    <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">{baseName}</button>
+                  </span>
+                  <span className="text-xs text-neutral-300 flex-shrink-0">×{v.n}</span>
+                </div>
+              );
+            })}
           </div>
-          {g.children.sort((a, b) => b.n - a.n).map((v) => {
-            const baseName = v.parentName ? v.name.replace(`, ${v.parentName}`, "").trim() : v.name;
-            return (
-              <div key={v.id} className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
-                <span className="w-5 flex-shrink-0" />
-                <span className="flex-1 text-xs min-w-0 pl-3 border-l border-neutral-100">
-                  <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">{baseName}</button>
-                </span>
-                <span className="text-xs text-neutral-300 flex-shrink-0">×{v.n}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
