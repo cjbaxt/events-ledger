@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { fetchEvents, patchEventRating } from "@/lib/api";
+import { fetchEvents, patchEventRating, fetchAllPersons, fetchAllEnsembles } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -231,15 +231,58 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
 }
 
 function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> }>();
-  for (const e of events) {
-    if (e.primary_entity_name && e.primary_entity_id) {
-      const prev = counts.get(e.primary_entity_id);
-      if (prev) { prev.n++; prev.types.add(e.type); }
-      else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
+  type ArtistEntry = { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> };
+  const [ranked, setRanked] = useState<ArtistEntry[]>([]);
+
+  useEffect(() => {
+    const eventIds = new Set(events.map((e) => e.id));
+    const eventTypeMap = new Map(events.map((e) => [e.id, e.type]));
+
+    // Build primary-entity counts from events list
+    const counts = new Map<string, ArtistEntry>();
+    for (const e of events) {
+      if (e.primary_entity_name && e.primary_entity_id) {
+        const prev = counts.get(e.primary_entity_id);
+        if (prev) { prev.n++; prev.types.add(e.type); }
+        else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
+      }
     }
-  }
-  const ranked = [...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n);
+
+    // Merge credit-linked persons and ensembles
+    Promise.all([
+      fetch("/api/credits").then((r) => r.json()) as Promise<Array<{ event_id: string; person_id: string | null; ensemble_id: string | null }>>,
+      fetchAllPersons(),
+      fetchAllEnsembles(),
+    ]).then(([credits, persons, ensembles]) => {
+      const personMap = new Map(persons.map((p) => [p.id, p.name]));
+      const ensembleMap = new Map(ensembles.map((e) => [e.id, e.name]));
+
+      for (const c of credits) {
+        if (!eventIds.has(c.event_id)) continue;
+        const eventType = eventTypeMap.get(c.event_id) ?? "other";
+        if (c.person_id) {
+          const name = personMap.get(c.person_id);
+          if (!name) continue;
+          const prev = counts.get(c.person_id);
+          if (prev) { prev.n++; prev.types.add(eventType); }
+          else counts.set(c.person_id, { id: c.person_id, name, kind: "person", n: 1, types: new Set([eventType]) });
+        }
+        if (c.ensemble_id) {
+          const name = ensembleMap.get(c.ensemble_id);
+          if (!name) continue;
+          const prev = counts.get(c.ensemble_id);
+          if (prev) { prev.n++; prev.types.add(eventType); }
+          else counts.set(c.ensemble_id, { id: c.ensemble_id, name, kind: "ensemble", n: 1, types: new Set([eventType]) });
+        }
+      }
+
+      setRanked([...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n));
+    }).catch(() => {
+      // Fall back to primary-entity counts only
+      setRanked([...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n));
+    });
+  }, [events]);
+
   if (!ranked.length) return <p className="text-sm text-neutral-400">No repeat artists yet.</p>;
   return (
     <div className="space-y-1">
