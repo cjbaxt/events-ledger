@@ -142,7 +142,7 @@ function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
   }
 
   if (editing) {
-    const parentOptions = allVenues.filter(p => p.id !== v.id && !p.parent_id);
+    const parentOptions = allVenues.filter(p => p.id !== v.id);
     return (
       <div className="py-2.5 -mx-2 px-2 space-y-2">
         <input
