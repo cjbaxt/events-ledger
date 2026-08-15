@@ -424,6 +424,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
   const isGuest = useGuest();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
 
   const navigate = useCallback((kind: NavKind, id: string, hint?: string) => setNavTarget({ kind, id, hint }), []);
@@ -432,7 +433,11 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
     if (!eventId) return;
     setDetailLoading(true);
     setEvent(null);
-    fetchEvent(eventId).then(setEvent).finally(() => setDetailLoading(false));
+    setDetailError(null);
+    fetchEvent(eventId)
+      .then(setEvent)
+      .catch((err) => setDetailError(err?.message ?? "Failed to load event"))
+      .finally(() => setDetailLoading(false));
   }, [eventId]);
 
   useEffect(() => {
@@ -503,6 +508,10 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   </div>
                 );
               })()}
+
+              {detailError && !event && (
+                <div className="text-sm text-red-400 border border-red-100 rounded-lg px-4 py-3">{detailError}</div>
+              )}
 
               {/* Details that require the full event fetch */}
               {event ? (

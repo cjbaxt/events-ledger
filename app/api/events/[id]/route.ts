@@ -301,7 +301,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   let extension: Record<string, unknown> | null = null;
   if (extRes.data) {
-    extension = await resolveExtension(supabase, e.type, extRes.data as Record<string, unknown>, id);
+    try {
+      extension = await resolveExtension(supabase, e.type, extRes.data as Record<string, unknown>, id);
+    } catch (err) {
+      console.error("resolveExtension error:", err);
+    }
   }
 
   const response = NextResponse.json({
