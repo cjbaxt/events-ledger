@@ -114,6 +114,8 @@ export async function GET(req: NextRequest) {
     title: r.title as string,
     venue_id: r.venue_id as string,
     venue_name: r.venue_name as string,
+    venue_parent_id: r.venue_parent_id as string | null ?? null,
+    venue_parent_name: r.venue_parent_name as string | null ?? null,
     festival_id: r.festival_id as string | null,
     festival_name: r.festival_name as string | null,
     price_paid: r.price_paid != null ? String(r.price_paid) : null,
