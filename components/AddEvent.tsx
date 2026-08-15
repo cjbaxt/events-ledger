@@ -736,7 +736,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
               <div className="col-span-2"><Field label="Price paid"><input type="number" step="0.01" className={inputCls} value={(base.price_paid as string) ?? ""} onChange={(e) => setBaseField("price_paid", e.target.value)} placeholder="0.00" /></Field></div>
               <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
             </div>
-            <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} showOnFocus />
+            <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} />
             {SUBTYPES[type!] && (
               <Field label="Subtype">
                 <input className={inputCls} list={`subtypes-${type}`} value={(base.subtype as string) ?? ""} onChange={(e) => setBaseField("subtype", e.target.value)} placeholder="select or type a subtype" />
