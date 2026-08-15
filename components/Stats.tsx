@@ -256,7 +256,8 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
 }
 
 function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueClick: (id: string, name?: string) => void }) {
-  const counts = new Map<string, { name: string; id: string; parentId: string | null; parentName: string | null; n: number; types: Set<string> }>();
+  type VenueEntry = { name: string; id: string; parentId: string | null; parentName: string | null; n: number; types: Set<string> };
+  const counts = new Map<string, VenueEntry>();
   for (const e of events) {
     if (e.venue_name && e.venue_id) {
       const prev = counts.get(e.venue_id);
@@ -264,28 +265,44 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
       else counts.set(e.venue_id, { name: e.venue_name, id: e.venue_id, parentId: e.venue_parent_id ?? null, parentName: e.venue_parent_name ?? null, n: 1, types: new Set([e.type]) });
     }
   }
-  // IDs that appear as a parent of another venue in this event set — suppress them as top-level rows
-  const childParentIds = new Set([...counts.values()].map((v) => v.parentId).filter(Boolean) as string[]);
-  const ranked = [...counts.values()]
-    .filter((v) => !childParentIds.has(v.id))
-    .sort((a, b) => b.n - a.n);
+
+  // Group by parent: venues with a parent get rolled up; standalone venues are their own group
+  type Group = { id: string | null; name: string; total: number; types: Set<string>; children: VenueEntry[] };
+  const groups = new Map<string, Group>();
+  for (const v of counts.values()) {
+    const groupKey = v.parentId ?? v.id;
+    const groupName = v.parentName ?? v.name;
+    const groupId = v.parentId ?? v.id;
+    if (!groups.has(groupKey)) groups.set(groupKey, { id: groupId, name: groupName, total: 0, types: new Set(), children: [] });
+    const g = groups.get(groupKey)!;
+    g.total += v.n;
+    v.types.forEach(t => g.types.add(t));
+    if (v.parentId) g.children.push(v);
+  }
+  const ranked = [...groups.values()].sort((a, b) => b.total - a.total);
+
   if (!ranked.length) return <p className="text-sm text-neutral-400">No venues yet.</p>;
   return (
     <div className="space-y-1">
-      {ranked.map((v, i) => (
-        <div key={v.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-          <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
-          <span className="flex-1 text-sm min-w-0">
-            <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-900 hover:underline underline-offset-2 truncate">{v.name}</button>
-            {v.parentId && v.parentName && (
-              <span className="text-neutral-400">
-                <span className="mx-1">·</span>
-                <button onClick={() => onVenueClick(v.parentId!, v.parentName!)} className="hover:underline underline-offset-2">{v.parentName}</button>
+      {ranked.map((g, i) => (
+        <div key={g.id ?? g.name}>
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+            <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
+            <span className="flex-1 text-sm min-w-0">
+              <button onClick={() => onVenueClick(g.id!, g.name)} className="text-neutral-900 hover:underline underline-offset-2">{g.name}</button>
+            </span>
+            <span className="flex gap-1 flex-shrink-0">{[...g.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
+            <span className="text-xs text-neutral-400 flex-shrink-0">×{g.total}</span>
+          </div>
+          {g.children.sort((a, b) => b.n - a.n).map((v) => (
+            <div key={v.id} className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
+              <span className="w-5 flex-shrink-0" />
+              <span className="flex-1 text-xs min-w-0 pl-3 border-l border-neutral-100">
+                <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">{v.name}</button>
               </span>
-            )}
-          </span>
-          <span className="flex gap-1 flex-shrink-0">{[...v.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
-          <span className="text-xs text-neutral-400 flex-shrink-0">×{v.n}</span>
+              <span className="text-xs text-neutral-300 flex-shrink-0">×{v.n}</span>
+            </div>
+          ))}
         </div>
       ))}
     </div>
