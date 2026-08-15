@@ -279,7 +279,7 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
     v.types.forEach(t => g.types.add(t));
     if (v.parentId) g.children.push(v);
   }
-  const ranked = [...groups.values()].sort((a, b) => b.total - a.total);
+  const ranked = [...groups.values()].filter(g => g.total > 1).sort((a, b) => b.total - a.total);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (!ranked.length) return <p className="text-sm text-neutral-400">No venues yet.</p>;
