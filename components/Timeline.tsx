@@ -15,7 +15,7 @@ function FringeBadge({ year }: { year: string }) {
       <span
         role="link"
         title="Edinburgh Fringe 2026 — your year in review"
-        className="hover:opacity-70 transition-opacity cursor-pointer"
+        className="hover:opacity-70 transition-opacity cursor-pointer flex-shrink-0 inline-flex"
         onClick={(e) => { e.stopPropagation(); router.push("/fringe/2026"); }}
       >
         {img}
