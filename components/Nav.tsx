@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconTimeline, IconCalendarEvent, IconChartBar,
-  IconSearch, IconPlus, IconInfoCircle,
+  IconSearch, IconPlus, IconInfoCircle, IconLogout,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 import { useGuest } from "./GuestContext";
@@ -84,11 +84,16 @@ export default function Nav() {
             </Link>
           );
         })}
-        {!isGuest && (
+        {!isGuest ? (
           <Link href="/add" className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
             <IconPlus size={22} strokeWidth={1.5} />
             <span className="text-[10px] uppercase tracking-wider">Add</span>
           </Link>
+        ) : (
+          <a href="/api/guest/logout" className="flex-1 flex flex-col items-center gap-1 pt-2 text-neutral-400 hover:text-neutral-900 transition-colors">
+            <IconLogout size={22} strokeWidth={1.5} />
+            <span className="text-[10px] uppercase tracking-wider">Sign out</span>
+          </a>
         )}
       </nav>
     </>
