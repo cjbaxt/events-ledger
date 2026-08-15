@@ -36,11 +36,15 @@ async function lookupProductions(sb: SupabaseClient, ids: string[]): Promise<Map
 
 function str(v: unknown): string { return typeof v === "string" ? v : ""; }
 function strArr(v: unknown): string[] { return Array.isArray(v) ? (v as unknown[]).map(String) : []; }
-function resolveCast(cast: unknown, persons: Map<string, Named>): Record<string, Named | null> | null {
+function resolveCast(cast: unknown, persons: Map<string, Named>): Record<string, Named | Named[] | null> | null {
   if (!cast || typeof cast !== "object" || Array.isArray(cast)) return null;
-  const out: Record<string, Named | null> = {};
-  for (const [role, pid] of Object.entries(cast as Record<string, unknown>)) {
-    out[role] = persons.get(String(pid)) ?? null;
+  const out: Record<string, Named | Named[] | null> = {};
+  for (const [role, val] of Object.entries(cast as Record<string, unknown>)) {
+    if (Array.isArray(val)) {
+      out[role] = (val as string[]).map(id => persons.get(id)).filter((p): p is Named => !!p);
+    } else {
+      out[role] = persons.get(String(val)) ?? null;
+    }
   }
   return out;
 }
@@ -84,8 +88,8 @@ async function resolveExtension(
   }
 
   if (type === "opera") {
-    const castMap = raw.cast as Record<string, string> | null;
-    const castPersonIds = castMap ? Object.values(castMap) : [];
+    const castMap = raw.cast as Record<string, string | string[]> | null;
+    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
     const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id), str(raw.director_id), ...strArr(raw.composers), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.ensemble_id)]),
@@ -109,8 +113,8 @@ async function resolveExtension(
   }
 
   if (type === "ballet") {
-    const castMap = raw.cast as Record<string, string> | null;
-    const castPersonIds = castMap ? Object.values(castMap) : [];
+    const castMap = raw.cast as Record<string, string | string[]> | null;
+    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
     const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.conductor_id), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.company_id), str(raw.orchestra_id), ...strArr(raw.additional_company_ids)]),
@@ -159,8 +163,8 @@ async function resolveExtension(
   }
 
   if (type === "theatre") {
-    const castMap = raw.cast as Record<string, string> | null;
-    const castPersonIds = castMap ? Object.values(castMap) : [];
+    const castMap = raw.cast as Record<string, string | string[]> | null;
+    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
     const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
       lookupPersons(sb, [str(raw.director_id), str(raw.playwright_id), ...castPersonIds]),
       lookupEnsembles(sb, [str(raw.company_id)]),
