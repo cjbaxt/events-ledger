@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchEvents, fetchAllPersons, fetchAllEnsembles, fetchAllVenues, fetchAllFestivals } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
+import { useGuest } from "./GuestContext";
 import EventTypeIcon from "./EventTypeIcon";
 
 interface Person { id: string; name: string; }
@@ -108,12 +109,99 @@ function EntityTab<T extends { id: string; name: string }>({
   );
 }
 
+function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
+  v: Venue; allVenues: Venue[]; isAdmin: boolean;
+  onVenueClick: (id: string, name?: string) => void;
+  onSaved: (id: string, name: string, parentId: string | null) => void;
+  onDeleted: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(v.name);
+  const [parentId, setParentId] = useState<string>(v.parent_id ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true); setError(null);
+    const res = await fetch(`/api/venues/${v.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), parent_id: parentId || null }),
+    });
+    setSaving(false);
+    if (!res.ok) { setError("Save failed"); return; }
+    setEditing(false);
+    onSaved(v.id, name.trim(), parentId || null);
+  }
+
+  async function del() {
+    if (!confirm(`Delete "${v.name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/venues/${v.id}`, { method: "DELETE" });
+    if (!res.ok) { alert("Delete failed — venue may still have events attached."); return; }
+    onDeleted(v.id);
+  }
+
+  if (editing) {
+    const parentOptions = allVenues.filter(p => p.id !== v.id && !p.parent_id);
+    return (
+      <div className="py-2.5 -mx-2 px-2 space-y-2">
+        <input
+          value={name} onChange={e => setName(e.target.value)}
+          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
+          placeholder="Venue name"
+        />
+        <select
+          value={parentId} onChange={e => setParentId(e.target.value)}
+          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 bg-white focus:outline-none focus:border-neutral-400"
+        >
+          <option value="">— No parent venue —</option>
+          {parentOptions.map(p => <option key={p.id} value={p.id}>{p.name}{p.city ? ` (${p.city})` : ""}</option>)}
+        </select>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+          <button onClick={() => { setEditing(false); setName(v.name); setParentId(v.parent_id ?? ""); }} className="text-xs text-neutral-400">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
+      <button onClick={() => onVenueClick(v.id, v.name)} className="flex-1 min-w-0 text-left">
+        {v.parent_name && <span className="block text-[10px] text-neutral-400 truncate">{v.parent_name}</span>}
+        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{v.name}</span>
+      </button>
+      {v.city && <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>}
+      {isAdmin && (
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
+          <button onClick={del} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: string, name?: string) => void }) {
+  const isGuest = useGuest();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => { (fetchAllVenues() as Promise<Venue[]>).then(setVenues).catch(() => {}).finally(() => setLoading(false)); }, []);
   if (loading) return <Spinner />;
+
+  function handleSaved(id: string, name: string, parentId: string | null) {
+    setVenues(prev => prev.map(v => v.id === id ? {
+      ...v, name,
+      parent_id: parentId,
+      parent_name: parentId ? (prev.find(p => p.id === parentId)?.name ?? v.parent_name) : null,
+    } : v));
+  }
+  function handleDeleted(id: string) {
+    setVenues(prev => prev.filter(v => v.id !== id));
+  }
+
   const q = query.trim().toLowerCase();
   const filtered = venues.filter((v) => !q || v.name.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q) || v.parent_name?.toLowerCase().includes(q)).sort((a, b) => {
     const aRoot = a.parent_name ?? a.name;
@@ -133,13 +221,7 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
             <div className="divide-y divide-neutral-50">
               {items.map((v) => (
-                <button key={v.id} onClick={() => onVenueClick(v.id, v.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
-                  <span className="flex-1 min-w-0">
-                    {v.parent_name && <span className="block text-[10px] text-neutral-400 truncate">{v.parent_name}</span>}
-                    <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{v.name}</span>
-                  </span>
-                  {v.city && <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>}
-                </button>
+                <VenueRow key={v.id} v={v} allVenues={venues} isAdmin={!isGuest} onVenueClick={onVenueClick} onSaved={handleSaved} onDeleted={handleDeleted} />
               ))}
             </div>
           </section>
