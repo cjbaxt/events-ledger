@@ -294,15 +294,18 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
             <span className="flex gap-1 flex-shrink-0">{[...g.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
             <span className="text-xs text-neutral-400 flex-shrink-0">×{g.total}</span>
           </div>
-          {g.children.sort((a, b) => b.n - a.n).map((v) => (
-            <div key={v.id} className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
-              <span className="w-5 flex-shrink-0" />
-              <span className="flex-1 text-xs min-w-0 pl-3 border-l border-neutral-100">
-                <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">{v.name}</button>
-              </span>
-              <span className="text-xs text-neutral-300 flex-shrink-0">×{v.n}</span>
-            </div>
-          ))}
+          {g.children.sort((a, b) => b.n - a.n).map((v) => {
+            const baseName = v.parentName ? v.name.replace(`, ${v.parentName}`, "").trim() : v.name;
+            return (
+              <div key={v.id} className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
+                <span className="w-5 flex-shrink-0" />
+                <span className="flex-1 text-xs min-w-0 pl-3 border-l border-neutral-100">
+                  <button onClick={() => onVenueClick(v.id, v.name)} className="text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">{baseName}</button>
+                </span>
+                <span className="text-xs text-neutral-300 flex-shrink-0">×{v.n}</span>
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
