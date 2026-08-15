@@ -124,6 +124,7 @@ function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick?: (id
   const entries = Object.entries(cast);
   if (!entries.length) return null;
   function renderEntry(entry: CastEntry) {
+    if (entry === null || entry === undefined) return null;
     if (typeof entry === "object" && onPersonClick) return <button onClick={() => onPersonClick(entry.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{entry.name}</button>;
     return <span>{typeof entry === "object" ? entry.name : entry}</span>;
   }
