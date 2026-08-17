@@ -71,7 +71,7 @@ function EditableRating({ rating, onRate }: { rating: number | null; onRate: (r:
         return (
           <div key={star} className="cursor-pointer"
             onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setHover(e.clientX - rect.left < rect.width / 2 ? star - 0.5 : star); }}
-            onClick={() => { const next = hover ?? null; onRate(next === rating ? null : next); }}>
+            onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const v = e.clientX - rect.left < rect.width / 2 ? star - 0.5 : star; onRate(v === rating ? null : v); }}>
             <StarSvg fill={fill} />
           </div>
         );
