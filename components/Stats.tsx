@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { fetchEvents, patchEventRating, fetchAllPersons, fetchAllEnsembles } from "@/lib/api";
+import { fetchEvents, patchEventRating, fetchAllPersons } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -247,35 +247,26 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
       }
     }
 
-    // Merge credit-linked persons and ensembles, counting unique events (not credit rows)
+    // Merge credit-linked persons, counting unique events (not credit rows)
+    // Note: event_credit only has person_id; ensemble credits come via primary_entity_id in events
     Promise.all([
-      fetch("/api/credits").then((r) => r.json()) as Promise<Array<{ event_id: string; person_id: string | null; ensemble_id: string | null }>>,
+      fetch("/api/credits").then((r) => r.json()) as Promise<Array<{ event_id: string; person_id: string | null }>>,
       fetchAllPersons(),
-      fetchAllEnsembles(),
       fetchEvents(), // full cache — avoids missing older events outside the 500-event stats window
-    ]).then(([credits, persons, ensembles, allEvents]) => {
+    ]).then(([credits, persons, allEvents]) => {
       const pastEventIds = new Set(allEvents.filter((e) => e.date <= today).map((e) => e.id));
       const eventTypeMap = new Map(allEvents.map((e) => [e.id, e.type]));
       const personMap = new Map(persons.map((p) => [p.id, p.name]));
-      const ensembleMap = new Map(ensembles.map((e) => [e.id, e.name]));
 
       for (const c of credits) {
         if (!pastEventIds.has(c.event_id)) continue;
+        if (!c.person_id) continue;
+        const name = personMap.get(c.person_id);
+        if (!name) continue;
         const eventType = eventTypeMap.get(c.event_id) ?? "other";
-        if (c.person_id) {
-          const name = personMap.get(c.person_id);
-          if (!name) continue;
-          const prev = counts.get(c.person_id);
-          if (prev) { prev.eventIds.add(c.event_id); prev.types.add(eventType); }
-          else counts.set(c.person_id, { id: c.person_id, name, kind: "person", eventIds: new Set([c.event_id]), types: new Set([eventType]) });
-        }
-        if (c.ensemble_id) {
-          const name = ensembleMap.get(c.ensemble_id);
-          if (!name) continue;
-          const prev = counts.get(c.ensemble_id);
-          if (prev) { prev.eventIds.add(c.event_id); prev.types.add(eventType); }
-          else counts.set(c.ensemble_id, { id: c.ensemble_id, name, kind: "ensemble", eventIds: new Set([c.event_id]), types: new Set([eventType]) });
-        }
+        const prev = counts.get(c.person_id);
+        if (prev) { prev.eventIds.add(c.event_id); prev.types.add(eventType); }
+        else counts.set(c.person_id, { id: c.person_id, name, kind: "person", eventIds: new Set([c.event_id]), types: new Set([eventType]) });
       }
 
       setRanked([...counts.values()].filter((a) => a.eventIds.size > 1).sort((a, b) => b.eventIds.size - a.eventIds.size));
