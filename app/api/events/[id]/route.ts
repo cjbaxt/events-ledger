@@ -255,6 +255,15 @@ async function resolveExtension(
     };
   }
 
+  if (type === "other") {
+    const ensembles = await lookupEnsembles(sb, [str(raw.company_id)]);
+    return {
+      ...raw,
+      company: ensembles.get(str(raw.company_id)) ?? null,
+      company_id: undefined,
+    };
+  }
+
   return raw;
 }
 

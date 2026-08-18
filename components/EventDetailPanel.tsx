@@ -495,6 +495,8 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                       {(() => { const fn = (("festival_name" in e ? e.festival_name : (e as EventDetail).festival?.name) ?? "").toLowerCase(); return fn.includes("edinburgh") && fn.includes("fringe"); })() && (() => {
                         const year = e.date.slice(0, 4);
                         const img = <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />;
+                        const festivalId = event?.festival?.id ?? ("festival_id" in e ? e.festival_id : null);
+                        if (festivalId) return <button onClick={() => navigate("festival", festivalId)} title="Edinburgh Fringe — all events" className="hover:opacity-70 transition-opacity flex-shrink-0 active:opacity-50">{img}</button>;
                         return year === "2026"
                           ? <a href="/fringe/2026" title="Edinburgh Fringe 2026 — your year in review" className="hover:opacity-70 transition-opacity flex-shrink-0">{img}</a>
                           : img;

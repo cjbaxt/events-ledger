@@ -231,55 +231,56 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
 }
 
 function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void }) {
-  type ArtistEntry = { name: string; id: string; kind: "person" | "ensemble" | null; n: number; types: Set<string> };
+  type ArtistEntry = { name: string; id: string; kind: "person" | "ensemble" | null; eventIds: Set<string>; types: Set<string> };
   const [ranked, setRanked] = useState<ArtistEntry[]>([]);
 
   useEffect(() => {
-    const eventIds = new Set(events.map((e) => e.id));
-    const eventTypeMap = new Map(events.map((e) => [e.id, e.type]));
+    const today = new Date().toLocaleDateString("sv");
 
-    // Build primary-entity counts from events list
+    // Build primary-entity counts from events list (each event contributes one unique ID)
     const counts = new Map<string, ArtistEntry>();
     for (const e of events) {
       if (e.primary_entity_name && e.primary_entity_id) {
         const prev = counts.get(e.primary_entity_id);
-        if (prev) { prev.n++; prev.types.add(e.type); }
-        else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, n: 1, types: new Set([e.type]) });
+        if (prev) { prev.eventIds.add(e.id); prev.types.add(e.type); }
+        else counts.set(e.primary_entity_id, { name: e.primary_entity_name, id: e.primary_entity_id, kind: e.primary_entity_kind, eventIds: new Set([e.id]), types: new Set([e.type]) });
       }
     }
 
-    // Merge credit-linked persons and ensembles
+    // Merge credit-linked persons and ensembles, counting unique events (not credit rows)
     Promise.all([
       fetch("/api/credits").then((r) => r.json()) as Promise<Array<{ event_id: string; person_id: string | null; ensemble_id: string | null }>>,
       fetchAllPersons(),
       fetchAllEnsembles(),
-    ]).then(([credits, persons, ensembles]) => {
+      fetchEvents(), // full cache — avoids missing older events outside the 500-event stats window
+    ]).then(([credits, persons, ensembles, allEvents]) => {
+      const pastEventIds = new Set(allEvents.filter((e) => e.date <= today).map((e) => e.id));
+      const eventTypeMap = new Map(allEvents.map((e) => [e.id, e.type]));
       const personMap = new Map(persons.map((p) => [p.id, p.name]));
       const ensembleMap = new Map(ensembles.map((e) => [e.id, e.name]));
 
       for (const c of credits) {
-        if (!eventIds.has(c.event_id)) continue;
+        if (!pastEventIds.has(c.event_id)) continue;
         const eventType = eventTypeMap.get(c.event_id) ?? "other";
         if (c.person_id) {
           const name = personMap.get(c.person_id);
           if (!name) continue;
           const prev = counts.get(c.person_id);
-          if (prev) { prev.n++; prev.types.add(eventType); }
-          else counts.set(c.person_id, { id: c.person_id, name, kind: "person", n: 1, types: new Set([eventType]) });
+          if (prev) { prev.eventIds.add(c.event_id); prev.types.add(eventType); }
+          else counts.set(c.person_id, { id: c.person_id, name, kind: "person", eventIds: new Set([c.event_id]), types: new Set([eventType]) });
         }
         if (c.ensemble_id) {
           const name = ensembleMap.get(c.ensemble_id);
           if (!name) continue;
           const prev = counts.get(c.ensemble_id);
-          if (prev) { prev.n++; prev.types.add(eventType); }
-          else counts.set(c.ensemble_id, { id: c.ensemble_id, name, kind: "ensemble", n: 1, types: new Set([eventType]) });
+          if (prev) { prev.eventIds.add(c.event_id); prev.types.add(eventType); }
+          else counts.set(c.ensemble_id, { id: c.ensemble_id, name, kind: "ensemble", eventIds: new Set([c.event_id]), types: new Set([eventType]) });
         }
       }
 
-      setRanked([...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n));
+      setRanked([...counts.values()].filter((a) => a.eventIds.size > 1).sort((a, b) => b.eventIds.size - a.eventIds.size));
     }).catch(() => {
-      // Fall back to primary-entity counts only
-      setRanked([...counts.values()].filter((a) => a.n > 1).sort((a, b) => b.n - a.n));
+      setRanked([...counts.values()].filter((a) => a.eventIds.size > 1).sort((a, b) => b.eventIds.size - a.eventIds.size));
     });
   }, [events]);
 
@@ -291,7 +292,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
           <span className="text-[10px] text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}</span>
           <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{a.name}</span>
           <span className="flex gap-1 flex-shrink-0">{[...a.types].map((t) => <EventTypeIcon key={t} type={t} size={12} />)}</span>
-          <span className="text-xs text-neutral-400 flex-shrink-0 w-6 text-right">×{a.n}</span>
+          <span className="text-xs text-neutral-400 flex-shrink-0 w-6 text-right">×{a.eventIds.size}</span>
         </button>
       ))}
     </div>
