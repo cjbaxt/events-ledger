@@ -731,7 +731,16 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                 <Field label="Time"><input type="time" className={inputCls} value={(base.time as string) ?? ""} onChange={(e) => setBaseField("time", e.target.value)} /></Field>
               </div>
             )}
-            <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => setBaseField("venue", v)} optional={false} displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
+            <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => {
+                setBaseField("venue", v);
+                if (v && !base.rating_context) {
+                  fetch(`/api/venues/${v.id}`).then((r) => r.json()).then((d) => {
+                    const map: Record<string, string> = { studio: "studio", intimate: "intimate", small: "studio", medium: "theatre", large: "theatre", arena: "arena" };
+                    const ctx = map[d.scale as string];
+                    if (ctx) setBaseField("rating_context", ctx);
+                  }).catch(() => {});
+                }
+              }} optional={false} displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2"><Field label="Price paid"><input type="number" step="0.01" className={inputCls} value={(base.price_paid as string) ?? ""} onChange={(e) => setBaseField("price_paid", e.target.value)} placeholder="0.00" /></Field></div>
               <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
