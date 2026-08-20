@@ -152,7 +152,7 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
   const cast = extension.cast as CastObj | null;
-  const credits = extension.credits as Array<{ role: string; person: NamedObj | null; ensemble: NamedObj | null }> | null;
+  const credits = extension.credits as Array<{ role: string; note?: string | null; person: NamedObj | null; ensemble: NamedObj | null }> | null;
   const setlist = extension.setlist as string[] | null;
   const setlistFmUrl = extension.setlist_fm_url as string | null;
   const personFields = new Set(["conductor", "director", "choreographer", "headliner", "host", "performer", "playwright"]);
@@ -160,8 +160,8 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   const ensembleFields = new Set(["ensemble", "company", "orchestra", "headliner_ensemble"]);
   const ensembleListFields = new Set(["additional_companies"]);
   const scalarEntries = Object.entries(extension).filter(([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null);
-  const creditsByRole: Map<string, { entity: NamedObj; isEnsemble: boolean }[]> = new Map();
-  if (credits) for (const c of credits) { const entity = c.person ?? c.ensemble; if (!entity) continue; if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push({ entity, isEnsemble: !!c.ensemble }); }
+  const creditsByRole: Map<string, { entity: NamedObj; isEnsemble: boolean; note?: string | null }[]> = new Map();
+  if (credits) for (const c of credits) { const entity = c.person ?? c.ensemble; if (!entity) continue; if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push({ entity, isEnsemble: !!c.ensemble, note: c.note }); }
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -223,7 +223,17 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
       {creditsByRole.size > 0 && (
         <div className="space-y-3">
           {[...creditsByRole.entries()].map(([role, entries]) => (
-            <Field key={role} label={role}><span className="text-neutral-600">{entries.map(({ entity, isEnsemble }, i) => <span key={entity.id}>{i > 0 && ", "}<ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} /></span>)}</span></Field>
+            <Field key={role} label={role}>
+              <span className="text-neutral-600">
+                {entries.map(({ entity, isEnsemble, note }, i) => (
+                  <span key={entity.id + (note ?? "")}>
+                    {i > 0 && <span className="text-neutral-300"> · </span>}
+                    <ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} />
+                    {note && <span className="text-neutral-400 text-xs ml-1">({note})</span>}
+                  </span>
+                ))}
+              </span>
+            </Field>
           ))}
         </div>
       )}
@@ -495,11 +505,10 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                       {(() => { const fn = (("festival_name" in e ? e.festival_name : (e as EventDetail).festival?.name) ?? "").toLowerCase(); return fn.includes("edinburgh") && fn.includes("fringe"); })() && (() => {
                         const year = e.date.slice(0, 4);
                         const img = <img src="/logo-ed-fringe-roundel.svg" width="20" height="20" alt="Edinburgh Fringe" className="flex-shrink-0 mt-1" />;
+                        if (year === "2026") return <a href="/fringe/2026" title="Edinburgh Fringe 2026 — your year in review" className="hover:opacity-70 transition-opacity flex-shrink-0">{img}</a>;
                         const festivalId = event?.festival?.id ?? ("festival_id" in e ? e.festival_id : null);
                         if (festivalId) return <button onClick={() => navigate("festival", festivalId)} title="Edinburgh Fringe — all events" className="hover:opacity-70 transition-opacity flex-shrink-0 active:opacity-50">{img}</button>;
-                        return year === "2026"
-                          ? <a href="/fringe/2026" title="Edinburgh Fringe 2026 — your year in review" className="hover:opacity-70 transition-opacity flex-shrink-0">{img}</a>
-                          : img;
+                        return img;
                       })()}
                       <h2 className="font-serif text-2xl text-neutral-900 leading-snug">{e.title}</h2>
                     </div>
