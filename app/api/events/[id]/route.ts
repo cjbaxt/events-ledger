@@ -9,18 +9,6 @@ import { upsertGCalEvent, deleteGCalEvent } from "@/lib/google-calendar";
 type Named = { id: string; name: string };
 type Titled = { id: string; title: string };
 
-async function lookupPersons(sb: SupabaseClient, ids: string[]): Promise<Map<string, Named>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (!unique.length) return new Map();
-  const { data } = await sb.from("person").select("id, name").in("id", unique);
-  return new Map((data ?? []).map((r: Named) => [r.id, r]));
-}
-async function lookupEnsembles(sb: SupabaseClient, ids: string[]): Promise<Map<string, Named>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (!unique.length) return new Map();
-  const { data } = await sb.from("ensemble").select("id, name").in("id", unique);
-  return new Map((data ?? []).map((r: Named) => [r.id, r]));
-}
 async function lookupWorks(sb: SupabaseClient, ids: string[]): Promise<Map<string, Titled>> {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return new Map();
@@ -35,18 +23,15 @@ async function lookupProductions(sb: SupabaseClient, ids: string[]): Promise<Map
 }
 
 function str(v: unknown): string { return typeof v === "string" ? v : ""; }
-function strArr(v: unknown): string[] { return Array.isArray(v) ? (v as unknown[]).map(String) : []; }
-function resolveCast(cast: unknown, persons: Map<string, Named>): Record<string, Named | Named[] | null> | null {
-  if (!cast || typeof cast !== "object" || Array.isArray(cast)) return null;
-  const out: Record<string, Named | Named[] | null> = {};
-  for (const [role, val] of Object.entries(cast as Record<string, unknown>)) {
-    if (Array.isArray(val)) {
-      out[role] = (val as string[]).map(id => persons.get(id)).filter((p): p is Named => !!p);
-    } else {
-      out[role] = persons.get(String(val)) ?? null;
-    }
-  }
-  return out;
+
+type CreditRow = { role: string; sort_order: number; note: string | null; person: Named | null; ensemble: Named | null };
+
+async function fetchCredits(sb: SupabaseClient, eventId: string): Promise<CreditRow[]> {
+  const { data } = await sb.from("event_credit")
+    .select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)")
+    .eq("event_id", eventId)
+    .order("sort_order");
+  return (data ?? []) as unknown as CreditRow[];
 }
 
 async function resolveExtension(
@@ -55,227 +40,70 @@ async function resolveExtension(
   raw: Record<string, unknown>,
   eventId: string,
 ): Promise<Record<string, unknown>> {
+  // All person/ensemble data is now in event_credit — fetch once for all types
+  const credits = await fetchCredits(sb, eventId);
+  const c = credits.length ? credits : null;
+
   if (type === "music") {
-    const castIds = [...strArr(raw.support_act_person_ids), str(raw.headliner_person_id)];
-    const ensIds = [...strArr(raw.support_act_ensemble_ids), str(raw.headliner_ensemble_id)];
-    const [persons, ensembles] = await Promise.all([lookupPersons(sb, castIds), lookupEnsembles(sb, ensIds)]);
-    return {
-      headliner: persons.get(str(raw.headliner_person_id)) ?? null,
-      headliner_ensemble: ensembles.get(str(raw.headliner_ensemble_id)) ?? null,
-      support_acts: strArr(raw.support_act_person_ids).map(id => persons.get(id)).filter(Boolean),
-      support_ensembles: strArr(raw.support_act_ensemble_ids).map(id => ensembles.get(id)).filter(Boolean),
-      tour_name: raw.tour_name ?? null,
-      setlist: raw.setlist ?? null,
-      setlist_fm_url: raw.setlist_fm_url ?? null,
-    };
+    return { tour_name: raw.tour_name ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, credits: c };
   }
 
   if (type === "classical") {
-    const [persons, ensembles, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.conductor_id)]),
-      lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
-    return {
-      ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
-      conductor: persons.get(str(raw.conductor_id)) ?? null,
-      notes_on_performance: raw.notes_on_performance ?? null,
-      setlist: raw.setlist ?? null,
-      setlist_fm_url: raw.setlist_fm_url ?? null,
-      credits: credits.length ? credits : null,
-    };
+    return { notes_on_performance: raw.notes_on_performance ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, credits: c };
   }
 
   if (type === "opera") {
-    const castMap = raw.cast as Record<string, string | string[]> | null;
-    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
-    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.conductor_id), str(raw.director_id), ...strArr(raw.composers), ...castPersonIds]),
-      lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-      lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
-    return {
-      work: works.get(str(raw.work_id)) ?? null,
-      production: productions.get(str(raw.production_id)) ?? null,
-      ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
-      conductor: persons.get(str(raw.conductor_id)) ?? null,
-      director: persons.get(str(raw.director_id)) ?? null,
-      composers: strArr(raw.composers).map(id => persons.get(id)).filter(Boolean),
-      cast: castMap ? resolveCast(castMap, persons) : null,
-      libretto_language: raw.libretto_language ?? null,
-      surtitles_languages: raw.surtitles_languages ?? null,
-      credits: credits.length ? credits : null,
-    };
+    const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, libretto_language: raw.libretto_language ?? null, surtitles_languages: raw.surtitles_languages ?? null, credits: c };
   }
 
   if (type === "ballet") {
-    const castMap = raw.cast as Record<string, string | string[]> | null;
-    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
-    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.conductor_id), ...castPersonIds]),
-      lookupEnsembles(sb, [str(raw.company_id), str(raw.orchestra_id), ...strArr(raw.additional_company_ids)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-      lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
-    return {
-      work: works.get(str(raw.work_id)) ?? null,
-      production: productions.get(str(raw.production_id)) ?? null,
-      company: ensembles.get(str(raw.company_id)) ?? null,
-      additional_companies: strArr(raw.additional_company_ids).map(id => ensembles.get(id)).filter(Boolean),
-      orchestra: ensembles.get(str(raw.orchestra_id)) ?? null,
-      conductor: persons.get(str(raw.conductor_id)) ?? null,
-      cast: castMap ? resolveCast(castMap, persons) : null,
-      credits: credits.length ? credits : null,
-    };
+    const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, credits: c };
   }
 
   if (type === "dance") {
-    const [persons, ensembles, works] = await Promise.all([
-      lookupPersons(sb, [str(raw.choreographer_id)]),
-      lookupEnsembles(sb, [str(raw.company_id)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-    ]);
-    return {
-      company: ensembles.get(str(raw.company_id)) ?? null,
-      choreographer: persons.get(str(raw.choreographer_id)) ?? null,
-      work: works.get(str(raw.work_id)) ?? null,
-      music_notes: raw.music_notes ?? null,
-    };
+    const works = await lookupWorks(sb, [str(raw.work_id)]);
+    return { work: works.get(str(raw.work_id)) ?? null, music_notes: raw.music_notes ?? null, credits: c };
   }
 
   if (type === "circus") {
-    const [persons, ensembles, works, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.director_id)]),
-      lookupEnsembles(sb, [str(raw.company_id)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; note: string | null; person: Named }>;
-    return {
-      company: ensembles.get(str(raw.company_id)) ?? null,
-      director: persons.get(str(raw.director_id)) ?? null,
-      work: works.get(str(raw.work_id)) ?? null,
-      credits: credits.length ? credits : null,
-    };
+    const works = await lookupWorks(sb, [str(raw.work_id)]);
+    return { work: works.get(str(raw.work_id)) ?? null, credits: c };
   }
 
   if (type === "theatre") {
-    const castMap = raw.cast as Record<string, string | string[]> | null;
-    const castPersonIds = castMap ? Object.values(castMap).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
-    const [persons, ensembles, works, productions, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.director_id), str(raw.playwright_id), ...castPersonIds]),
-      lookupEnsembles(sb, [str(raw.company_id)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-      lookupProductions(sb, [str(raw.production_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; person: Named }>;
-    return {
-      work: works.get(str(raw.work_id)) ?? null,
-      production: productions.get(str(raw.production_id)) ?? null,
-      company: ensembles.get(str(raw.company_id)) ?? null,
-      director: persons.get(str(raw.director_id)) ?? null,
-      playwright: persons.get(str(raw.playwright_id)) ?? null,
-      cast: castMap ? resolveCast(castMap, persons) : null,
-      credits: credits.length ? credits : null,
-    };
+    const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, credits: c };
   }
 
   if (type === "cabaret") {
-    const [persons, ensembles, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.headliner_id), str(raw.host_id), ...strArr(raw.supporting_cast)]),
-      lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; note: string | null; person: Named }>;
-    return {
-      headliner: persons.get(str(raw.headliner_id)) ?? null,
-      host: persons.get(str(raw.host_id)) ?? null,
-      supporting_cast: strArr(raw.supporting_cast).map(id => persons.get(id)).filter(Boolean),
-      ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
-      tour_name: raw.tour_name ?? null,
-      credits: credits.length ? credits : null,
-    };
+    return { tour_name: raw.tour_name ?? null, credits: c };
   }
 
   if (type === "comedy") {
-    const [persons, ensembles, creditsRes] = await Promise.all([
-      lookupPersons(sb, [str(raw.performer_id), ...strArr(raw.support_acts)]),
-      lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; note: string | null; person: Named }>;
-    return {
-      performer: persons.get(str(raw.performer_id)) ?? null,
-      support_acts: strArr(raw.support_acts).map(id => persons.get(id)).filter(Boolean),
-      ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
-      tour_name: raw.tour_name ?? null,
-      credits: credits.length ? credits : null,
-    };
+    return { tour_name: raw.tour_name ?? null, credits: c };
   }
 
   if (type === "spoken_word") {
-    const persons = await lookupPersons(sb, [str(raw.host_id), ...strArr(raw.performers)]);
-    return {
-      performers: strArr(raw.performers).map(id => persons.get(id)).filter(Boolean),
-      host: persons.get(str(raw.host_id)) ?? null,
-    };
+    return { credits: c };
   }
 
   if (type === "talk") {
-    const persons = await lookupPersons(sb, [str(raw.host_id), ...strArr(raw.speaker_ids)]);
-    return {
-      speakers: strArr(raw.speaker_ids).map(id => persons.get(id)).filter(Boolean),
-      host: persons.get(str(raw.host_id)) ?? null,
-      topic: raw.topic ?? null,
-      host_organisation: raw.host_organisation ?? null,
-    };
+    return { topic: raw.topic ?? null, host_organisation: raw.host_organisation ?? null, credits: c };
   }
 
   if (type === "exhibition") {
-    const persons = await lookupPersons(sb, [str(raw.curator_id), ...strArr(raw.artists)]);
-    return {
-      exhibition_title: raw.exhibition_title ?? null,
-      artists: strArr(raw.artists).map(id => persons.get(id)).filter(Boolean),
-      curator: persons.get(str(raw.curator_id)) ?? null,
-      period: raw.period ?? null,
-      medium: raw.medium ?? null,
-    };
+    return { exhibition_title: raw.exhibition_title ?? null, period: raw.period ?? null, medium: raw.medium ?? null, permanent_or_temp: raw.permanent_or_temp ?? null, exhibition_url: raw.exhibition_url ?? null, credits: c };
   }
 
   if (type === "screening") {
-    const [persons, ensembles, works] = await Promise.all([
-      lookupPersons(sb, [str(raw.director_id), str(raw.conductor_id)]),
-      lookupEnsembles(sb, [str(raw.ensemble_id)]),
-      lookupWorks(sb, [str(raw.work_id)]),
-    ]);
-    return {
-      work: works.get(str(raw.work_id)) ?? null,
-      director: persons.get(str(raw.director_id)) ?? null,
-      conductor: persons.get(str(raw.conductor_id)) ?? null,
-      ensemble: ensembles.get(str(raw.ensemble_id)) ?? null,
-      series: raw.series ?? null,
-    };
+    const works = await lookupWorks(sb, [str(raw.work_id)]);
+    return { work: works.get(str(raw.work_id)) ?? null, series: raw.series ?? null, credits: c };
   }
 
   if (type === "other") {
-    const [ensembles, creditsRes] = await Promise.all([
-      lookupEnsembles(sb, [str(raw.company_id)]),
-      sb.from("event_credit").select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)").eq("event_id", eventId).order("sort_order"),
-    ]);
-    const credits = (creditsRes.data ?? []) as unknown as Array<{ role: string; sort_order: number; note: string | null; person: Named }>;
-    return {
-      ...raw,
-      company: ensembles.get(str(raw.company_id)) ?? null,
-      company_id: undefined,
-      credits: credits.length ? credits : null,
-    };
+    return { credits: c };
   }
 
   return raw;
