@@ -222,12 +222,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const pm = pmRes.data as { id: string; name: string; total_cost: string; currency: string; purchase_date: string } | null;
 
   let extension: Record<string, unknown> | null = null;
-  if (extRes.data) {
-    try {
-      extension = await resolveExtension(supabase, e.type, extRes.data as Record<string, unknown>, id);
-    } catch (err) {
-      console.error("resolveExtension error:", err);
-    }
+  try {
+    // Call resolveExtension even if no extension row — credits are always fetched from event_credit
+    extension = await resolveExtension(supabase, e.type, (extRes.data ?? {}) as Record<string, unknown>, id);
+  } catch (err) {
+    console.error("resolveExtension error:", err);
   }
 
   const response = NextResponse.json({

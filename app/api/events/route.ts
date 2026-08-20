@@ -25,14 +25,15 @@ export async function POST(req: NextRequest) {
 
   for (const [k, v] of Object.entries(fields)) {
     if (BASE_FIELDS.has(k)) baseInsert[k] = v;
-    else extInsert[k] = v;
+    else if (k !== "credits") extInsert[k] = v;
+    // "credits" is handled separately below via event_credit inserts
   }
 
   const { data: event, error: eventErr } = await supabase.from("event").insert(baseInsert).select("id").single();
   if (eventErr || !event) return NextResponse.json({ error: eventErr?.message ?? "Insert failed" }, { status: 500 });
 
   const extTable = extensionTable(type);
-  if (extTable && Object.keys(extInsert).length) {
+  if (extTable) {
     const { error: extErr } = await supabase.from(extTable).insert({ event_id: event.id, ...extInsert });
     if (extErr) console.error("Extension insert error:", extErr);
   }

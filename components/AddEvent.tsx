@@ -456,12 +456,17 @@ function ScreeningFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) 
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
+function OtherFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
+  return <div className="space-y-4">
+    <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
+  </div>;
+}
 
 const EXTENSION_FIELDS: Record<string, React.ComponentType<{ ext: Ext; set: (k: string, v: unknown) => void }>> = {
   music: MusicFields, classical: ClassicalFields, opera: OperaFields, ballet: BalletFields,
   dance: DanceFields, circus: CircusFields, theatre: TheatreFields, cabaret: CabaretFields,
   comedy: ComedyFields, spoken_word: SpokenWordFields, talk: TalkFields,
-  exhibition: ExhibitionFields, screening: ScreeningFields,
+  exhibition: ExhibitionFields, screening: ScreeningFields, other: OtherFields,
 };
 
 function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Record<string, unknown> {
@@ -492,6 +497,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
   else if (type === "talk") Object.assign(payload, { topic: ext.topic || null, host_organisation: ext.host_organisation || null, credits: creditsPayload });
   else if (type === "exhibition") Object.assign(payload, { exhibition_title: ext.exhibition_title || null, period: ext.period || null, medium: ext.medium || null, credits: creditsPayload });
   else if (type === "screening") Object.assign(payload, { work_id: id(ext.work as NamedRef), credits: creditsPayload });
+  else if (type === "other") Object.assign(payload, { credits: creditsPayload });
   return payload;
 }
 
