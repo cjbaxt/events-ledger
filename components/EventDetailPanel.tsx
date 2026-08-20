@@ -99,8 +99,6 @@ function ClickableRef({ obj, onClick }: { obj: NamedObj; onClick?: (id: string) 
 }
 
 type WorkObj = { id: string; title: string; creator?: string | null; creator_id?: string | null; year?: number | null; notes?: string | null };
-type CastEntry = { id: string; name: string } | string;
-type CastObj = Record<string, CastEntry | CastEntry[]>;
 
 function WorkField({ work, onPersonClick }: { work: WorkObj; onPersonClick?: (id: string) => void }) {
   return (
@@ -120,28 +118,6 @@ function WorkField({ work, onPersonClick }: { work: WorkObj; onPersonClick?: (id
   );
 }
 
-function CastField({ cast, onPersonClick }: { cast: CastObj; onPersonClick?: (id: string) => void }) {
-  const entries = Object.entries(cast);
-  if (!entries.length) return null;
-  function renderEntry(entry: CastEntry) {
-    if (entry === null || entry === undefined) return null;
-    if (typeof entry === "object" && onPersonClick) return <button onClick={() => onPersonClick(entry.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{entry.name}</button>;
-    return <span>{typeof entry === "object" ? entry.name : entry}</span>;
-  }
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Cast</div>
-      <dl className="space-y-1">
-        {entries.map(([role, val]) => (
-          <div key={role} className="flex gap-2 text-sm">
-            <dt className="text-neutral-400 min-w-0 shrink-0 w-40 truncate">{role}</dt>
-            <dd className="text-neutral-700">{Array.isArray(val) ? val.map((entry, i) => <span key={i}>{i > 0 && ", "}{renderEntry(entry)}</span>) : renderEntry(val)}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
 
 function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   extension: Record<string, unknown>; type: string;
@@ -151,7 +127,6 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
     ...((new Set(["opera", "circus"])).has(type) ? ["notes", "notes_on_performance"] : [])]);
   const programme = extension.programme as Record<string, unknown>[] | null;
   const work = extension.work as WorkObj | null;
-  const cast = extension.cast as CastObj | null;
   const credits = extension.credits as Array<{ role: string; note?: string | null; person: NamedObj | null; ensemble: NamedObj | null }> | null;
   const setlist = extension.setlist as string[] | null;
   const setlistFmUrl = extension.setlist_fm_url as string | null;
@@ -159,9 +134,11 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   const personListFields = new Set(["composers", "soloists", "speakers", "performers", "support_acts", "supporting_cast", "artists"]);
   const ensembleFields = new Set(["ensemble", "company", "orchestra", "headliner_ensemble"]);
   const ensembleListFields = new Set(["additional_companies"]);
-  const scalarEntries = Object.entries(extension).filter(([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && k !== "cast" && v !== null);
+  const scalarEntries = Object.entries(extension).filter(([k, v]) => !skip.has(k) && k !== "programme" && k !== "work" && v !== null);
+  const actorCredits = credits?.filter((c) => c.role === "Actor") ?? [];
+  const otherCredits = credits?.filter((c) => c.role !== "Actor") ?? [];
   const creditsByRole: Map<string, { entity: NamedObj; isEnsemble: boolean; note?: string | null }[]> = new Map();
-  if (credits) for (const c of credits) { const entity = c.person ?? c.ensemble; if (!entity) continue; if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push({ entity, isEnsemble: !!c.ensemble, note: c.note }); }
+  for (const c of otherCredits) { const entity = c.person ?? c.ensemble; if (!entity) continue; if (!creditsByRole.has(c.role)) creditsByRole.set(c.role, []); creditsByRole.get(c.role)!.push({ entity, isEnsemble: !!c.ensemble, note: c.note }); }
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -237,7 +214,26 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
           ))}
         </div>
       )}
-      {cast && <CastField cast={cast} onPersonClick={onPersonClick} />}
+      {actorCredits.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Cast</div>
+          <dl className="space-y-1">
+            {actorCredits.map((c) => {
+              const entity = c.person ?? c.ensemble;
+              if (!entity) return null;
+              const isEnsemble = !!c.ensemble;
+              return (
+                <div key={entity.id + (c.note ?? "")} className="flex gap-2 text-sm">
+                  <dt className="text-neutral-400 min-w-0 shrink-0 w-40 truncate">{c.note ?? ""}</dt>
+                  <dd className="text-neutral-700">
+                    <ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} />
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      )}
     </div>
   );
 }

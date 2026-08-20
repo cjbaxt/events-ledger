@@ -274,7 +274,7 @@ function StarPicker({ value, onChange }: { value: number | null; onChange: (v: n
   );
 }
 
-type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null };
+type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null; note?: string | null };
 type Ext = Record<string, unknown>;
 
 function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: CreditRow[]) => void }) {
@@ -284,7 +284,10 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
         const isEnsemble = !!c.ensemble;
         return (
           <div key={i} className="flex items-center gap-2">
-            <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-40 flex-shrink-0" placeholder="Role" value={c.role} onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }} />
+            <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-36 flex-shrink-0" placeholder="Role" value={c.role} onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }} />
+            {c.role === "Actor" && (
+              <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-36 flex-shrink-0" placeholder="Character name" value={c.note ?? ""} onChange={(e) => { const next = [...credits]; next[i] = { ...c, note: e.target.value || null }; set(next); }} />
+            )}
             <button type="button" onClick={() => { const next = [...credits]; next[i] = { ...c, person: null, ensemble: null }; set(next); }} className={`text-[10px] px-2 py-1 rounded border flex-shrink-0 transition-colors ${isEnsemble ? "border-neutral-400 bg-neutral-100 text-neutral-700" : "border-neutral-200 text-neutral-400 hover:border-neutral-400"}`}>{isEnsemble ? "Company" : "Person"}</button>
             <div className="flex-1">
               {isEnsemble
@@ -509,7 +512,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     description_source_url: base.description_source_url || null, subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter((l) => l.url).map((l) => ({ url: l.url, ...(l.label ? { label: l.label } : {}), ...(l.description ? { description: l.description } : {}) })) ?? null,
   };
-  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i })) ?? null;
+  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i, note: c.note ?? null })) ?? null;
   if (type === "music") Object.assign(payload, { headliner_person_id: id(ext.headliner_person as NamedRef), headliner_ensemble_id: id(ext.headliner_ensemble as NamedRef), support_act_person_ids: ids(ext.support_persons as NamedRef[]), support_act_ensemble_ids: ids(ext.support_ensembles as NamedRef[]), tour_name: ext.tour_name || null });
   else if (type === "classical") Object.assign(payload, { ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), credits: creditsPayload });
   else if (type === "opera") { const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map((s) => s.trim()).filter(Boolean) : null; Object.assign(payload, { work_id: id(ext.work as NamedRef), ensemble_id: id(ext.ensemble as NamedRef), conductor_id: id(ext.conductor as NamedRef), director_id: id(ext.director as NamedRef), production_id: id(ext.production as NamedRef), libretto_language: ext.libretto_language || null, surtitles_languages: surtitles, credits: creditsPayload }); }
