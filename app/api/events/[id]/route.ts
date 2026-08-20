@@ -49,7 +49,7 @@ async function resolveExtension(
   }
 
   if (type === "classical") {
-    return { notes_on_performance: raw.notes_on_performance ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, credits: c };
+    return { notes_on_performance: raw.notes_on_performance ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, programme: raw.programme ?? null, credits: c };
   }
 
   if (type === "opera") {
@@ -59,7 +59,7 @@ async function resolveExtension(
 
   if (type === "ballet") {
     const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
-    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, credits: c };
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, programme: raw.programme ?? null, credits: c };
   }
 
   if (type === "dance") {
