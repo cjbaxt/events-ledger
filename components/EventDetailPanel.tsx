@@ -176,12 +176,14 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
               const composer = item.composer as NamedObj | null;
               const choreographer = item.choreographer as NamedObj | null;
               const soloists = item.soloists as NamedObj[] | null;
+              const music = item.music as Array<{ id: string; name: string; composer: NamedObj | null }> | null;
               return (
                 <li key={i} className="text-sm">
                   <span className="text-neutral-400 mr-2">{item.order as number}.</span>
                   <span className="text-neutral-800">{piece ? namedStr(piece) : "—"}</span>
                   {(composer || choreographer) && <span className="text-neutral-500"> — <ClickableRef obj={(composer ?? choreographer)!} onClick={onPersonClick} /></span>}
                   {soloists && soloists.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Soloists: {soloists.map((s, j) => <span key={s.id}>{j > 0 && ", "}<ClickableRef obj={s} onClick={onPersonClick} /></span>)}</div>}
+                  {music && music.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Music: {music.map((m, j) => <span key={m.id ?? j}>{j > 0 && "; "}<span className="text-neutral-600">{m.name}</span>{m.composer && <span> — <ClickableRef obj={m.composer} onClick={onPersonClick} /></span>}</span>)}</div>}
                 </li>
               );
             })}

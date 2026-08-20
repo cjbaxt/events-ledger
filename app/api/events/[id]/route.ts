@@ -24,6 +24,72 @@ async function lookupProductions(sb: SupabaseClient, ids: string[]): Promise<Map
 
 function str(v: unknown): string { return typeof v === "string" ? v : ""; }
 
+async function resolvePersons(sb: SupabaseClient, ids: string[]): Promise<Map<string, Named>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const { data } = await sb.from("person").select("id, name").in("id", unique);
+  return new Map((data ?? []).map((r: Named) => [r.id, r]));
+}
+
+type ClassicalItem = { order: number; notes: string | null; soloists: string[] | null; musical_piece: { id: string; title: string; catalogue_number: string | null; movement: string | null; composer: Named | null; composer_text: string | null } | null };
+type BalletItem = { id: string; order: number; soloists: string[] | null; work: { id: string; title: string } | null; choreographer: Named | null };
+type BalletMusic = { programme_item_id: string; musical_piece: { id: string; title: string; composer: Named | null } | null };
+
+async function fetchClassicalProgramme(sb: SupabaseClient, eventId: string): Promise<unknown[] | null> {
+  const { data: items } = await sb
+    .from("classical_programme_item")
+    .select("order, notes, soloists, musical_piece:musical_piece_id(id, title, catalogue_number, movement, composer:composer_id(id, name), composer_text)")
+    .eq("event_id", eventId)
+    .order("order");
+  if (!items?.length) return null;
+  const rows = items as unknown as ClassicalItem[];
+  const soloistsIds = [...new Set(rows.flatMap((i) => i.soloists ?? []))];
+  const persons = await resolvePersons(sb, soloistsIds);
+  return rows.map((item) => {
+    const mp = item.musical_piece;
+    const composer = mp?.composer ?? (mp?.composer_text ? { id: "", name: mp.composer_text } : null);
+    const pieceTitle = [mp?.title, mp?.movement].filter(Boolean).join(" — ");
+    return {
+      order: item.order,
+      piece: mp ? { id: mp.id, name: pieceTitle + (mp.catalogue_number ? ` (${mp.catalogue_number})` : "") } : null,
+      composer,
+      soloists: (item.soloists ?? []).map((id) => persons.get(id)).filter(Boolean),
+      notes: item.notes ?? null,
+    };
+  });
+}
+
+async function fetchBalletProgramme(sb: SupabaseClient, eventId: string): Promise<unknown[] | null> {
+  const { data: items } = await sb
+    .from("ballet_programme_item")
+    .select("id, order, soloists, work:work_id(id, title), choreographer:choreographer_id(id, name)")
+    .eq("event_id", eventId)
+    .order("order");
+  if (!items?.length) return null;
+  const rows = items as unknown as BalletItem[];
+  const itemIds = rows.map((i) => i.id);
+  const soloistsIds = [...new Set(rows.flatMap((i) => i.soloists ?? []))];
+  const [persons, musicRes] = await Promise.all([
+    resolvePersons(sb, soloistsIds),
+    sb.from("ballet_programme_music")
+      .select("programme_item_id, order, musical_piece:musical_piece_id(id, title, composer:composer_id(id, name))")
+      .in("programme_item_id", itemIds)
+      .order("order"),
+  ]);
+  const musicByItem = new Map<string, unknown[]>();
+  for (const m of (musicRes.data ?? []) as unknown as BalletMusic[]) {
+    if (!musicByItem.has(m.programme_item_id)) musicByItem.set(m.programme_item_id, []);
+    if (m.musical_piece) musicByItem.get(m.programme_item_id)!.push({ id: m.musical_piece.id, name: m.musical_piece.title, composer: m.musical_piece.composer ?? null });
+  }
+  return rows.map((item) => ({
+    order: item.order,
+    work: item.work,
+    choreographer: item.choreographer,
+    soloists: (item.soloists ?? []).map((id) => persons.get(id)).filter(Boolean),
+    music: musicByItem.get(item.id) ?? null,
+  }));
+}
+
 type CreditRow = { role: string; sort_order: number; note: string | null; person: Named | null; ensemble: Named | null };
 
 async function fetchCredits(sb: SupabaseClient, eventId: string): Promise<CreditRow[]> {
@@ -49,7 +115,8 @@ async function resolveExtension(
   }
 
   if (type === "classical") {
-    return { notes_on_performance: raw.notes_on_performance ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, programme: raw.programme ?? null, credits: c };
+    const programme = await fetchClassicalProgramme(sb, eventId);
+    return { notes_on_performance: raw.notes_on_performance ?? null, setlist: raw.setlist ?? null, setlist_fm_url: raw.setlist_fm_url ?? null, programme, credits: c };
   }
 
   if (type === "opera") {
@@ -58,8 +125,8 @@ async function resolveExtension(
   }
 
   if (type === "ballet") {
-    const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
-    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, programme: raw.programme ?? null, credits: c };
+    const [works, productions, programme] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)]), fetchBalletProgramme(sb, eventId)]);
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, programme, credits: c };
   }
 
   if (type === "dance") {
