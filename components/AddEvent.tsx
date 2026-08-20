@@ -264,7 +264,7 @@ function StarPicker({ value, onChange }: { value: number | null; onChange: (v: n
   );
 }
 
-type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null; note?: string | null };
+type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null; note?: string | null; is_main?: boolean };
 type Ext = Record<string, unknown>;
 
 function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: CreditRow[]) => void }) {
@@ -274,6 +274,7 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
         const isEnsemble = !!c.ensemble;
         return (
           <div key={i} className="flex items-center gap-2">
+            <button type="button" title="Set as primary" onClick={() => set(credits.map((r, j) => ({ ...r, is_main: j === i ? !c.is_main : false })))} className={`text-base flex-shrink-0 transition-colors ${c.is_main ? "text-neutral-800" : "text-neutral-200 hover:text-neutral-400"}`}>★</button>
             <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-36 flex-shrink-0" placeholder="Role" value={c.role} onChange={(e) => { const next = [...credits]; next[i] = { ...c, role: e.target.value }; set(next); }} />
             {c.role === "Actor" && (
               <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-36 flex-shrink-0" placeholder="Character name" value={c.note ?? ""} onChange={(e) => { const next = [...credits]; next[i] = { ...c, note: e.target.value || null }; set(next); }} />
@@ -477,7 +478,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     description_source_url: base.description_source_url || null, subtype: base.subtype || null,
     links: (base.links as LinkRow[] | undefined)?.filter((l) => l.url).map((l) => ({ url: l.url, ...(l.label ? { label: l.label } : {}), ...(l.description ? { description: l.description } : {}) })) ?? null,
   };
-  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i, note: c.note ?? null })) ?? null;
+  const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i, note: c.note ?? null, is_main: c.is_main ?? false })) ?? null;
   if (type === "music") Object.assign(payload, { tour_name: ext.tour_name || null, credits: creditsPayload });
   else if (type === "classical") Object.assign(payload, { credits: creditsPayload });
   else if (type === "opera") { const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map((s) => s.trim()).filter(Boolean) : null; Object.assign(payload, { work_id: id(ext.work as NamedRef), production_id: id(ext.production as NamedRef), libretto_language: ext.libretto_language || null, surtitles_languages: surtitles, credits: creditsPayload }); }
@@ -513,7 +514,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     libretto_language: e.libretto_language ?? "",
     surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
     setlist_fm_url: e.setlist_fm_url ?? "", setlist: Array.isArray(e.setlist) ? e.setlist : [],
-    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; note?: string | null; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, note: c.note ?? null, person: c.person ?? null, ensemble: c.ensemble ?? null })) : [],
+    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; note?: string | null; is_main?: boolean; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, note: c.note ?? null, is_main: c.is_main ?? false, person: c.person ?? null, ensemble: c.ensemble ?? null })) : [],
     topic: e.topic ?? "", host_organisation: e.host_organisation ?? "",
     exhibition_title: e.exhibition_title ?? "", period: e.period ?? "", medium: e.medium ?? "",
   };

@@ -90,11 +90,11 @@ async function fetchBalletProgramme(sb: SupabaseClient, eventId: string): Promis
   }));
 }
 
-type CreditRow = { role: string; sort_order: number; note: string | null; person: Named | null; ensemble: Named | null };
+type CreditRow = { role: string; sort_order: number; note: string | null; is_main: boolean; person: Named | null; ensemble: Named | null };
 
 async function fetchCredits(sb: SupabaseClient, eventId: string): Promise<CreditRow[]> {
   const { data } = await sb.from("event_credit")
-    .select("role, sort_order, note, person:person_id(id, name), ensemble:ensemble_id(id, name)")
+    .select("role, sort_order, note, is_main, person:person_id(id, name), ensemble:ensemble_id(id, name)")
     .eq("event_id", eventId)
     .order("sort_order");
   return (data ?? []) as unknown as CreditRow[];
@@ -302,11 +302,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       if (creditsArr && !typeChanged) {
         await supabase.from("event_credit").delete().eq("event_id", id);
-        const credits = (creditsArr as Array<{ role: string; person_id: string | null; ensemble_id: string | null; sort_order: number }>)
+        const credits = (creditsArr as Array<{ role: string; person_id: string | null; ensemble_id: string | null; sort_order: number; note?: string | null; is_main?: boolean }>)
           .filter((c) => c.role && (c.person_id || c.ensemble_id));
         if (credits.length) {
           const { error: credErr } = await supabase.from("event_credit").insert(
-            credits.map((c) => ({ event_id: id, role: c.role, person_id: c.person_id ?? null, ensemble_id: c.ensemble_id ?? null, sort_order: c.sort_order ?? 0 }))
+            credits.map((c) => ({ event_id: id, role: c.role, person_id: c.person_id ?? null, ensemble_id: c.ensemble_id ?? null, sort_order: c.sort_order ?? 0, note: c.note ?? null, is_main: c.is_main ?? false }))
           );
           if (credErr) return NextResponse.json({ error: credErr.message }, { status: 500 });
         }
