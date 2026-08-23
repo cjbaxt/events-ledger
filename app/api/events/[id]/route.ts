@@ -6,7 +6,7 @@ import { isGuestRequest, guestDenied } from "@/lib/guest";
 import { requireOwner } from "@/lib/auth";
 import { upsertGCalEvent, deleteGCalEvent } from "@/lib/google-calendar";
 
-type Named = { id: string; name: string };
+type Named = { id: string; name: string; roles?: string[] | null };
 type Titled = { id: string; title: string };
 
 async function lookupWorks(sb: SupabaseClient, ids: string[]): Promise<Map<string, Titled>> {
@@ -94,7 +94,7 @@ type CreditRow = { role: string; sort_order: number; note: string | null; is_mai
 
 async function fetchCredits(sb: SupabaseClient, eventId: string): Promise<CreditRow[]> {
   const { data } = await sb.from("event_credit")
-    .select("role, sort_order, note, is_main, person:person_id(id, name), ensemble:ensemble_id(id, name)")
+    .select("role, sort_order, note, is_main, person:person_id(id, name, roles), ensemble:ensemble_id(id, name, roles)")
     .eq("event_id", eventId)
     .order("sort_order");
   return (data ?? []) as unknown as CreditRow[];

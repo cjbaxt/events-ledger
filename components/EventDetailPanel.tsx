@@ -90,7 +90,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-type NamedObj = { id: string; name?: string; title?: string };
+type NamedObj = { id: string; name?: string; title?: string; roles?: string[] | null };
 function namedStr(obj: NamedObj) { return obj.name ?? obj.title ?? ""; }
 
 function ClickableRef({ obj, onClick }: { obj: NamedObj; onClick?: (id: string) => void }) {
@@ -204,15 +204,15 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
         <div className="space-y-3">
           {[...creditsByRole.entries()].map(([role, entries]) => (
             <Field key={role} label={role}>
-              <span className="text-neutral-600">
-                {entries.map(({ entity, isEnsemble, note }, i) => (
-                  <span key={entity.id + (note ?? "")}>
-                    {i > 0 && <span className="text-neutral-300"> · </span>}
-                    <ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} />
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {entries.map(({ entity, isEnsemble, note }) => (
+                  <div key={entity.id + (note ?? "")}>
+                    <span className="text-neutral-600"><ClickableRef obj={entity} onClick={isEnsemble ? onEnsembleClick : onPersonClick} /></span>
                     {note && <span className="text-neutral-400 text-xs ml-1">({note})</span>}
-                  </span>
+                    {entity.roles && entity.roles.length > 0 && <div className="text-[10px] text-neutral-400 mt-0.5">{entity.roles.join(" · ")}</div>}
+                  </div>
                 ))}
-              </span>
+              </div>
             </Field>
           ))}
         </div>
