@@ -264,14 +264,14 @@ function StarPicker({ value, onChange }: { value: number | null; onChange: (v: n
   );
 }
 
-type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null; note?: string | null; is_main?: boolean };
+type CreditRow = { role: string; person: NamedRef | null; ensemble: NamedRef | null; note?: string | null; is_main?: boolean; useEnsemble?: boolean };
 type Ext = Record<string, unknown>;
 
 function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: CreditRow[]) => void }) {
   return (
     <div className="space-y-2">
       {credits.map((c, i) => {
-        const isEnsemble = !!c.ensemble;
+        const isEnsemble = !!c.ensemble || !!c.useEnsemble;
         return (
           <div key={i} className="flex items-center gap-2">
             <button type="button" title="Set as primary" onClick={() => set(credits.map((r, j) => ({ ...r, is_main: j === i ? !c.is_main : false })))} className={`text-base flex-shrink-0 transition-colors ${c.is_main ? "text-neutral-800" : "text-neutral-200 hover:text-neutral-400"}`}>★</button>
@@ -279,7 +279,7 @@ function CreditsEditor({ credits, set }: { credits: CreditRow[]; set: (v: Credit
             {c.role === "Actor" && (
               <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400 w-36 flex-shrink-0" placeholder="Character name" value={c.note ?? ""} onChange={(e) => { const next = [...credits]; next[i] = { ...c, note: e.target.value || null }; set(next); }} />
             )}
-            <button type="button" onClick={() => { const next = [...credits]; next[i] = { ...c, person: null, ensemble: null }; set(next); }} className={`text-[10px] px-2 py-1 rounded border flex-shrink-0 transition-colors ${isEnsemble ? "border-neutral-400 bg-neutral-100 text-neutral-700" : "border-neutral-200 text-neutral-400 hover:border-neutral-400"}`}>{isEnsemble ? "Company" : "Person"}</button>
+            <button type="button" onClick={() => { const next = [...credits]; next[i] = { ...c, person: null, ensemble: null, useEnsemble: !isEnsemble }; set(next); }} className={`text-[10px] px-2 py-1 rounded border flex-shrink-0 transition-colors ${isEnsemble ? "border-neutral-400 bg-neutral-100 text-neutral-700" : "border-neutral-200 text-neutral-400 hover:border-neutral-400"}`}>{isEnsemble ? "Company" : "Person"}</button>
             <div className="flex-1">
               {isEnsemble
                 ? <SearchCombo label="" endpoint="ensembles" value={c.ensemble} onChange={(v) => { const next = [...credits]; next[i] = { ...c, ensemble: v, person: null }; set(next); }} />
@@ -520,7 +520,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     libretto_language: e.libretto_language ?? "",
     surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
     setlist_fm_url: e.setlist_fm_url ?? "", setlist: Array.isArray(e.setlist) ? e.setlist : [],
-    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; note?: string | null; is_main?: boolean; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, note: c.note ?? null, is_main: c.is_main ?? false, person: c.person ?? null, ensemble: c.ensemble ?? null })) : [],
+    credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; note?: string | null; is_main?: boolean; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, note: c.note ?? null, is_main: c.is_main ?? false, person: c.person ?? null, ensemble: c.ensemble ?? null, useEnsemble: !!c.ensemble })) : [],
     topic: e.topic ?? "", host_organisation: e.host_organisation ?? "",
     exhibition_title: e.exhibition_title ?? "", period: e.period ?? "", medium: e.medium ?? "",
   };
