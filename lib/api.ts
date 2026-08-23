@@ -155,7 +155,7 @@ function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   return nameCache.get(key) as Promise<T>;
 }
 
-export async function fetchPerson(id: string): Promise<{ id: string; name: string }> {
+export async function fetchPerson(id: string): Promise<{ id: string; name: string; roles?: string[] | null }> {
   return cachedFetch(`person:${id}`, async () => {
     const res = await apiFetch(`/api/persons/${id}`);
     if (!res.ok) throw new Error(`Failed to fetch person: ${res.status}`);
@@ -171,12 +171,28 @@ export async function fetchVenue(id: string): Promise<{ id: string; name: string
   });
 }
 
-export async function fetchEnsemble(id: string): Promise<{ id: string; name: string }> {
+export async function fetchEnsemble(id: string): Promise<{ id: string; name: string; roles?: string[] | null }> {
   return cachedFetch(`ensemble:${id}`, async () => {
     const res = await apiFetch(`/api/ensembles/${id}`);
     if (!res.ok) throw new Error(`Failed to fetch ensemble: ${res.status}`);
     return res.json();
   });
+}
+
+export function invalidateNameCache(key: string) {
+  nameCache.delete(key);
+}
+
+export async function updatePersonRoles(id: string, roles: string[]): Promise<void> {
+  const res = await apiFetch(`/api/persons/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roles }) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update person (${res.status})`); }
+  invalidateNameCache(`person:${id}`);
+}
+
+export async function updateEnsembleRoles(id: string, roles: string[]): Promise<void> {
+  const res = await apiFetch(`/api/ensembles/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roles }) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update ensemble (${res.status})`); }
+  invalidateNameCache(`ensemble:${id}`);
 }
 
 export async function fetchFestival(id: string): Promise<{ id: string; name: string; edition?: string | null }> {

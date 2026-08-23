@@ -6,6 +6,7 @@ import {
   fetchVenue, fetchVenueEvents, fetchEnsemble, fetchEnsembleEvents,
   fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents,
   patchEventRating, patchEventPrice, patchEventReview,
+  updatePersonRoles, updateEnsembleRoles,
 } from "@/lib/api";
 import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
@@ -244,6 +245,9 @@ type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method";
 interface NavTarget { kind: NavKind; id: string; hint?: string; }
 const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method" };
 
+const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
+const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
+
 async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<string> {
   if (hint) return hint;
   if (kind === "person") return (await fetchPerson(id)).name;
@@ -264,12 +268,41 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
   const [name, setName] = useState("");
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [editingRoles, setEditingRoles] = useState(false);
+  const [draftRoles, setDraftRoles] = useState<string[]>([]);
+  const [savingRoles, setSavingRoles] = useState(false);
+  const isGuest = useGuest();
+
+  const hasRoles = target.kind === "person" || target.kind === "ensemble";
+  const vocab = target.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id)])
-      .then(([n, evts]) => { setName(n); setEvents(evts); })
+    setRoles([]);
+    setEditingRoles(false);
+    const rolesPromise: Promise<string[]> = target.kind === "person"
+      ? fetchPerson(target.id).then(p => p.roles ?? [])
+      : target.kind === "ensemble"
+      ? fetchEnsemble(target.id).then(e => e.roles ?? [])
+      : Promise.resolve([]);
+    Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id), rolesPromise])
+      .then(([n, evts, r]) => { setName(n); setEvents(evts); setRoles(r); })
       .finally(() => setLoading(false));
   }, [target.kind, target.id, target.hint]);
+
+  async function saveRoles() {
+    setSavingRoles(true);
+    try {
+      if (target.kind === "person") await updatePersonRoles(target.id, draftRoles);
+      else if (target.kind === "ensemble") await updateEnsembleRoles(target.id, draftRoles);
+      setRoles(draftRoles);
+      setEditingRoles(false);
+    } finally {
+      setSavingRoles(false);
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
@@ -281,6 +314,30 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
         {loading ? <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div> : (
           <>
             <h2 className="font-serif text-2xl text-neutral-900 mb-1">{name}</h2>
+            {hasRoles && !editingRoles && (
+              <p
+                className={`text-sm mb-2 ${roles.length ? "text-neutral-500" : "text-neutral-300 italic"} ${!isGuest ? "cursor-pointer hover:text-neutral-700" : ""}`}
+                onClick={() => { if (!isGuest) { setDraftRoles([...roles]); setEditingRoles(true); } }}
+              >
+                {roles.length ? roles.join(" · ") : "Add roles…"}
+              </p>
+            )}
+            {hasRoles && editingRoles && (
+              <div className="mb-3">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {vocab.map(r => (
+                    <button key={r} onClick={() => setDraftRoles(d => d.includes(r) ? d.filter(x => x !== r) : [...d, r])}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${draftRoles.includes(r) ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-400"}`}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveRoles} disabled={savingRoles} className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full disabled:opacity-50">Save</button>
+                  <button onClick={() => setEditingRoles(false)} className="text-xs px-3 py-1 text-neutral-500 hover:text-neutral-700">Cancel</button>
+                </div>
+              </div>
+            )}
             <p className="text-xs text-neutral-400 mb-5 uppercase tracking-widest">{events.length} event{events.length !== 1 ? "s" : ""}</p>
             <div className="space-y-2">
               {events.length === 0 && <p className="text-sm text-neutral-400">No events found.</p>}
