@@ -274,6 +274,7 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
   const [savingRoles, setSavingRoles] = useState(false);
   const isGuest = useGuest();
 
+  const [customInput, setCustomInput] = useState("");
   const hasRoles = target.kind === "person" || target.kind === "ensemble";
   const vocab = target.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
 
@@ -325,16 +326,26 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
             {hasRoles && editingRoles && (
               <div className="mb-3">
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {vocab.map(r => (
+                  {[...vocab, ...draftRoles.filter(r => !vocab.includes(r))].map(r => (
                     <button key={r} onClick={() => setDraftRoles(d => d.includes(r) ? d.filter(x => x !== r) : [...d, r])}
                       className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${draftRoles.includes(r) ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-400"}`}>
                       {r}
                     </button>
                   ))}
                 </div>
+                <form className="flex gap-1.5 mb-2" onSubmit={e => {
+                  e.preventDefault();
+                  const v = customInput.trim();
+                  if (v && !draftRoles.includes(v)) setDraftRoles(d => [...d, v]);
+                  setCustomInput("");
+                }}>
+                  <input value={customInput} onChange={e => setCustomInput(e.target.value)} placeholder="Add custom role…"
+                    className="text-xs px-2.5 py-1 border border-neutral-200 rounded-full flex-1 min-w-0 outline-none focus:border-neutral-400" />
+                  <button type="submit" className="text-xs px-2.5 py-1 border border-neutral-200 rounded-full text-neutral-500 hover:border-neutral-400">+</button>
+                </form>
                 <div className="flex gap-2">
                   <button onClick={saveRoles} disabled={savingRoles} className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full disabled:opacity-50">Save</button>
-                  <button onClick={() => setEditingRoles(false)} className="text-xs px-3 py-1 text-neutral-500 hover:text-neutral-700">Cancel</button>
+                  <button onClick={() => { setEditingRoles(false); setCustomInput(""); }} className="text-xs px-3 py-1 text-neutral-500 hover:text-neutral-700">Cancel</button>
                 </div>
               </div>
             )}
