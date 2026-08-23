@@ -210,7 +210,7 @@ export async function createEvent(typeOrData: string | Record<string, unknown>, 
 
 export async function updateEvent(id: string, data: Record<string, unknown>): Promise<void> {
   const res = await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-  if (!res.ok) throw new Error("Failed to update event");
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update event (${res.status})`); }
   invalidateEventsCache();
   invalidateEventDetail(id);
 }
