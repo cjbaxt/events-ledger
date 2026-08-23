@@ -40,6 +40,12 @@ export function invalidateEventsCache() {
   eventsCache = null;
 }
 
+const staleEventIds = new Set<string>();
+
+function invalidateEventDetail(id: string) {
+  staleEventIds.add(id);
+}
+
 // Module-level cache for entity lists (persons, ensembles, venues, festivals)
 type EntityCache<T> = { promise: Promise<T[]>; at: number } | null;
 const ENTITY_CACHE_TTL = 5 * 60 * 1000;
@@ -90,7 +96,9 @@ export async function fetchEvents(params: { type?: string; q?: string; limit?: n
 }
 
 export async function fetchEvent(id: string): Promise<EventDetail> {
-  const res = await apiFetch(`/api/events/${id}`);
+  const bypassCache = staleEventIds.has(id);
+  if (bypassCache) staleEventIds.delete(id);
+  const res = await apiFetch(`/api/events/${id}`, bypassCache ? { cache: "reload" } : {});
   if (!res.ok) throw new Error(`Failed to fetch event: ${res.status}`);
   return res.json();
 }
@@ -204,6 +212,7 @@ export async function updateEvent(id: string, data: Record<string, unknown>): Pr
   const res = await apiFetch(`/api/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error("Failed to update event");
   invalidateEventsCache();
+  invalidateEventDetail(id);
 }
 
 export async function createPaymentMethod(data: Record<string, unknown>): Promise<PaymentMethod> {
