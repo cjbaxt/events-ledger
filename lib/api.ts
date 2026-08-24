@@ -195,6 +195,19 @@ export async function updateEnsembleRoles(id: string, roles: string[]): Promise<
   invalidateNameCache(`ensemble:${id}`);
 }
 
+export async function fetchWork(id: string): Promise<{ id: string; title: string; type?: string | null; year?: number | null; creator?: { id: string; name: string } | null }> {
+  return cachedFetch(`work:${id}`, async () => {
+    const res = await apiFetch(`/api/works/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch work: ${res.status}`);
+    return res.json();
+  });
+}
+
+export async function fetchWorkEvents(id: string): Promise<EventListItem[]> {
+  const ids = await fetchEntityEventIds(`/api/works/${id}/events`);
+  return filterFromCache(ids);
+}
+
 export async function fetchFestival(id: string): Promise<{ id: string; name: string; edition?: string | null }> {
   return cachedFetch(`festival:${id}`, async () => {
     const res = await apiFetch(`/api/festivals/${id}`);

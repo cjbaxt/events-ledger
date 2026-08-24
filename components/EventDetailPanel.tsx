@@ -5,6 +5,7 @@ import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents, fetchEnsemble, fetchEnsembleEvents,
   fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents,
+  fetchWork, fetchWorkEvents,
   patchEventRating, patchEventPrice, patchEventReview,
   updatePersonRoles, updateEnsembleRoles,
 } from "@/lib/api";
@@ -101,11 +102,13 @@ function ClickableRef({ obj, onClick }: { obj: NamedObj; onClick?: (id: string) 
 
 type WorkObj = { id: string; title: string; creator?: string | null; creator_id?: string | null; year?: number | null; notes?: string | null };
 
-function WorkField({ work, onPersonClick }: { work: WorkObj; onPersonClick?: (id: string) => void }) {
+function WorkField({ work, onPersonClick, onWorkClick }: { work: WorkObj; onPersonClick?: (id: string) => void; onWorkClick?: (id: string) => void }) {
   return (
     <div>
       <Field label="Work">
-        <span className="text-neutral-800 font-medium">{work.title}</span>
+        {onWorkClick
+          ? <button onClick={() => onWorkClick(work.id)} className="text-neutral-800 font-medium hover:underline underline-offset-2 hover:text-neutral-900">{work.title}</button>
+          : <span className="text-neutral-800 font-medium">{work.title}</span>}
         {work.creator && (
           <span className="text-neutral-500"> — {work.creator_id && onPersonClick
             ? <button onClick={() => onPersonClick(work.creator_id!)} className="hover:text-neutral-900 hover:underline underline-offset-2">{work.creator}</button>
@@ -120,9 +123,9 @@ function WorkField({ work, onPersonClick }: { work: WorkObj; onPersonClick?: (id
 }
 
 
-function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
+function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWorkClick }: {
   extension: Record<string, unknown>; type: string;
-  onPersonClick: (id: string) => void; onEnsembleClick: (id: string) => void;
+  onPersonClick: (id: string) => void; onEnsembleClick: (id: string) => void; onWorkClick: (id: string) => void;
 }) {
   const skip = new Set(["id", "event_id", "subtype", "setlist", "setlist_fm_url", "credits",
     ...((new Set(["opera", "circus"])).has(type) ? ["notes", "notes_on_performance"] : [])]);
@@ -143,7 +146,7 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
 
   return (
     <div className="space-y-4 pt-4 border-t border-neutral-100">
-      {work && <WorkField work={work} onPersonClick={onPersonClick} />}
+      {work && <WorkField work={work} onPersonClick={onPersonClick} onWorkClick={onWorkClick} />}
       {scalarEntries.map(([key, val]) => {
         if (val === null || val === undefined) return null;
         if (personFields.has(key) && typeof val === "object" && !Array.isArray(val) && "id" in (val as object))
@@ -241,9 +244,9 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick }: {
   );
 }
 
-type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method";
+type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method" | "work";
 interface NavTarget { kind: NavKind; id: string; hint?: string; }
-const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method" };
+const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method", work: "Work" };
 
 const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
 const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
@@ -254,6 +257,7 @@ async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<s
   if (kind === "venue") { const v = await fetchVenue(id); return [v.name, v.city].filter(Boolean).join(", "); }
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
   if (kind === "payment_method") return id;
+  if (kind === "work") return (await fetchWork(id)).title;
   return (await fetchEnsemble(id)).name;
 }
 async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {
@@ -261,6 +265,7 @@ async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[
   if (kind === "venue") return fetchVenueEvents(id);
   if (kind === "festival") return fetchFestivalEvents(id);
   if (kind === "payment_method") return fetchPaymentMethodEvents(id);
+  if (kind === "work") return fetchWorkEvents(id);
   return fetchEnsembleEvents(id);
 }
 
@@ -272,6 +277,7 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
   const [editingRoles, setEditingRoles] = useState(false);
   const [draftRoles, setDraftRoles] = useState<string[]>([]);
   const [savingRoles, setSavingRoles] = useState(false);
+  const [workMeta, setWorkMeta] = useState<{ creator?: string | null; year?: number | null } | null>(null);
   const isGuest = useGuest();
 
   const [customInput, setCustomInput] = useState("");
@@ -282,13 +288,17 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
     setLoading(true);
     setRoles([]);
     setEditingRoles(false);
+    setWorkMeta(null);
     const rolesPromise: Promise<string[]> = target.kind === "person"
       ? fetchPerson(target.id).then(p => p.roles ?? [])
       : target.kind === "ensemble"
       ? fetchEnsemble(target.id).then(e => e.roles ?? [])
       : Promise.resolve([]);
-    Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id), rolesPromise])
-      .then(([n, evts, r]) => { setName(n); setEvents(evts); setRoles(r); })
+    const workMetaPromise = target.kind === "work"
+      ? fetchWork(target.id).then(w => ({ creator: (w.creator as { name?: string } | null)?.name ?? null, year: w.year ?? null }))
+      : Promise.resolve(null);
+    Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id), rolesPromise, workMetaPromise])
+      .then(([n, evts, r, wm]) => { setName(n); setEvents(evts); setRoles(r); setWorkMeta(wm); })
       .finally(() => setLoading(false));
   }, [target.kind, target.id, target.hint]);
 
@@ -315,6 +325,11 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
         {loading ? <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div> : (
           <>
             <h2 className="font-serif text-2xl text-neutral-900 mb-1">{name}</h2>
+            {workMeta && (workMeta.creator || workMeta.year) && (
+              <p className="text-sm text-neutral-500 mb-2">
+                {workMeta.creator}{workMeta.creator && workMeta.year ? " · " : ""}{workMeta.year}
+              </p>
+            )}
             {hasRoles && !editingRoles && (
               <p
                 className={`text-sm mb-2 ${roles.length ? "text-neutral-500" : "text-neutral-300 italic"} ${!isGuest ? "cursor-pointer hover:text-neutral-700" : ""}`}
@@ -657,7 +672,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                     </div>
                   )}
 
-                  {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} />}
+                  {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} />}
                 </>
               ) : detailLoading && !preview && (
                 <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
