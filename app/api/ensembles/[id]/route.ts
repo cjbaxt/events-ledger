@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const supabase = createServiceClient();
   const update: Record<string, unknown> = {};
   if ("roles" in body) update.roles = body.roles;
+  if ("name" in body && typeof body.name === "string" && body.name.trim()) update.name = body.name.trim();
   if (!Object.keys(update).length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   const { error } = await supabase.from("ensemble").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { fetchEvents, fetchAllPersons, fetchAllEnsembles, fetchAllVenues, fetchAllFestivals } from "@/lib/api";
+import { fetchEvents, fetchAllPersons, fetchAllEnsembles, fetchAllVenues, fetchAllFestivals, invalidateNameCache } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import { useGuest } from "./GuestContext";
 import EventTypeIcon from "./EventTypeIcon";
@@ -113,7 +113,7 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
   query, endpoint, singularLabel, pluralLabel, canDelete, renderRow,
 }: {
   query: string; endpoint: string; singularLabel: string; pluralLabel: string; canDelete: boolean;
-  renderRow: (item: T, onDelete: (id: string, name: string) => void) => React.ReactNode;
+  renderRow: (item: T, onDelete: (id: string, name: string) => void, onUpdate: (id: string, updates: Partial<T>) => void) => React.ReactNode;
 }) {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +133,10 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
+  function handleUpdate(id: string, updates: Partial<T>) {
+    setItems((prev) => prev.map((item) => item.id === id ? { ...item, ...updates } : item));
+  }
+
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = items.filter((p) => !q || p.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
@@ -146,11 +150,131 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
         {[...groups.entries()].map(([letter, groupItems]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
-            <div className="divide-y divide-neutral-50">{groupItems.map((item) => renderRow(item, handleDelete))}</div>
+            <div className="divide-y divide-neutral-50">{groupItems.map((item) => renderRow(item, handleDelete, handleUpdate))}</div>
           </section>
         ))}
         {filtered.length === 0 && <Empty />}
       </div>
+    </div>
+  );
+}
+
+function PersonRow({ p, isAdmin, onEntityClick, onDelete, onUpdate }: {
+  p: Person; isAdmin: boolean;
+  onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void;
+  onDelete: (id: string, name: string) => void;
+  onUpdate: (id: string, updates: Partial<Person>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(p.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true); setError(null);
+    const res = await fetch(`/api/persons/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    setSaving(false);
+    if (!res.ok) { setError("Save failed"); return; }
+    invalidateNameCache(`person:${p.id}`);
+    setEditing(false);
+    onUpdate(p.id, { name: name.trim() });
+  }
+
+  if (editing) {
+    return (
+      <div className="py-2.5 -mx-2 px-2 space-y-2">
+        <input
+          value={name} onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setEditing(false); setName(p.name); } }}
+          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
+          placeholder="Person name"
+          autoFocus
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+          <button onClick={() => { setEditing(false); setName(p.name); }} className="text-xs text-neutral-400">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
+      <button onClick={() => onEntityClick(p.id, "person", p.name)} className="flex-1 min-w-0 text-left">
+        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{p.name}</span>
+      </button>
+      {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{p.roles.join(" · ")}</span>}
+      {isAdmin && (
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
+          <button onClick={() => onDelete(p.id, p.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnsembleRow({ e, isAdmin, onEntityClick, onDelete, onUpdate }: {
+  e: Ensemble; isAdmin: boolean;
+  onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void;
+  onDelete: (id: string, name: string) => void;
+  onUpdate: (id: string, updates: Partial<Ensemble>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(e.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true); setError(null);
+    const res = await fetch(`/api/ensembles/${e.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    setSaving(false);
+    if (!res.ok) { setError("Save failed"); return; }
+    invalidateNameCache(`ensemble:${e.id}`);
+    setEditing(false);
+    onUpdate(e.id, { name: name.trim() });
+  }
+
+  if (editing) {
+    return (
+      <div className="py-2.5 -mx-2 px-2 space-y-2">
+        <input
+          value={name} onChange={(ev) => setName(ev.target.value)}
+          onKeyDown={(ev) => { if (ev.key === "Enter") save(); if (ev.key === "Escape") { setEditing(false); setName(e.name); } }}
+          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
+          placeholder="Ensemble name"
+          autoFocus
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+          <button onClick={() => { setEditing(false); setName(e.name); }} className="text-xs text-neutral-400">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
+      <button onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="flex-1 min-w-0 text-left">
+        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{e.name}</span>
+      </button>
+      {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{e.roles.join(" · ")}</span>}
+      {isAdmin && (
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
+          <button onClick={() => onDelete(e.id, e.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -309,27 +433,15 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
       {tab === "events" && <EventsTab query={query} onEventClick={onEventClick} />}
       {tab === "people" && (
         <DeletableEntityTab<Person> query={query} endpoint="persons" singularLabel="person" pluralLabel="people" canDelete={!isGuest}
-          renderRow={(p, onDelete) => (
-            <div key={p.id} className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
-              <button onClick={() => onEntityClick(p.id, "person", p.name)} className="flex-1 min-w-0 text-left">
-                <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{p.name}</span>
-              </button>
-              {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{p.roles.join(" · ")}</span>}
-              <button onClick={() => onDelete(p.id, p.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">Del</button>
-            </div>
+          renderRow={(p, onDelete, onUpdate) => (
+            <PersonRow key={p.id} p={p} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={onDelete} onUpdate={onUpdate} />
           )}
         />
       )}
       {tab === "ensembles" && (
         <DeletableEntityTab<Ensemble> query={query} endpoint="ensembles" singularLabel="ensemble" pluralLabel="ensembles" canDelete={!isGuest}
-          renderRow={(e, onDelete) => (
-            <div key={e.id} className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
-              <button onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="flex-1 min-w-0 text-left">
-                <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{e.name}</span>
-              </button>
-              {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{e.roles.join(" · ")}</span>}
-              <button onClick={() => onDelete(e.id, e.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">Del</button>
-            </div>
+          renderRow={(e, onDelete, onUpdate) => (
+            <EnsembleRow key={e.id} e={e} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={onDelete} onUpdate={onUpdate} />
           )}
         />
       )}
