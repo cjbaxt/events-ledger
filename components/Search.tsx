@@ -5,8 +5,8 @@ import type { EventListItem } from "@/lib/types";
 import { useGuest } from "./GuestContext";
 import EventTypeIcon from "./EventTypeIcon";
 
-interface Person { id: string; name: string; }
-interface Ensemble { id: string; name: string; type?: string | null; }
+interface Person { id: string; name: string; roles?: string[] | null; }
+interface Ensemble { id: string; name: string; roles?: string[] | null; }
 interface Venue { id: string; name: string; city?: string | null; parent_id?: string | null; parent_name?: string | null; }
 interface Festival { id: string; name: string; edition?: string | null; }
 
@@ -265,6 +265,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
           renderRow={(p) => (
             <button key={p.id} onClick={() => onEntityClick(p.id, "person", p.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
               <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{p.name}</span>
+              {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[45%]">{p.roles.join(" · ")}</span>}
             </button>
           )}
         />
@@ -274,7 +275,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
           renderRow={(e) => (
             <button key={e.id} onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
               <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{e.name}</span>
-              {e.type && <span className="text-xs text-neutral-400 flex-shrink-0">{e.type}</span>}
+              {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[45%]">{e.roles.join(" · ")}</span>}
             </button>
           )}
         />

@@ -65,10 +65,10 @@ function makeEntityFetcher<T>(getCache: () => EntityCache<T>, setCache: (c: Enti
   };
 }
 
-export const fetchAllPersons = makeEntityFetcher<{ id: string; name: string }>(
+export const fetchAllPersons = makeEntityFetcher<{ id: string; name: string; roles?: string[] | null }>(
   () => personsCache, (c) => { personsCache = c; }, "/api/persons?limit=2000"
 );
-export const fetchAllEnsembles = makeEntityFetcher<{ id: string; name: string; type?: string | null }>(
+export const fetchAllEnsembles = makeEntityFetcher<{ id: string; name: string; roles?: string[] | null }>(
   () => ensemblesCache, (c) => { ensemblesCache = c; }, "/api/ensembles?limit=2000"
 );
 export const fetchAllVenues = makeEntityFetcher<{ id: string; name: string; city?: string | null; parent_id?: string | null; parent_name?: string | null }>(

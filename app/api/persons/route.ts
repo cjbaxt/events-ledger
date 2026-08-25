@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q");
   const limit = parseInt(searchParams.get("limit") ?? "10");
   const supabase = createServiceClient();
-  let query = supabase.from("person").select("id, name").order("name").limit(limit);
+  let query = supabase.from("person").select("id, name, roles").order("name").limit(limit);
   if (q) query = query.ilike("name", `%${q}%`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

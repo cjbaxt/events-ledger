@@ -57,7 +57,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 const CREATE_FIELDS: Record<string, Array<{ key: string; label: string; required?: boolean; options?: string[] }>> = {
   persons: [{ key: "name", label: "Name", required: true }],
-  ensembles: [{ key: "name", label: "Name", required: true }, { key: "type", label: "Type", options: ["orchestra", "chamber_ensemble", "choir", "band", "company", "collective", "other"] }],
+  ensembles: [{ key: "name", label: "Name", required: true }],
   festivals: [{ key: "name", label: "Name (without year)", required: true }, { key: "edition", label: "Edition / year (e.g. 2026)" }],
   works: [{ key: "title", label: "Title", required: true }, { key: "type", label: "Type", required: true, options: ["opera", "ballet", "play", "film", "musical", "symphonic", "chamber", "song_cycle", "other"] }],
   productions: [{ key: "title", label: "Title", required: true }],
