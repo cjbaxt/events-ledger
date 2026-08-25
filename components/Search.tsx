@@ -109,6 +109,52 @@ function EntityTab<T extends { id: string; name: string }>({
   );
 }
 
+function DeletableEntityTab<T extends { id: string; name: string }>({
+  query, endpoint, singularLabel, pluralLabel, canDelete, renderRow,
+}: {
+  query: string; endpoint: string; singularLabel: string; pluralLabel: string; canDelete: boolean;
+  renderRow: (item: T, onDelete: (id: string, name: string) => void) => React.ReactNode;
+}) {
+  const [items, setItems] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const letterRefs = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => {
+    const fetcher = endpoint === "persons" ? fetchAllPersons
+      : endpoint === "ensembles" ? fetchAllEnsembles
+      : () => fetch(`/api/${endpoint}?limit=2000`).then((r) => r.json());
+    (fetcher() as Promise<T[]>).then(setItems).catch(() => {}).finally(() => setLoading(false));
+  }, [endpoint]);
+
+  async function handleDelete(id: string, name: string) {
+    if (!canDelete) return;
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/${endpoint}/${id}`, { method: "DELETE" });
+    if (!res.ok) { alert("Delete failed — may still have events attached."); return; }
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  if (loading) return <Spinner />;
+  const q = query.trim().toLowerCase();
+  const filtered = items.filter((p) => !q || p.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const groups = groupAlpha(filtered, (p) => p.name);
+  const presentLetters = new Set(groups.keys());
+  return (
+    <div>
+      {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
+      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? singularLabel : pluralLabel}</p>
+      <div className="space-y-6">
+        {[...groups.entries()].map(([letter, groupItems]) => (
+          <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
+            <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
+            <div className="divide-y divide-neutral-50">{groupItems.map((item) => renderRow(item, handleDelete))}</div>
+          </section>
+        ))}
+        {filtered.length === 0 && <Empty />}
+      </div>
+    </div>
+  );
+}
+
 function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
   v: Venue; allVenues: Venue[]; isAdmin: boolean;
   onVenueClick: (id: string, name?: string) => void;
@@ -246,6 +292,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
   onVenueClick: (id: string, name?: string) => void;
   onFestivalClick: (id: string, name?: string) => void;
 }) {
+  const isGuest = useGuest();
   const [tab, setTab] = useState<ActiveTab>("events");
   const [query, setQuery] = useState("");
 
@@ -261,22 +308,28 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
       </div>
       {tab === "events" && <EventsTab query={query} onEventClick={onEventClick} />}
       {tab === "people" && (
-        <EntityTab<Person> query={query} endpoint="persons" singularLabel="person" pluralLabel="people"
-          renderRow={(p) => (
-            <button key={p.id} onClick={() => onEntityClick(p.id, "person", p.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
-              <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{p.name}</span>
-              {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[45%]">{p.roles.join(" · ")}</span>}
-            </button>
+        <DeletableEntityTab<Person> query={query} endpoint="persons" singularLabel="person" pluralLabel="people" canDelete={!isGuest}
+          renderRow={(p, onDelete) => (
+            <div key={p.id} className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
+              <button onClick={() => onEntityClick(p.id, "person", p.name)} className="flex-1 min-w-0 text-left">
+                <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{p.name}</span>
+              </button>
+              {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{p.roles.join(" · ")}</span>}
+              <button onClick={() => onDelete(p.id, p.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">Del</button>
+            </div>
           )}
         />
       )}
       {tab === "ensembles" && (
-        <EntityTab<Ensemble> query={query} endpoint="ensembles" singularLabel="ensemble" pluralLabel="ensembles"
-          renderRow={(e) => (
-            <button key={e.id} onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
-              <span className="flex-1 text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate">{e.name}</span>
-              {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[45%]">{e.roles.join(" · ")}</span>}
-            </button>
+        <DeletableEntityTab<Ensemble> query={query} endpoint="ensembles" singularLabel="ensemble" pluralLabel="ensembles" canDelete={!isGuest}
+          renderRow={(e, onDelete) => (
+            <div key={e.id} className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
+              <button onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="flex-1 min-w-0 text-left">
+                <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{e.name}</span>
+              </button>
+              {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{e.roles.join(" · ")}</span>}
+              <button onClick={() => onDelete(e.id, e.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">Del</button>
+            </div>
           )}
         />
       )}

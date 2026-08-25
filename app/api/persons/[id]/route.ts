@@ -10,6 +10,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json(data);
 }
 
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deny = await requireOwner(); if (deny) return deny;
+  const { id } = await params;
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("person").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const deny = await requireOwner(); if (deny) return deny;
   const { id } = await params;
