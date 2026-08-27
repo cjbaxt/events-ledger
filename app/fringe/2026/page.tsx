@@ -112,7 +112,7 @@ function formatMoney(n: number, currency: string) {
   return currency === "GBP" ? `£${n.toFixed(0)}` : `€${n.toFixed(0)}`;
 }
 
-const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "other"];
+const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "cabaret-comedy", "magic", "other"];
 
 // ── Hardcoded editorial content (updated in conversation) ──────────────────
 const GENRE_ANALYSIS: Record<string, { subtitle: string; body: string }> = {
@@ -129,8 +129,16 @@ const GENRE_ANALYSIS: Record<string, { subtitle: string; body: string }> = {
     body: "You have never given circus below 4 stars. Physicality and concept, not just spectacle — the circus shows that earn your attention always have both.",
   },
   cabaret: {
-    subtitle: "A tale of two shows.",
-    body: "Reuben Kaye is 5 stars again — <em>he touched your face again</em>, this is now a recurring event — and the Adults Only Magic Show got 2.5. The gap says something about what cabaret can be at its best versus at its most perfunctory.",
+    subtitle: "Reuben Kaye as compere.",
+    body: "The Kaye Hole is a variety night rather than a solo show — Reuben Kaye hosting, other acts filling the card. Different beast from his solo work, and a different kind of evening.",
+  },
+  "cabaret-comedy": {
+    subtitle: "Three years running. Still 5 stars.",
+    body: "Hard to Swallow is the third Reuben Kaye Fringe show in as many years and he keeps finding new ways to be Reuben Kaye. <em>He touched your face again.</em> At this point it is less a surprise and more an annual appointment.",
+  },
+  magic: {
+    subtitle: "One show. One verdict.",
+    body: "The Adults Only Magic Show landed 2.5 stars — technically competent, but the show around the magic wasn't there. You've clocked the same pattern elsewhere: craft without a point of view doesn't hold your attention.",
   },
   other: {
     subtitle: "One show. Lying down. Whispering.",
