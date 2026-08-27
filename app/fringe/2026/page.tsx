@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { isGuestServer } from "@/lib/guest";
 import Nav from "@/components/Nav";
 import Link from "next/link";
+import VenueDonut, { type VenueGroupData } from "./VenueDonut";
 
 const FESTIVAL_ID = "f406761a-a55a-456b-b887-f8ee76fae039";
 
@@ -19,6 +20,63 @@ type FringeEvent = {
   notes: string | null;
   venue: { name: string } | null;
 };
+
+const BRAND_META: { name: string; color: string; labelColor?: string; stroke: string | null }[] = [
+  { name: "Assembly",       color: "#DB0216",              stroke: null      },
+  { name: "Pleasance",      color: "#FBE200", labelColor: "#9A8800", stroke: "#6B8FA8" },
+  { name: "Monkey Barrel",  color: "#181818",              stroke: null      },
+  { name: "Underbelly",     color: "#622B85",              stroke: null      },
+  { name: "Summerhall",     color: "#F0F0F0", labelColor: "#002B49", stroke: "#6B8FA8" },
+  { name: "Gilded Balloon", color: "#FF0081",              stroke: null      },
+  { name: "Independent",    color: "#5A8A6A",              stroke: null      },
+];
+
+function brandOf(parentName: string): string {
+  if (parentName.startsWith("Assembly")) return "Assembly";
+  if (parentName.startsWith("Pleasance")) return "Pleasance";
+  if (parentName.startsWith("Monkey Barrel")) return "Monkey Barrel";
+  if (parentName.startsWith("Underbelly")) return "Underbelly";
+  if (parentName === "Summerhall") return "Summerhall";
+  if (parentName.startsWith("Gilded Balloon")) return "Gilded Balloon";
+  return "Independent";
+}
+
+type VenueRow = {
+  rating: number | null;
+  venue: { name: string; parent: { name: string } | { name: string }[] | null } | null;
+};
+
+async function getVenueGroups(): Promise<VenueGroupData[]> {
+  const sb = createServiceClient();
+  const { data } = await sb
+    .from("event")
+    .select("rating, venue:venue_id(name, parent:parent_id(name))")
+    .eq("festival_id", FESTIVAL_ID);
+
+  const rows = (data ?? []) as unknown as VenueRow[];
+  const acc = new Map<string, { shows: number; rooms: Set<string>; ratings: number[] }>();
+
+  for (const row of rows) {
+    const parentRaw = row.venue?.parent ?? null;
+    const parentName = Array.isArray(parentRaw) ? (parentRaw[0]?.name ?? "") : (parentRaw?.name ?? "");
+    const brand = brandOf(parentName);
+    if (!acc.has(brand)) acc.set(brand, { shows: 0, rooms: new Set(), ratings: [] });
+    const g = acc.get(brand)!;
+    g.shows++;
+    if (row.venue?.name) g.rooms.add(row.venue.name);
+    if (row.rating != null) g.ratings.push(row.rating);
+  }
+
+  return BRAND_META
+    .map(meta => {
+      const g = acc.get(meta.name) ?? { shows: 0, rooms: new Set<string>(), ratings: [] };
+      const avgRating = g.ratings.length
+        ? Math.round(g.ratings.reduce((s, r) => s + r, 0) / g.ratings.length * 100) / 100
+        : 0;
+      return { ...meta, shows: g.shows, rooms: g.rooms.size, avgRating };
+    })
+    .filter(g => g.shows > 0);
+}
 
 async function getFringeEvents(): Promise<FringeEvent[]> {
   const sb = createServiceClient();
@@ -132,7 +190,7 @@ export default async function Fringe2026Page() {
     );
   }
 
-  const events = await getFringeEvents();
+  const [events, venueGroups] = await Promise.all([getFringeEvents(), getVenueGroups()]);
   const rated = events.filter(e => e.rating !== null);
   const overallAvg = avg(events);
   const gbp = gbpTotal(events);
@@ -216,6 +274,14 @@ export default async function Fringe2026Page() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── WHERE YOU WERE — light blue ─────────────────── */}
+        <section style={{ background: N.blue, padding: "5rem 0" }}>
+          <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
+            <p className="f-section-label" style={{ color: N.salmon, marginBottom: "2rem" }}>Where you were</p>
+            <VenueDonut groups={venueGroups} />
           </div>
         </section>
 
