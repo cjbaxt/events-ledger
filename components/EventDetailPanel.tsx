@@ -478,7 +478,7 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
       </div>
       {editing ? (
         <div className="space-y-2">
-          <textarea value={draft} onChange={(e) => { setDraft(e.target.value); try { localStorage.setItem(storageKey, e.target.value); } catch {} }} placeholder="Write something…" autoFocus rows={4} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-none focus:outline-none focus:border-neutral-400 font-serif leading-relaxed" />
+          <textarea value={draft} onChange={(e) => { setDraft(e.target.value); try { localStorage.setItem(storageKey, e.target.value); } catch {} }} placeholder="Write something…" autoFocus rows={4} className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 resize-y focus:outline-none focus:border-neutral-400 font-serif leading-relaxed min-h-[6rem]" />
           <div className="space-y-1 pb-1">
             <p className="text-xs text-neutral-300 italic">{enthusiasmPrompt}</p>
             <p className="text-xs text-neutral-300 italic">{reflectionPrompt}</p>
