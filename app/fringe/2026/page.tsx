@@ -36,7 +36,7 @@ function brandOf(parentName: string): string {
   if (parentName.startsWith("Pleasance")) return "Pleasance";
   if (parentName.startsWith("Monkey Barrel")) return "Monkey Barrel";
   if (parentName.startsWith("Underbelly")) return "Underbelly";
-  if (parentName === "Summerhall") return "Summerhall";
+  if (parentName.startsWith("Summerhall")) return "Summerhall";
   if (parentName.startsWith("Gilded Balloon")) return "Gilded Balloon";
   return "Independent";
 }
