@@ -112,62 +112,72 @@ function formatMoney(n: number, currency: string) {
   return currency === "GBP" ? `£${n.toFixed(0)}` : `€${n.toFixed(0)}`;
 }
 
-const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "magic", "other"];
+const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "dance", "classical", "magic", "other"];
 
-// ── Hardcoded editorial content (updated in conversation) ──────────────────
+// ── Editorial content generated from real reviews ──────────────────────────
 const GENRE_ANALYSIS: Record<string, { subtitle: string; body: string }> = {
   theatre: {
-    subtitle: "Your biggest category and your most complicated relationship.",
-    body: "You saw musicals, a puppet show, a spoken-word political piece, a snail-based gender meditation, and a flat-earth conspiracy comedy. The range is notable. The free parody was the best of the lot — <em>Broadway-level singing, you said</em> — while your most expensive theatre ticket got 2.5 stars. You're hard to please here, and rightly so.",
+    subtitle: "Your biggest category. Nineteen shows, five 5-stars, and one 2-star you read up on afterwards.",
+    body: "Your theatre ranged from a free parody with Broadway-level pipes to a puppet Home Alone in a miniature house you couldn't quite see across the room. The pattern: simple staging, maximum ambition. Police Cops delivered a plot-heavy bromance-action-adventure with just three men and a lot of props — full five. The Distance wrung real tears out of a one-man show about a rural working-class athlete; <em>you nearly cried at the injury scenes</em>. Belly had you dreaming about BMI statistics the following night. The musicals split: Heated Rivalry soared, Grimm AF delivered mid, Chestnuts was two stars with what sounded like a comped house. Baby Wants Candy improvised a full coherent Midsummer Night's Cream in real time and you loved every moment of it.",
   },
   comedy: {
-    subtitle: "Character and concept over straight standup.",
-    body: "The pattern is clear: Jill's Tupperware Party and BIRDS both got 4.5 — one is a fake MLM cult, one is two women on sun loungers at the end of the world. The straight standup entries landed lower. You want a point of view, not a set.",
+    subtitle: "Character comedy vs. standup comedy. The verdict is in.",
+    body: "Tom Cashman got five stars and you put him up there with Sloss. Olga Koch got 4.5 for an hour about male loneliness that only revealed itself at the end. Jill's Tupperware Party and BIRDS both got 4.5 — one is a pyramid-scheme cult induction, the other is two women melting on sun loungers while the world ends around them. The WIP circuit (Bohart, Bauer, Gavin) did what WIPs do: honest, funny, unfinished. ALOK <em>came across as an opinion piece and a little preachy</em> — your words. You have a type: comedian with a point of view, material with a through-line.",
   },
   circus: {
-    subtitle: "Your most reliable genre.",
-    body: "You have never given circus below 4 stars. Physicality and concept, not just spectacle — the circus shows that earn your attention always have both.",
+    subtitle: "Your most reliable genre. Floor: 3.5 stars. No exceptions.",
+    body: "Six shows. Lowest rating 3.5, and that was the Palestinian Circus — which you were also moved by for reasons beyond the acrobatics. Tell Me got five stars: three acrobats, two red cubes, an AIDS diagnosis told without words in Summerhall's old dissection theatre. <em>You cried.</em> YUCK, By a Thread, and Afrique En Cirque all got 4.5. Afrique had a live kora, singing, and got the audience chanting in African languages. By a Thread had rope geometries you'd genuinely never seen before. YUCK had disco hula hoops — and the Gen Z kids in the front row had absolutely no idea what any of it meant.",
   },
   cabaret: {
-    subtitle: "Reuben Kaye is 5 stars again. He touched your face again.",
-    body: "Hard to Swallow is the third Reuben Kaye Fringe show in three years and he keeps finding new ways to be Reuben Kaye. At this point it is less a surprise and more an annual appointment. The Kaye Hole is a different beast — a variety night he hosts rather than a solo show — and rated accordingly.",
+    subtitle: "Three fives and two 2.5s. The spread tells the whole story.",
+    body: "Reuben Kaye has been five stars every Fringe. Hard to Swallow was the third: glitter suit, glitter penis, hairpiece on the microphone, and he caressed your face twice. The Kaye Hole delivered the night you'd been building towards for three years — there was a nude clown with a popcorn machine on her head doing a hula hoop act while butter was involved, and a salt shaker was retrieved from inside her body to season the result. Bernie Dieter's had your mum saying the F word for the first time you can remember. On the other end: Stamptown felt randomly assembled; Margaret Thatcher's make-up kept catching your attention and the improv felt over-rehearsed. <em>The difference isn't talent — it's whether the show has an arc.</em>",
+  },
+  dance: {
+    subtitle: "Concept over choreography. Mental health as subject matter.",
+    body: "Two contemporary dance pieces, both in Greenside venues, both about mental health. The Yellow Wallpaper adapted Gilman's short story through three dancers and spoken word monologues — the moment where they pushed faces and hands through stretchy fabric to escape the wall was properly unsettling, 4 stars. Anatomy of Survival explored an over-reactive nervous system with a single dancer and one drummer; the concept landed, <em>the dancing could have been more polished</em>, 3.5.",
+  },
+  classical: {
+    subtitle: "Spectacular when it knows what it is.",
+    body: "Tale of the Firebird combined violin, fire, and acrobatic circus in a single piece. The main woman — playing violin while doing stunts — was mesmerising, and the harpist playing upside down from the ceiling was jaw-dropping. But the supporting cast who'd picked up the other discipline showed their seams. The composition was beautiful. <em>The show might work better if it tried to do slightly less.</em>",
   },
   magic: {
-    subtitle: "One show. One verdict.",
-    body: "The Adults Only Magic Show landed 2.5 stars — technically competent, but the show around the magic wasn't there. You've clocked the same pattern elsewhere: craft without a point of view doesn't hold your attention.",
+    subtitle: "One show. The nudity didn't save it.",
+    body: "The Adults Only Magic Show landed 2.5 stars. Technically competent, the magic was real, the nudity was present. But something felt off — you couldn't put words to it at the time. You've spotted the pattern before: craft without a point of view doesn't hold your attention for long.",
   },
   other: {
     subtitle: "One show. Lying down. Whispering.",
-    body: "COMA by Darkfield. You lay down for the whole thing while smells, fans, vibrations, and a woman whispering in your ear made it the creepiest thing on your list. 4 stars. Of course.",
+    body: "COMA by Darkfield. You lay down for the whole thing while smells, fans, 3D sound, vibrations, and a woman whispering directly in your ear made it the creepiest thing on your list. You didn't take the pill. 4 stars. Of course.",
   },
 };
 
 const SENTIMENT = {
-  bar: { enthusiastic: 72, mixed: 18, meh: 10 },
+  bar: { enthusiastic: 60, mixed: 30, meh: 10 },
   up: {
-    title: "Surprise, craft, and physical presence",
-    body: "Your most charged reviews share a pattern: something happened that you didn't predict. Matt got on stage. Reuben caressed your face. The Gen Z kids in the front row had no idea what they were watching. The disco hula hoops. The woman whispering directly in your ear. When a show broke through the fourth wall — in either direction — your writing lit up.",
+    title: "A story that revealed itself",
+    body: "Your most charged reviews share a pattern: the show built somewhere rather than just being good at the thing. An ending that recontextualised everything before it — Olga Koch, 44 Minutes, COMA. A physical moment that stopped the room — By a Thread's rope geometries, Tell Me's AIDS story without words, The Distance's injury scenes. An audience implosion that couldn't be scripted — Reuben caressing your face, Matt getting on stage with a pitch-perfect Canadian accent, the Gen Z kids in the YUCK front row with blank stares. When a show arrived at something, your writing lit up.",
   },
   down: {
-    title: "Story weakness and room mismatch",
-    body: "Three shows got 3 stars or below, and in each case the notes tell the same story: the room was wrong, the story was thin, or the point of view was unclear. \"Too much for the room.\" \"The story was seriously lacking.\" \"Came across as an opinion piece.\" You tolerate technical limitations and enjoy lo-fi; what you don't forgive is vagueness.",
+    title: "Thin premise and no point of view",
+    body: "Five shows at 2.5 stars or below, and the pattern holds: the concept didn't justify the runtime, or the persona wasn't convincing enough to carry the room. \"The story was seriously lacking.\" \"The jokes were alright but none of them really surprised me.\" \"I really don't get the hype.\" It's not about production budget — Police Cops pulled off a plot-heavy action-adventure-bromance with three men and some props. It's about whether the show knows what it is.",
   },
   themes: [
-    { label: "Queerness", desc: "Ran through at least 5 shows. You didn't seek it out consciously; it just keeps showing up because you keep choosing the shows where it is. You gave the snail's gender identity journey 4.5 stars." },
-    { label: "Physicality", desc: "Your highest-rated shows almost all had bodies doing something extraordinary — acrobatics, hula hoops, sun lounger decomposition, lying completely still in the dark. You respond to what the body can do in ways that straight standup or lecture-format shows can't match." },
-    { label: "Craft admiration", desc: "Specific technical praise appears in 8 reviews: \"Broadway level singing\", \"amazing ensemble acrobatics\", \"mesmerizingly funny\". You notice when people are good at the thing they're doing, and you say so." },
-    { label: "Audience participation", desc: "You noted it — positively or neutrally — in 4 shows. You don't hate being implicated. What you do hate is participation that feels mandatory rather than discovered." },
-    { label: "The Fringe itself", desc: "You used the word \"fringe\" as a compliment three times. \"Pure fringe — weird and wonderful.\" You came for the things that can only exist here, and you found them." },
+    { label: "Queerness", desc: "Ran through at least seven shows — the snail's gender identity journey, an AIDS story told without a single word, Bernie Dieter's \"my body my choice\" dress with the Roe v Wade news clip playing, Reuben Kaye doing Reuben Kaye. You didn't seek it out consciously; it appeared because you kept choosing the shows where it lives." },
+    { label: "Physicality", desc: "Your highest-rated shows almost all had bodies doing something extraordinary. The circus floor-plan is obvious, but it extends to The Distance (swinging literally and figuratively), 44 Minutes (Ryan writhing in the prison cell), and the ex-Cirque du Soleil shaving performance at Kaye Hole. What the body can do holds your attention in ways a talking head rarely matches." },
+    { label: "A point of view", desc: "Tom Cashman over ALOK. BIRDS over average standup. Tell Me over any circus that's just tricks. You notice when a show has somewhere to go alongside the skill, and you reward it. The reviews where you wrote most are the ones where the show had something to say." },
+    { label: "Audience implication", desc: "Jill inducted you into a cult. Mark Vigeant built a whole world from your imagination. Police Cops got Matt on stage. Reuben got your face twice. BIRDS soaked you with water guns. The Kaye Hole had you throwing hoops at a target. You don't hate participation — what you hate is when it feels mandatory rather than discovered." },
+    { label: "The Fringe itself", desc: "You used \"pure fringe\" as a compliment at least twice. \"Weird and wonderful.\" \"Seriously fringe.\" \"You'd struggle to find it somewhere else.\" You came for the things that can only exist here — the snail puppetry, the miniature house no one could quite see, the shipping container with a woman who forgets the same thing over and over — and you found them." },
   ],
 };
 
 const PULLQUOTES: Array<{ text: string; source: string }> = [
   { text: "Did I join a cult? I think I did. OH JILL!", source: "Jill's Tupperware Party" },
-  { text: "Pure fringe — weird and wonderful, queer art.", source: "Bi-Curious George" },
-  { text: "Broadway level singing, they had some Pipes.", source: "Heated Rivalry" },
+  { text: "He swung (quite literally) from physically impressive to emotionally captivating to endearingly humorous. Never a dull moment.", source: "The Distance" },
+  { text: "I cried. Just a fantastic piece of work.", source: "Tell Me" },
+  { text: "Will I go back? Yes. Will I take my mum? Probably not.", source: "The Kaye Hole" },
+  { text: "Broadway-level singing; they had some Pipes! As soon as the narrator came on stage, I knew it was going to be good.", source: "Heated Rivalry: The Unauthorized Musical Parody" },
   { text: "The creepiest bit was the woman whispering right in your ear 'what about this one?'", source: "COMA" },
-  { text: "Seriously fringe. Seriously insane. Seriously loved it.", source: "Jill's Tupperware Party" },
-  { text: "One of the best parts was looking across at the blank stares of the two Gen Z-ers in the front row who were missing half of the references.", source: "YUCK Circus: Naughties" },
+  { text: "Our bodies are not our fault, but they are our responsibility.", source: "Belly" },
+  { text: "Pure fringe — weird and wonderful, queer art.", source: "Bi-Curious George: Snail Trail" },
 ];
 // ──────────────────────────────────────────────────────────────────────────
 
