@@ -112,7 +112,7 @@ function formatMoney(n: number, currency: string) {
   return currency === "GBP" ? `£${n.toFixed(0)}` : `€${n.toFixed(0)}`;
 }
 
-const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "cabaret-comedy", "magic", "other"];
+const TYPE_ORDER = ["theatre", "comedy", "circus", "cabaret", "magic", "other"];
 
 // ── Hardcoded editorial content (updated in conversation) ──────────────────
 const GENRE_ANALYSIS: Record<string, { subtitle: string; body: string }> = {
@@ -129,12 +129,8 @@ const GENRE_ANALYSIS: Record<string, { subtitle: string; body: string }> = {
     body: "You have never given circus below 4 stars. Physicality and concept, not just spectacle — the circus shows that earn your attention always have both.",
   },
   cabaret: {
-    subtitle: "Reuben Kaye as compere.",
-    body: "The Kaye Hole is a variety night rather than a solo show — Reuben Kaye hosting, other acts filling the card. Different beast from his solo work, and a different kind of evening.",
-  },
-  "cabaret-comedy": {
-    subtitle: "Three years running. Still 5 stars.",
-    body: "Hard to Swallow is the third Reuben Kaye Fringe show in as many years and he keeps finding new ways to be Reuben Kaye. <em>He touched your face again.</em> At this point it is less a surprise and more an annual appointment.",
+    subtitle: "Reuben Kaye is 5 stars again. He touched your face again.",
+    body: "Hard to Swallow is the third Reuben Kaye Fringe show in three years and he keeps finding new ways to be Reuben Kaye. At this point it is less a surprise and more an annual appointment. The Kaye Hole is a different beast — a variety night he hosts rather than a solo show — and rated accordingly.",
   },
   magic: {
     subtitle: "One show. One verdict.",
