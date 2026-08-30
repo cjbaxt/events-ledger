@@ -14,7 +14,7 @@ export type VenueGroupData = {
 const TAU = 2 * Math.PI;
 const GAP = 0.022;
 const CX = 300, CY = 220, R = 118, ri = 68;
-const LABEL_R = 175;                         // label anchor radius from center
+const LABEL_R = 155;                         // label anchor radius from center
 const TIP_R   = R + 8;                       // leader line start radius
 const MIN_ANG  = (30 * Math.PI) / 180;       // 30° min angular gap between labels
 

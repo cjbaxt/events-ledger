@@ -685,7 +685,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
 
       {step === "basic" && (
         <div>
-          <h2 className="font-serif text-xl text-neutral-900 mb-6"><button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>Basic info</h2>
+          <h2 className="font-serif text-xl text-neutral-900 mb-6">{!editMode && <button type="button" onClick={() => setStep("type")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>}Basic info</h2>
           <div className="space-y-5">
             {type === "screening" && !editMode && <TmdbFetcher onFetch={(data) => { setBaseField("title", data.title); setBaseField("full_description", data.overview); setBaseField("description_source_url", data.tmdb_url); if (data.director_ref) { setExtField("credits", [{ role: "Director", person: data.director_ref, ensemble: null, note: null }]); } }} />}
             <Field label="Title" required><input className={inputCls} value={(base.title as string) ?? ""} onChange={(e) => setBaseField("title", e.target.value)} autoFocus autoCapitalize="none" /></Field>
