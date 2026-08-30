@@ -3,6 +3,7 @@ import { isGuestServer } from "@/lib/guest";
 import Nav from "@/components/Nav";
 import Link from "next/link";
 import VenueDonut, { type VenueGroupData } from "./VenueDonut";
+import GenreDotStrip, { type DotStripGroup } from "./GenreDotStrip";
 
 const FESTIVAL_ID = "f406761a-a55a-456b-b887-f8ee76fae039";
 
@@ -220,7 +221,6 @@ export default async function Fringe2026Page() {
   }
 
   const [events, venueGroups] = await Promise.all([getFringeEvents(), getVenueGroups()]);
-  const rated = events.filter(e => e.rating !== null);
   const overallAvg = avg(events);
   const gbp = gbpTotal(events);
   const eur = eurTotal(events);
@@ -231,7 +231,20 @@ export default async function Fringe2026Page() {
     if (b.rating === null) return -1;
     return b.rating - a.rating;
   });
-  const byType = TYPE_ORDER.map(t => ({ type: t, events: events.filter(e => e.type === t) })).filter(g => g.events.length);
+  const dotGroups: DotStripGroup[] = TYPE_ORDER
+    .map(t => ({
+      type: t,
+      shows: events
+        .filter(e => e.type === t && e.rating !== null)
+        .map(e => ({
+          id: e.id,
+          title: e.title,
+          rating: e.rating!,
+          venueName: e.venue?.name ?? null,
+          reviewSnippet: e.review ? e.review.slice(0, 110) + (e.review.length > 110 ? "…" : "") : null,
+        })),
+    }))
+    .filter(g => g.shows.length > 0);
   const fiveStars = events.filter(e => e.rating === 5);
   const firstDay = days[0] ? new Date(days[0] + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
   const lastDay = days[days.length - 1] ? new Date(days[days.length - 1] + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null;
@@ -317,42 +330,8 @@ export default async function Fringe2026Page() {
         {/* ── WHAT YOU SAW — white ─────────────────────────── */}
         <section style={{ background: "#FAFAF8", padding: "5rem 0" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "0 1.5rem" }}>
-            <p className="f-section-label" style={{ color: N.salmon, marginBottom: "0.4rem" }}>What you saw</p>
-            {byType.map(({ type, events: te }) => {
-              const typeAvg = avg(te);
-              const analysis = GENRE_ANALYSIS[type];
-              return (
-                <div key={type} style={{ borderTop: "1px solid #E0E8EF", paddingTop: "2rem", paddingBottom: "2rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1.5rem", marginBottom: "0.75rem" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
-                      <span style={{ color: N.navy, fontSize: "1.4rem", fontWeight: 800, textTransform: "capitalize", letterSpacing: "-0.02em" }}>{type}</span>
-                      <span style={{ color: "#9AADBC", fontSize: "0.6rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>{te.length} show{te.length !== 1 ? "s" : ""}</span>
-                    </div>
-                    {typeAvg && (
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ color: N.navy, fontSize: "2.25rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>{typeAvg}<span style={{ color: N.yellow }}>★</span></div>
-                        <div style={{ color: "#9AADBC", fontSize: "0.55rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em" }}>avg</div>
-                      </div>
-                    )}
-                  </div>
-                  {analysis && <p style={{ color: "#6B7D8C", fontSize: "0.875rem", lineHeight: 1.65, margin: "0 0 0.75rem" }} dangerouslySetInnerHTML={{ __html: analysis.body }} />}
-                  <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                    {[...te].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(e => (
-                      <span key={e.id} style={{
-                        fontSize: "0.7rem", padding: "0.2rem 0.55rem", borderRadius: "2px",
-                        border: `1px solid ${e.rating && e.rating >= 4.5 ? N.navy : "#D4DDE6"}`,
-                        color: e.rating && e.rating >= 4.5 ? N.navy : e.rating && e.rating <= 2.5 ? "#B0BEC8" : "#4A5C6A",
-                        fontWeight: e.rating && e.rating >= 4.5 ? 600 : 400,
-                      }}>
-                        {e.title}{e.rating !== null
-                          ? <span style={{ color: "#9AADBC" }}> {e.rating}<span style={{ color: N.yellow }}>★</span></span>
-                          : <span style={{ color: "#B0BEC8", fontStyle: "italic" }}> WIP</span>}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            <p className="f-section-label" style={{ color: N.salmon, marginBottom: "2rem" }}>What you saw</p>
+            <GenreDotStrip groups={dotGroups} />
           </div>
         </section>
 
