@@ -39,7 +39,7 @@ function starStr(r: number) {
 
 export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [tip, setTip] = useState<{ show: DotStripShow; x: number; y: number } | null>(null);
+  const [tip, setTip] = useState<{ show: DotStripShow; x: number; rawX: number; y: number } | null>(null);
   const [containerW, setContainerW] = useState(600);
 
   useEffect(() => {
@@ -57,10 +57,10 @@ export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
     const cr = el.getBoundingClientRect();
     const wr = wrapRef.current!.getBoundingClientRect();
     const rawX = cr.left - wr.left + cr.width / 2;
-    // clamp so tooltip stays within container
+    // clamp tooltip box so it stays within container, but keep rawX to aim the arrow
     const x = Math.max(TIP_W / 2 + 4, Math.min(rawX, containerW - TIP_W / 2 - 4));
     const y = cr.top - wr.top;
-    setTip({ show: s, x, y });
+    setTip({ show: s, x, rawX, y });
   }
 
   return (
@@ -172,7 +172,9 @@ export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
             <div style={{ color: "#7AACC4", fontSize: 11, lineHeight: 1.55, marginTop: 5 }}>{tip.show.reviewSnippet}</div>
           )}
           <div style={{
-            position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
+            position: "absolute", bottom: -5,
+            left: Math.max(10, Math.min(TIP_W - 10, tip.rawX - tip.x + TIP_W / 2)),
+            transform: "translateX(-50%)",
             width: 0, height: 0,
             borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
             borderTop: `5px solid ${navy}`,

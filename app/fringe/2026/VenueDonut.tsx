@@ -20,8 +20,6 @@ const borderCol = "#C2D5E3";
 
 // Minimum gap between label baselines (SVG units)
 const MIN_LABEL_GAP = 22;
-// Skip inline label for tiny slices
-const LABEL_MIN_SHOWS = 2;
 
 function arcPath(a0: number, a1: number) {
   const x1 = CX + R * Math.cos(a0),  y1 = CY + R * Math.sin(a0);
@@ -86,9 +84,7 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
     const ey = by;
     const tx = ex + (isRight ? 4 : -4);
     const anchor = (isRight ? "start" : "end") as "start" | "end";
-    const showLabel = g.shows >= LABEL_MIN_SHOWS;
-
-    return { g, pct, path, ax, ay, bx, by, ex, ey, tx, anchor, showLabel };
+    return { g, pct, path, ax, ay, bx, by, ex, ey, tx, anchor, showLabel: true };
   });
 
   // Resolve label collisions
