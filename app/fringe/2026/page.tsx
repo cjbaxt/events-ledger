@@ -28,7 +28,8 @@ const BRAND_META: { name: string; color: string; labelColor?: string; stroke: st
   { name: "Underbelly",     color: "#622B85",              stroke: null      },
   { name: "Summerhall",     color: "#F0F0F0", labelColor: "#002B49", stroke: "#6B8FA8" },
   { name: "Gilded Balloon", color: "#FF0081",              stroke: null      },
-  { name: "Independent",    color: "#5A8A6A",              stroke: null      },
+  { name: "Greenside",      color: "#6BC821", labelColor: "#2A6800", stroke: null      },
+  { name: "Laughing Horse", color: "#3D88C8",              stroke: null      },
 ];
 
 function brandOf(parentName: string): string {
@@ -38,7 +39,9 @@ function brandOf(parentName: string): string {
   if (parentName.startsWith("Underbelly")) return "Underbelly";
   if (parentName.startsWith("Summerhall")) return "Summerhall";
   if (parentName.startsWith("Gilded Balloon")) return "Gilded Balloon";
-  return "Independent";
+  if (parentName.startsWith("Greenside")) return "Greenside";
+  if (parentName.startsWith("Laughing Horse")) return "Laughing Horse";
+  return "Other";
 }
 
 type VenueRow = {
@@ -180,6 +183,18 @@ const PULLQUOTES: Array<{ text: string; source: string }> = [
   { text: "Pure fringe — weird and wonderful, queer art.", source: "Bi-Curious George: Snail Trail" },
 ];
 // ──────────────────────────────────────────────────────────────────────────
+
+const FIVE_STAR_EXCERPTS: Record<string, string> = {
+  "Reuben Kaye: Hard to Swallow": "Perfectly executed cabaret, fabulousness, bums, glitter suit with glitter penis, and incredibly topical takes on current events. This time he caressed my face twice 😌",
+  "Heated Rivalry: The Unauthorized Musical Parody": "Broadway-level singing; they had some Pipes! Matt got up on stage to play Scott Hunter, putting on an incredible Canadian accent and making the cast laugh in shock at how good he was. A must-see if you're a fan of the show.",
+  "Police Cops: The Original": "Just 3 guys + a lot of props playing a multitude of different characters. Simple, silly premise but perfect execution. Incredible how they can make something so plot heavy with so many characters with just the three of them.",
+  "Bernie Dieter's Club Kabarett": "First time I've ever heard my mum use the F word 🤣 All the acts were so good all the way through — the tap dancer, the acrobat on the trapeze and pole in heels, the contortionist, and the drag queen. Just such an amazing show that hit all the entertainment angles.",
+  "Tom Cashman: NPC (Nearly Proficient Comedian)": "Tom has excellent comedic timing, great callbacks, squeezed in a full story without it feeling like a monologue, and made very clever jokes throughout. He's up there with Sloss for me.",
+  "The Distance": "He swung (quite literally) from physically impressive to emotionally captivating to endearingly humorous. I nearly cried at the injury and coming-to-terms scenes — they were designed to tug at my heartstrings, and boy, they did indeed.",
+  "Tell Me": "Without words or obvious miming actions, you still feel everything the characters are feeling. I cried. Just a fantastic piece of work. And the support that Sadiq offers to the audience at the end was very touching too.",
+  "The Kaye Hole Hosted by Reuben Kaye": "Bring back the naked clown, with a popcorn machine strapped to her head, doing a hula hoop performance while the popcorn spouts out on stage. Then she brings out the butter. To top things off, she released a salt shaker from inside her body to sprinkle over the buttery popcorn. Absolutely mindbogglingly absurd.",
+  "Belly": "So moving it almost had me sobbing — just when I thought my nervous system would get a bit of respite she'd switch characters and trigger a new wave of emotion. Dreamt about this last night; clearly it really resonated deep inside me.",
+};
 
 const N = { navy: "#002B49", darkNavy: "#00243D", blue: "#E3ECF3", salmon: "#E85462", yellow: "#FFCE00", muted: "#6B8FA8", border: "#1A4462" };
 
@@ -411,7 +426,11 @@ export default async function Fringe2026Page() {
                   <p style={{ color: N.muted, fontSize: "0.7rem", marginBottom: e.review ? "1rem" : 0 }}>
                     {e.venue?.name}{e.price_paid !== null && ` · ${e.notes?.toLowerCase().includes("gift") || e.notes?.toLowerCase().includes("gifted") || e.price_paid === 0 ? "gifted ticket" : formatMoney(e.price_paid, e.currency ?? "GBP")}`}
                   </p>
-                  {e.review && <p style={{ color: "#8BAABF", fontSize: "0.825rem", lineHeight: 1.65, borderLeft: `2px solid ${N.salmon}`, paddingLeft: "0.75rem", margin: 0 }}>{e.review.slice(0, 200)}{e.review.length > 200 ? "…" : ""}</p>}
+                  {(FIVE_STAR_EXCERPTS[e.title] ?? e.review) && (
+                    <p style={{ color: "#8BAABF", fontSize: "0.825rem", lineHeight: 1.65, borderLeft: `2px solid ${N.salmon}`, paddingLeft: "0.75rem", margin: 0 }}>
+                      {FIVE_STAR_EXCERPTS[e.title] ?? `${e.review!.slice(0, 200)}${e.review!.length > 200 ? "…" : ""}`}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

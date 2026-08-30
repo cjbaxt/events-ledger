@@ -144,7 +144,7 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
       </table>
 
       <div style={{ background: "#D4E3EE", borderLeft: "3px solid #002B49", borderRadius: "0 3px 3px 0", padding: "12px 16px", marginTop: "1.5rem", fontFamily: font, fontSize: 14, color: "#4A6880", lineHeight: 1.55 }}>
-        <strong style={{ color: "#002B49", fontWeight: 600 }}>Summerhall and Underbelly were your highest-rated stops</strong> — 2 and 5 rooms respectively, both outperforming Assembly&rsquo;s sprawling 14. Pleasance is a rooms-per-show marvel: 7 shows, 7 different rooms. Assembly filled 42% of your schedule across 7 venues and still only hit mid-table on ratings.
+        <strong style={{ color: "#002B49", fontWeight: 600 }}>Summerhall and Underbelly were your highest-rated stops.</strong> Pleasance is a rooms-per-show marvel: 8 shows across 7 different rooms. Assembly filled over 40% of your schedule across 7 different venues and still only hit mid-table on ratings.
       </div>
     </div>
   );
