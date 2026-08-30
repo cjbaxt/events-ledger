@@ -18,6 +18,11 @@ const font = "var(--font-sans), system-ui, sans-serif";
 const muted = "#6B8FA8";
 const borderCol = "#C2D5E3";
 
+// Minimum gap between label baselines (SVG units)
+const MIN_LABEL_GAP = 22;
+// Skip inline label for tiny slices
+const LABEL_MIN_SHOWS = 2;
+
 function arcPath(a0: number, a1: number) {
   const x1 = CX + R * Math.cos(a0),  y1 = CY + R * Math.sin(a0);
   const x2 = CX + R * Math.cos(a1),  y2 = CY + R * Math.sin(a1);
@@ -27,13 +32,43 @@ function arcPath(a0: number, a1: number) {
   return `M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z`;
 }
 
+// Push overlapping labels apart (ascending y = top of SVG)
+function resolveCollisions(
+  items: Array<{ ey: number; anchor: "start" | "end"; showLabel: boolean }>
+): number[] {
+  const result = items.map(s => s.ey);
+  for (const side of ["start", "end"] as const) {
+    const idxs = items
+      .map((s, i) => i)
+      .filter(i => items[i].anchor === side && items[i].showLabel)
+      .sort((a, b) => result[a] - result[b]);
+
+    for (let pass = 0; pass < 10; pass++) {
+      let changed = false;
+      for (let j = 1; j < idxs.length; j++) {
+        const prev = result[idxs[j - 1]];
+        const curr = result[idxs[j]];
+        if (curr - prev < MIN_LABEL_GAP) {
+          result[idxs[j]] = prev + MIN_LABEL_GAP;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+  }
+  return result;
+}
+
 export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const total = groups.reduce((s, g) => s + g.shows, 0);
+  // Sort biggest to smallest for cleaner arc layout
+  const orderedGroups = [...groups].sort((a, b) => b.shows - a.shows);
+  const total = orderedGroups.reduce((s, g) => s + g.shows, 0);
 
+  // Build initial segment geometry
   let startAngle = -Math.PI / 2;
-  const segments = groups.map(g => {
+  const raw = orderedGroups.map(g => {
     const sweep = (g.shows / total) * TAU - GAP;
     const a0 = startAngle + GAP / 2;
     const a1 = a0 + sweep;
@@ -45,15 +80,21 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
     const cos = Math.cos(midA), sin = Math.sin(midA);
     const isRight = cos >= 0;
     const ax = CX + (R + 4) * cos,   ay = CY + (R + 4) * sin;
-    const bx = CX + (R + 20) * cos,  by = CY + (R + 20) * sin;
-    const tickLen = g.name.length > 10 ? 12 : 10;
-    const ex = bx + (isRight ? tickLen : -tickLen);
+    const bx = CX + (R + 24) * cos,  by = CY + (R + 24) * sin;
+    const tl = g.name.length > 10 ? 14 : 12;
+    const ex = bx + (isRight ? tl : -tl);
     const ey = by;
     const tx = ex + (isRight ? 4 : -4);
     const anchor = (isRight ? "start" : "end") as "start" | "end";
+    const showLabel = g.shows >= LABEL_MIN_SHOWS;
 
-    return { g, pct, path, ax, ay, bx, by, ex, ey, tx, anchor };
+    return { g, pct, path, ax, ay, bx, by, ex, ey, tx, anchor, showLabel };
   });
+
+  // Resolve label collisions
+  const adjustedEy = resolveCollisions(raw);
+
+  const segments = raw.map((s, i) => ({ ...s, ey: adjustedEy[i] }));
 
   const h = hovered !== null ? segments[hovered] : null;
   const mainText  = h ? h.g.name      : String(total);
@@ -65,7 +106,7 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
   const subY      = h ? CY + 22       : CY + 30;
   const subSize   = h ? "18"          : "11";
 
-  const sorted = [...groups].sort((a, b) => b.avgRating - a.avgRating);
+  const tableRows = [...groups].sort((a, b) => b.avgRating - a.avgRating);
 
   return (
     <div>
@@ -85,7 +126,8 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
             />
           ))}
 
-          {segments.map(s => {
+          {segments.map((s, i) => {
+            if (!s.showLabel) return null;
             const lc = s.g.labelColor ?? s.g.color;
             return (
               <g key={s.g.name + "-lbl"} style={{ pointerEvents: "none" }}>
@@ -127,7 +169,7 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map(g => (
+          {tableRows.map(g => (
             <tr key={g.name} style={{ borderBottom: "1px solid #D4E3EE" }}>
               <td style={{ padding: "10px 0", fontSize: 14, color: "#4A6880" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

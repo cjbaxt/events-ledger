@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type DotStripShow = {
   id: string;
@@ -15,7 +15,9 @@ export type DotStripGroup = {
 };
 
 const R = 6;
+const TOUCH_R = 18; // invisible hit area for mobile
 const STEP = R * 2 + 5;
+const TIP_W = 220;
 const font = "var(--font-sans), system-ui, sans-serif";
 const navy = "#002B49";
 const muted = "#6B8FA8";
@@ -38,6 +40,28 @@ function starStr(r: number) {
 export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<{ show: DotStripShow; x: number; y: number } | null>(null);
+  const [containerW, setContainerW] = useState(600);
+
+  useEffect(() => {
+    const update = () => {
+      if (wrapRef.current) setContainerW(wrapRef.current.offsetWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  function showTip(ev: React.MouseEvent<SVGCircleElement> | React.TouchEvent<SVGCircleElement>, s: DotStripShow) {
+    const el = ev.currentTarget as SVGCircleElement;
+    const cr = el.getBoundingClientRect();
+    const wr = wrapRef.current!.getBoundingClientRect();
+    const rawX = cr.left - wr.left + cr.width / 2;
+    // clamp so tooltip stays within container
+    const x = Math.max(TIP_W / 2 + 4, Math.min(rawX, containerW - TIP_W / 2 - 4));
+    const y = cr.top - wr.top;
+    setTip({ show: s, x, y });
+  }
 
   return (
     <div ref={wrapRef} style={{ fontFamily: font, position: "relative" }}>
@@ -71,7 +95,7 @@ export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
           byRating.get(s.rating)!.push(s);
         }
         const maxStack = Math.max(1, ...Array.from(byRating.values()).map(a => a.length));
-        const svgH = maxStack * STEP + 12;
+        const svgH = maxStack * STEP + 16;
         const cy0 = svgH / 2;
 
         return (
@@ -91,22 +115,29 @@ export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
                   const xp = (rating - 1) / 4 * 100;
                   return arr.map((s, i) => {
                     const yOff = (i - (arr.length - 1) / 2) * STEP;
+                    const cx = `${xp}%`;
+                    const cy = cy0 + yOff;
+                    const isActive = !tip || tip.show.id === s.id;
                     return (
-                      <circle
+                      <g
                         key={s.id}
-                        cx={`${xp}%`}
-                        cy={cy0 + yOff}
-                        r={R}
-                        fill={dotFill(rating)}
-                        opacity={tip && tip.show.id !== s.id ? 0.4 : 0.88}
-                        style={{ cursor: "pointer", transition: "opacity 0.12s" }}
-                        onMouseEnter={ev => {
-                          const cr = (ev.currentTarget as SVGCircleElement).getBoundingClientRect();
-                          const wr = wrapRef.current!.getBoundingClientRect();
-                          setTip({ show: s, x: cr.left - wr.left + cr.width / 2, y: cr.top - wr.top });
-                        }}
+                        style={{ cursor: "pointer" }}
+                        onMouseEnter={ev => showTip(ev as React.MouseEvent<SVGCircleElement>, s)}
                         onMouseLeave={() => setTip(null)}
-                      />
+                        onTouchStart={ev => { ev.preventDefault(); showTip(ev as unknown as React.TouchEvent<SVGCircleElement>, s); }}
+                        onTouchEnd={() => setTimeout(() => setTip(null), 1800)}
+                      >
+                        {/* invisible larger hit area for touch */}
+                        <circle cx={cx} cy={cy} r={TOUCH_R} fill="transparent" />
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={R}
+                          fill={dotFill(rating)}
+                          opacity={isActive ? 0.9 : 0.35}
+                          style={{ transition: "opacity 0.12s" }}
+                        />
+                      </g>
                     );
                   });
                 })}
@@ -117,26 +148,28 @@ export default function GenreDotStrip({ groups }: { groups: DotStripGroup[] }) {
       })}
 
       {tip && (
-        <div style={{
-          position: "absolute",
-          left: tip.x,
-          top: tip.y,
-          transform: "translate(-50%, calc(-100% - 10px))",
-          background: navy,
-          borderRadius: 4,
-          padding: "8px 12px",
-          maxWidth: 240,
-          pointerEvents: "none",
-          zIndex: 20,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.28)",
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            left: tip.x,
+            top: tip.y,
+            transform: "translate(-50%, calc(-100% - 10px))",
+            width: TIP_W,
+            background: navy,
+            borderRadius: 4,
+            padding: "10px 13px",
+            pointerEvents: "none",
+            zIndex: 20,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.28)",
+          }}
+        >
           <div style={{ color: "#fff", fontWeight: 700, fontSize: 13, lineHeight: 1.35 }}>{tip.show.title}</div>
           {tip.show.venueName && (
             <div style={{ color: "#5A8AB0", fontSize: 11, marginTop: 2 }}>{tip.show.venueName}</div>
           )}
-          <div style={{ color: yellow, fontSize: 11, fontWeight: 600, marginTop: 4 }}>{starStr(tip.show.rating)}</div>
+          <div style={{ color: yellow, fontSize: 11, fontWeight: 600, marginTop: 5 }}>{starStr(tip.show.rating)}</div>
           {tip.show.reviewSnippet && (
-            <div style={{ color: "#7AACC4", fontSize: 11, lineHeight: 1.5, marginTop: 4 }}>{tip.show.reviewSnippet}</div>
+            <div style={{ color: "#7AACC4", fontSize: 11, lineHeight: 1.55, marginTop: 5 }}>{tip.show.reviewSnippet}</div>
           )}
           <div style={{
             position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
