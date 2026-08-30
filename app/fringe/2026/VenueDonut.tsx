@@ -13,13 +13,18 @@ export type VenueGroupData = {
 
 const TAU = 2 * Math.PI;
 const GAP = 0.022;
-const CX = 250, CY = 210, R = 118, ri = 68;
+const CX = 300, CY = 215, R = 118, ri = 68;
+// Fixed elbow columns — all leader lines converge here before turning horizontal
+const ELBOW_LEFT  = CX - R - 20;   // 162
+const ELBOW_RIGHT = CX + R + 20;   // 438
+// Fixed label anchor columns
+const LABEL_LEFT  = ELBOW_LEFT  - 38;  // 124  anchor="end"
+const LABEL_RIGHT = ELBOW_RIGHT + 38;  // 476  anchor="start"
+const MIN_GAP = 32; // min px between label baselines
+
 const font = "var(--font-sans), system-ui, sans-serif";
 const muted = "#6B8FA8";
 const borderCol = "#C2D5E3";
-
-// Minimum gap between label baselines (SVG units)
-const MIN_LABEL_GAP = 22;
 
 function arcPath(a0: number, a1: number) {
   const x1 = CX + R * Math.cos(a0),  y1 = CY + R * Math.sin(a0);
@@ -30,29 +35,21 @@ function arcPath(a0: number, a1: number) {
   return `M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${large},0 ${x4},${y4} Z`;
 }
 
-// Push overlapping labels apart (ascending y = top of SVG)
-function resolveCollisions(
-  items: Array<{ ey: number; anchor: "start" | "end"; showLabel: boolean }>
-): number[] {
-  const result = items.map(s => s.ey);
-  for (const side of ["start", "end"] as const) {
-    const idxs = items
-      .map((s, i) => i)
-      .filter(i => items[i].anchor === side && items[i].showLabel)
-      .sort((a, b) => result[a] - result[b]);
-
-    for (let pass = 0; pass < 10; pass++) {
-      let changed = false;
-      for (let j = 1; j < idxs.length; j++) {
-        const prev = result[idxs[j - 1]];
-        const curr = result[idxs[j]];
-        if (curr - prev < MIN_LABEL_GAP) {
-          result[idxs[j]] = prev + MIN_LABEL_GAP;
-          changed = true;
-        }
+// Push labels apart (downward pass), min gap between baselines
+function resolveCollisions(eys: number[]): number[] {
+  if (eys.length === 0) return [];
+  const result = [...eys];
+  const order = [...result.map((_, i) => i)].sort((a, b) => result[a] - result[b]);
+  for (let pass = 0; pass < 20; pass++) {
+    let changed = false;
+    for (let j = 1; j < order.length; j++) {
+      const pi = order[j - 1], ci = order[j];
+      if (result[ci] - result[pi] < MIN_GAP) {
+        result[ci] = result[pi] + MIN_GAP;
+        changed = true;
       }
-      if (!changed) break;
     }
+    if (!changed) break;
   }
   return result;
 }
@@ -60,11 +57,10 @@ function resolveCollisions(
 export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
-  // Sort biggest to smallest for cleaner arc layout
   const orderedGroups = [...groups].sort((a, b) => b.shows - a.shows);
   const total = orderedGroups.reduce((s, g) => s + g.shows, 0);
 
-  // Build initial segment geometry
+  // Build segment geometry
   let startAngle = -Math.PI / 2;
   const raw = orderedGroups.map(g => {
     const sweep = (g.shows / total) * TAU - GAP;
@@ -77,20 +73,31 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
 
     const cos = Math.cos(midA), sin = Math.sin(midA);
     const isRight = cos >= 0;
-    const ax = CX + (R + 4) * cos,   ay = CY + (R + 4) * sin;
-    const bx = CX + (R + 24) * cos,  by = CY + (R + 24) * sin;
-    const tl = g.name.length > 10 ? 14 : 12;
-    const ex = bx + (isRight ? tl : -tl);
-    const ey = by;
-    const tx = ex + (isRight ? 4 : -4);
-    const anchor = (isRight ? "start" : "end") as "start" | "end";
-    return { g, pct, path, ax, ay, bx, by, ex, ey, tx, anchor, showLabel: true };
+    const ax = CX + (R + 5) * cos;
+    const ay = CY + (R + 5) * sin;
+    // Natural label y: where the segment midpoint sits vertically
+    const naturalEy = CY + (R + 32) * sin;
+
+    return { g, pct, path, ax, ay, naturalEy, isRight };
   });
 
-  // Resolve label collisions
-  const adjustedEy = resolveCollisions(raw);
+  // Resolve collisions per side independently
+  const leftIdxs  = raw.map((_, i) => i).filter(i => !raw[i].isRight).sort((a, b) => raw[a].naturalEy - raw[b].naturalEy);
+  const rightIdxs = raw.map((_, i) => i).filter(i =>  raw[i].isRight).sort((a, b) => raw[a].naturalEy - raw[b].naturalEy);
 
-  const segments = raw.map((s, i) => ({ ...s, ey: adjustedEy[i] }));
+  const adjustedEy = raw.map(s => s.naturalEy);
+  const leftAdj  = resolveCollisions(leftIdxs.map(i  => raw[i].naturalEy));
+  const rightAdj = resolveCollisions(rightIdxs.map(i => raw[i].naturalEy));
+  leftIdxs.forEach((idx, j)  => { adjustedEy[idx] = leftAdj[j]; });
+  rightIdxs.forEach((idx, j) => { adjustedEy[idx] = rightAdj[j]; });
+
+  const segments = raw.map((s, i) => ({
+    ...s,
+    ey:     adjustedEy[i],
+    elbowX: s.isRight ? ELBOW_RIGHT : ELBOW_LEFT,
+    labelX: s.isRight ? LABEL_RIGHT : LABEL_LEFT,
+    anchor: (s.isRight ? "start" : "end") as "start" | "end",
+  }));
 
   const h = hovered !== null ? segments[hovered] : null;
   const mainText  = h ? h.g.name      : String(total);
@@ -107,7 +114,7 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <svg viewBox="0 0 500 440" style={{ width: "100%", maxWidth: 500, overflow: "visible", display: "block" }}>
+        <svg viewBox="0 0 600 445" style={{ width: "100%", maxWidth: 600, overflow: "visible", display: "block" }}>
           {segments.map((s, i) => (
             <path
               key={s.g.name}
@@ -122,22 +129,22 @@ export default function VenueDonut({ groups }: { groups: VenueGroupData[] }) {
             />
           ))}
 
-          {segments.map((s, i) => {
-            if (!s.showLabel) return null;
+          {segments.map(s => {
             const lc = s.g.labelColor ?? s.g.color;
+            // 3-point leader: arc surface → fixed elbow at (elbowX, ey) → label
             return (
               <g key={s.g.name + "-lbl"} style={{ pointerEvents: "none" }}>
                 <polyline
-                  points={`${s.ax},${s.ay} ${s.bx},${s.by} ${s.ex},${s.ey}`}
-                  fill="none" stroke={lc} strokeWidth="1" opacity="0.6"
+                  points={`${s.ax.toFixed(1)},${s.ay.toFixed(1)} ${s.elbowX},${s.ey.toFixed(1)} ${s.labelX},${s.ey.toFixed(1)}`}
+                  fill="none" stroke={lc} strokeWidth="1" opacity="0.55"
                 />
-                <text x={s.tx} y={s.ey - 3} textAnchor={s.anchor}
+                <text x={s.labelX} y={s.ey - 3} textAnchor={s.anchor}
                   style={{ fontFamily: font, fontSize: 11, fontWeight: 600, fill: lc, opacity: 0.9 }}>
                   {s.g.name}
                 </text>
-                <text x={s.tx} y={s.ey + 11} textAnchor={s.anchor}
+                <text x={s.labelX} y={s.ey + 11} textAnchor={s.anchor}
                   style={{ fontFamily: font, fontSize: 10, fill: muted }}>
-                  {s.pct}% · {s.g.shows} shows
+                  {s.pct}% · {s.g.shows} show{s.g.shows !== 1 ? "s" : ""}
                 </text>
               </g>
             );
