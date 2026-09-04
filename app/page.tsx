@@ -1,6 +1,6 @@
 "use client";
 import { useState, useCallback, useEffect, useRef, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Nav from "@/components/Nav";
 import Timeline from "@/components/Timeline";
 import EventDetailPanel from "@/components/EventDetailPanel";
@@ -8,11 +8,11 @@ import type { EventListItem } from "@/lib/types";
 
 function EventParamHandler({ onEvent }: { onEvent: (id: string) => void }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   useEffect(() => {
     const eventId = searchParams.get("event");
-    if (eventId) { onEvent(eventId); router.replace("/"); }
-  }, [searchParams, router, onEvent]);
+    if (eventId) onEvent(eventId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only — URL param is the initial deep-link
   return null;
 }
 
@@ -40,11 +40,12 @@ export default function Home() {
     setSelectedId(id);
     setPreview(p ?? null);
     setPanelOpen(true);
+    window.history.replaceState(null, "", `?event=${id}`);
   }, []);
 
   const handleClose = useCallback(() => {
     setPanelOpen(false);
-    // Restore scroll position after the panel slide-out animation
+    window.history.replaceState(null, "", "/");
     const y = savedScrollY.current;
     requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "instant" }));
   }, []);
@@ -53,6 +54,7 @@ export default function Home() {
     setSelectedId(id);
     setPreview(null);
     setPanelOpen(true);
+    window.history.replaceState(null, "", `?event=${id}`);
   }, []);
 
   const handleEvent = useCallback((id: string) => {

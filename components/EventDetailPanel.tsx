@@ -491,7 +491,6 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
         </div>
       ) : (
         <>
-          {review && <button onClick={() => { setDraft(review); setEditing(true); }} className="w-full text-left group mb-3"><p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-400 pl-3 whitespace-pre-wrap group-hover:border-neutral-700 transition-colors">{review}</p></button>}
           {links && links.map((link, i) => (
             <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 border border-neutral-100 rounded-lg px-3 py-2.5 mb-2 hover:border-neutral-300 transition-colors group text-left no-underline">
               <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
@@ -501,6 +500,7 @@ function ReviewSection({ eventId, review, links, rating, ratingContext, onSaveRe
               </div>
             </a>
           ))}
+          {review && <button onClick={() => { setDraft(review); setEditing(true); }} className="w-full text-left group mb-3"><p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-400 pl-3 whitespace-pre-wrap group-hover:border-neutral-700 transition-colors">{review}</p></button>}
           {!hasContent && <button onClick={() => setEditing(true)} className="text-sm text-neutral-300 italic hover:text-neutral-500">Add a review…</button>}
         </>
       )}
@@ -614,12 +614,12 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                       <div className="border-t border-b border-neutral-100 pt-4 pb-4 space-y-3">
                         <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
                         {event.rating !== null && <div className="text-sm text-neutral-500">{event.rating}★{event.rating_context && <span className="text-neutral-300 ml-2 text-xs">{event.rating_context}</span>}</div>}
-                        {event.review && <p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-300 pl-3 whitespace-pre-wrap">{event.review}</p>}
                         {event.links?.map((link, i) => (
                           <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700">
                             <IconExternalLink size={13} />{link.label ?? link.url}
                           </a>
                         ))}
+                        {event.review && <p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-300 pl-3 whitespace-pre-wrap">{event.review}</p>}
                       </div>
                     ) : null
                   ) : (

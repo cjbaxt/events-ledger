@@ -35,7 +35,7 @@ const SUBTYPES: Record<string, string[]> = {
   dance: ["contemporary", "flamenco", "folk", "ballroom", "other"],
   circus: ["contemporary", "big_top", "clown", "traditional", "physical_theatre", "aerial", "street", "other"],
   theatre: ["play", "musical", "improv", "improv_musical", "panto", "physical_theatre", "puppet", "other"],
-  cabaret: ["burlesque", "drag", "cabaret", "variety", "other"],
+  cabaret: ["comedy", "burlesque", "drag", "cabaret", "variety", "other"],
   comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "comedy_magic", "variety", "other"],
   spoken_word: ["spoken_word", "reading", "slam", "storytelling", "other"],
   talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "science", "interview", "other"],
