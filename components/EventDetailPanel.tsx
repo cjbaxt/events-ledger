@@ -615,8 +615,12 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                         <div className="text-[10px] uppercase tracking-widest text-neutral-400">My take</div>
                         {event.rating !== null && <div className="text-sm text-neutral-500">{event.rating}★{event.rating_context && <span className="text-neutral-300 ml-2 text-xs">{event.rating_context}</span>}</div>}
                         {event.links?.map((link, i) => (
-                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700">
-                            <IconExternalLink size={13} />{link.label ?? link.url}
+                          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 border border-neutral-100 rounded-lg px-3 py-2.5 mb-2 hover:border-neutral-300 transition-colors group text-left no-underline">
+                            <IconExternalLink size={14} className="text-neutral-300 group-hover:text-neutral-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-neutral-700 truncate">{link.label ?? link.url}</div>
+                              <div className="text-xs text-neutral-400 truncate">{(() => { try { return new URL(link.url).hostname; } catch { return link.url; } })()}</div>
+                            </div>
                           </a>
                         ))}
                         {event.review && <p className="text-sm font-serif text-neutral-900 leading-relaxed border-l-2 border-neutral-300 pl-3 whitespace-pre-wrap">{event.review}</p>}
