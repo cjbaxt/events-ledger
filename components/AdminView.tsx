@@ -322,11 +322,12 @@ function Empty({ label }: { label: string }) {
 type EventSummary = { id: string; title: string; date: string; type: string };
 type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble"; recentEvents: EventSummary[] };
 
-function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () => void }) {
+function InlineRolePicker({ entity, onSave, onDelete }: { entity: RoleEntity; onSave: () => void; onDelete: () => void }) {
   const vocab: readonly string[] = entity.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
   const [draft, setDraft] = useState<string[]>(entity.roles ?? []);
   const [custom, setCustom] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function save() {
     setSaving(true);
@@ -337,11 +338,27 @@ function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () =
     } finally { setSaving(false); }
   }
 
+  async function del() {
+    if (!confirm(`Delete "${entity.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    const endpoint = entity.kind === "person" ? "persons" : "ensembles";
+    const res = await fetch(`/api/${endpoint}/${entity.id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (!res.ok) { alert("Delete failed — may still have events attached."); return; }
+    onDelete();
+  }
+
   return (
     <div className="py-3 border-b border-neutral-100">
-      <div className="mb-2">
-        <span className="text-sm font-medium text-neutral-800">{entity.name}</span>
-        <span className="ml-2 text-[10px] uppercase tracking-widest text-neutral-400">{entity.kind}</span>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <span className="text-sm font-medium text-neutral-800">{entity.name}</span>
+          <span className="ml-2 text-[10px] uppercase tracking-widest text-neutral-400">{entity.kind}</span>
+        </div>
+        <button onClick={del} disabled={deleting}
+          className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 hover:border-red-300 rounded px-1.5 py-0.5 transition-colors disabled:opacity-40 flex-shrink-0">
+          {deleting ? "…" : "Delete"}
+        </button>
       </div>
       {entity.recentEvents.length > 0 && (
         <div className="mb-3 space-y-0.5">
@@ -400,7 +417,9 @@ function RolesTab() {
       <span className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-4">{visible.length} without roles</span>
       <div className="space-y-0">
         {visible.map((entity) => (
-          <InlineRolePicker key={entity.id} entity={entity} onSave={() => setSaved((s) => new Set([...s, entity.id]))} />
+          <InlineRolePicker key={entity.id} entity={entity}
+            onSave={() => setSaved((s) => new Set([...s, entity.id]))}
+            onDelete={() => setItems((prev) => prev.filter((i) => i.id !== entity.id))} />
         ))}
       </div>
     </div>
