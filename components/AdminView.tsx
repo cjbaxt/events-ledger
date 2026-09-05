@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchEvents, updateEvent, patchEventRating, searchEntities, createEntity } from "@/lib/api";
+import { fetchEvents, updateEvent, patchEventRating, searchEntities, createEntity, updatePersonRoles, updateEnsembleRoles } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -330,9 +330,90 @@ function Empty({ label }: { label: string }) {
   return <div className="py-12 text-center text-sm text-neutral-300">{label}</div>;
 }
 
+const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
+const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
+
+type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble" };
+
+function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () => void }) {
+  const vocab = entity.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
+  const [draft, setDraft] = useState<string[]>(entity.roles ?? []);
+  const [custom, setCustom] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      if (entity.kind === "person") await updatePersonRoles(entity.id, draft);
+      else await updateEnsembleRoles(entity.id, draft);
+      onSave();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="py-2 border-b border-neutral-50">
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <span className="text-sm text-neutral-800">{entity.name}</span>
+          <span className="ml-2 text-[10px] uppercase tracking-widest text-neutral-400">{entity.kind}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {[...vocab, ...draft.filter((r) => !vocab.includes(r))].map((r) => (
+          <button key={r} onClick={() => setDraft((d) => d.includes(r) ? d.filter((x) => x !== r) : [...d, r])}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${draft.includes(r) ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-400"}`}>
+            {r}
+          </button>
+        ))}
+      </div>
+      <form className="flex gap-1.5 mb-2" onSubmit={(e) => { e.preventDefault(); const v = custom.trim(); if (v && !draft.includes(v)) setDraft((d) => [...d, v]); setCustom(""); }}>
+        <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Add custom role…"
+          className="text-xs px-2.5 py-1 border border-neutral-200 rounded-full flex-1 min-w-0 outline-none focus:border-neutral-400" />
+        <button type="submit" className="text-xs px-2.5 py-1 border border-neutral-200 rounded-full text-neutral-500 hover:border-neutral-400">+</button>
+      </form>
+      <button onClick={save} disabled={saving || draft.length === 0}
+        className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full disabled:opacity-40">
+        Save
+      </button>
+    </div>
+  );
+}
+
+function RolesTab() {
+  const [items, setItems] = useState<RoleEntity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/admin/missing-roles")
+      .then((r) => r.json())
+      .then((d) => {
+        const persons = (d.persons ?? []).map((p: { id: string; name: string; roles: string[] | null }) => ({ ...p, kind: "person" as const }));
+        const ensembles = (d.ensembles ?? []).map((e: { id: string; name: string; roles: string[] | null }) => ({ ...e, kind: "ensemble" as const }));
+        setItems([...persons, ...ensembles].sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-neutral-400">Loading…</div>;
+  const visible = items.filter((i) => !saved.has(i.id));
+  if (visible.length === 0) return <Empty label="All persons and ensembles have roles" />;
+
+  return (
+    <div>
+      <span className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-4">{visible.length} without roles</span>
+      <div className="space-y-0">
+        {visible.map((entity) => (
+          <InlineRolePicker key={entity.id} entity={entity} onSave={() => setSaved((s) => new Set([...s, entity.id]))} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const TABS = ["Rating", "Venue", "Price", "Type fields", "Venue scale"] as const;
+const TABS = ["Rating", "Venue", "Price", "Type fields", "Venue scale", "Roles"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminView() {
@@ -361,6 +442,7 @@ export default function AdminView() {
       {tab === "Price"       && <PriceTab events={events} />}
       {tab === "Type fields" && <TypeFieldsTab events={events} />}
       {tab === "Venue scale" && <VenueScaleTab />}
+      {tab === "Roles"       && <RolesTab />}
     </div>
   );
 }
