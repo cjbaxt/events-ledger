@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchEvents, updateEvent, patchEventRating, searchEntities, createEntity, updatePersonRoles, updateEnsembleRoles } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
+import { PERSON_ROLE_VOCAB, ENSEMBLE_ROLE_VOCAB } from "@/lib/roles";
 
 // ── Tiny inline components ────────────────────────────────────────────────────
 
@@ -330,13 +331,11 @@ function Empty({ label }: { label: string }) {
   return <div className="py-12 text-center text-sm text-neutral-300">{label}</div>;
 }
 
-const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
-const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
 
 type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble" };
 
 function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () => void }) {
-  const vocab = entity.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
+  const vocab: readonly string[] = entity.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
   const [draft, setDraft] = useState<string[]>(entity.roles ?? []);
   const [custom, setCustom] = useState("");
   const [saving, setSaving] = useState(false);

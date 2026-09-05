@@ -4,6 +4,7 @@ import { fetchEvents, fetchAllPersons, fetchAllEnsembles, fetchAllVenues, fetchA
 import type { EventListItem } from "@/lib/types";
 import { useGuest } from "./GuestContext";
 import EventTypeIcon from "./EventTypeIcon";
+import { PERSON_ROLE_VOCAB, ENSEMBLE_ROLE_VOCAB } from "@/lib/roles";
 
 interface Person { id: string; name: string; roles?: string[] | null; }
 interface Ensemble { id: string; name: string; roles?: string[] | null; }
@@ -279,6 +280,101 @@ function EnsembleRow({ e, isAdmin, onEntityClick, onDelete, onUpdate }: {
   );
 }
 
+function RoleFilterRow({ roles, active, onToggle }: { roles: readonly string[]; active: string | null; onToggle: (r: string) => void }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: "none" }}>
+      {[...roles].map((r) => (
+        <button key={r} onClick={() => onToggle(r)}
+          className={`text-[11px] px-3 py-1 rounded-full border whitespace-nowrap flex-shrink-0 transition-colors ${active === r ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-500"}`}>
+          {r}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PeopleTab({ query, onEntityClick }: { query: string; onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void }) {
+  const isGuest = useGuest();
+  const [items, setItems] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const letterRefs = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => { fetchAllPersons().then(setItems as (v: unknown) => void).catch(() => {}).finally(() => setLoading(false)); }, []);
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    fetch(`/api/persons/${id}`, { method: "DELETE" }).then((r) => {
+      if (!r.ok) { alert("Delete failed — may still have events attached."); return; }
+      setItems((prev) => prev.filter((p) => p.id !== id));
+    });
+  }
+  function handleUpdate(id: string, updates: Partial<Person>) { setItems((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p)); }
+  if (loading) return <Spinner />;
+  const q = query.trim().toLowerCase();
+  const filtered = items
+    .filter((p) => !q || p.name.toLowerCase().includes(q))
+    .filter((p) => !roleFilter || (p.roles ?? []).includes(roleFilter))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const groups = groupAlpha(filtered, (p) => p.name);
+  const presentLetters = new Set(groups.keys());
+  return (
+    <div>
+      <RoleFilterRow roles={PERSON_ROLE_VOCAB} active={roleFilter} onToggle={(r) => setRoleFilter((prev) => prev === r ? null : r)} />
+      {!q && !roleFilter && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
+      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "person" : "people"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+      <div className="space-y-6">
+        {[...groups.entries()].map(([letter, groupItems]) => (
+          <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
+            {!roleFilter && <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>}
+            <div className="divide-y divide-neutral-50">{groupItems.map((p) => <PersonRow key={p.id} p={p} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
+          </section>
+        ))}
+        {filtered.length === 0 && <Empty />}
+      </div>
+    </div>
+  );
+}
+
+function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void }) {
+  const isGuest = useGuest();
+  const [items, setItems] = useState<Ensemble[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const letterRefs = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => { fetchAllEnsembles().then(setItems as (v: unknown) => void).catch(() => {}).finally(() => setLoading(false)); }, []);
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    fetch(`/api/ensembles/${id}`, { method: "DELETE" }).then((r) => {
+      if (!r.ok) { alert("Delete failed — may still have events attached."); return; }
+      setItems((prev) => prev.filter((e) => e.id !== id));
+    });
+  }
+  function handleUpdate(id: string, updates: Partial<Ensemble>) { setItems((prev) => prev.map((e) => e.id === id ? { ...e, ...updates } : e)); }
+  if (loading) return <Spinner />;
+  const q = query.trim().toLowerCase();
+  const filtered = items
+    .filter((e) => !q || e.name.toLowerCase().includes(q))
+    .filter((e) => !roleFilter || (e.roles ?? []).includes(roleFilter))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const groups = groupAlpha(filtered, (e) => e.name);
+  const presentLetters = new Set(groups.keys());
+  return (
+    <div>
+      <RoleFilterRow roles={ENSEMBLE_ROLE_VOCAB} active={roleFilter} onToggle={(r) => setRoleFilter((prev) => prev === r ? null : r)} />
+      {!q && !roleFilter && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
+      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "ensemble" : "ensembles"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+      <div className="space-y-6">
+        {[...groups.entries()].map(([letter, groupItems]) => (
+          <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
+            {!roleFilter && <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>}
+            <div className="divide-y divide-neutral-50">{groupItems.map((e) => <EnsembleRow key={e.id} e={e} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
+          </section>
+        ))}
+        {filtered.length === 0 && <Empty />}
+      </div>
+    </div>
+  );
+}
+
 function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
   v: Venue; allVenues: Venue[]; isAdmin: boolean;
   onVenueClick: (id: string, name?: string) => void;
@@ -431,20 +527,8 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
         ))}
       </div>
       {tab === "events" && <EventsTab query={query} onEventClick={onEventClick} />}
-      {tab === "people" && (
-        <DeletableEntityTab<Person> query={query} endpoint="persons" singularLabel="person" pluralLabel="people" canDelete={!isGuest}
-          renderRow={(p, onDelete, onUpdate) => (
-            <PersonRow key={p.id} p={p} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={onDelete} onUpdate={onUpdate} />
-          )}
-        />
-      )}
-      {tab === "ensembles" && (
-        <DeletableEntityTab<Ensemble> query={query} endpoint="ensembles" singularLabel="ensemble" pluralLabel="ensembles" canDelete={!isGuest}
-          renderRow={(e, onDelete, onUpdate) => (
-            <EnsembleRow key={e.id} e={e} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={onDelete} onUpdate={onUpdate} />
-          )}
-        />
-      )}
+      {tab === "people" && <PeopleTab query={query} onEntityClick={onEntityClick} />}
+      {tab === "ensembles" && <EnsemblesTab query={query} onEntityClick={onEntityClick} />}
       {tab === "venues" && <VenuesTab query={query} onVenueClick={onVenueClick} />}
       {tab === "festivals" && (
         <EntityTab<Festival> query={query} endpoint="festivals" singularLabel="festival" pluralLabel="festivals"
