@@ -160,6 +160,30 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
   );
 }
 
+const VENUE_TYPES = ["theatre", "concert_hall", "museum", "arena", "outdoor", "circus_tent", "church", "other"];
+
+function EditPanel({ onCancel, onDelete, deleteName, children }: {
+  onCancel: () => void;
+  onDelete?: () => void;
+  deleteName?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-3 px-3 -mx-2 mb-1 bg-neutral-50 rounded-xl border border-neutral-100 space-y-2.5">
+      {children}
+      <div className="flex items-center justify-between pt-1">
+        <button onClick={onCancel} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+        {onDelete && (
+          <button onClick={onDelete}
+            className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 hover:border-red-300 rounded px-2 py-0.5 transition-colors">
+            Delete {deleteName}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PersonRow({ p, isAdmin, onEntityClick, onDelete, onUpdate }: {
   p: Person; isAdmin: boolean;
   onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void;
@@ -174,8 +198,7 @@ function PersonRow({ p, isAdmin, onEntityClick, onDelete, onUpdate }: {
   async function save() {
     setSaving(true); setError(null);
     const res = await fetch(`/api/persons/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim() }),
     });
     setSaving(false);
@@ -185,36 +208,33 @@ function PersonRow({ p, isAdmin, onEntityClick, onDelete, onUpdate }: {
     onUpdate(p.id, { name: name.trim() });
   }
 
-  if (editing) {
-    return (
-      <div className="py-2.5 -mx-2 px-2 space-y-2">
-        <input
-          value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setEditing(false); setName(p.name); } }}
-          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
-          placeholder="Person name"
-          autoFocus
-        />
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <div className="flex gap-2">
-          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
-          <button onClick={() => { setEditing(false); setName(p.name); }} className="text-xs text-neutral-400">Cancel</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
-      <button onClick={() => onEntityClick(p.id, "person", p.name)} className="flex-1 min-w-0 text-left">
-        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{p.name}</span>
-      </button>
-      {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{p.roles.join(" · ")}</span>}
-      {isAdmin && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
-          <button onClick={() => onDelete(p.id, p.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
-        </div>
+    <div className="py-2.5 border-b border-neutral-50 last:border-0">
+      <div className="flex items-center gap-2 -mx-2 px-2">
+        <button onClick={() => onEntityClick(p.id, "person", p.name)} className="flex-1 min-w-0 text-left">
+          <span className="text-sm text-neutral-900 font-serif leading-snug hover:underline underline-offset-2 truncate block">{p.name}</span>
+        </button>
+        {p.roles && p.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[35%]">{p.roles.join(" · ")}</span>}
+        {isAdmin && (
+          <button onClick={() => setEditing((v) => !v)}
+            className={`text-[11px] border rounded px-2 py-0.5 flex-shrink-0 transition-colors ${editing ? "border-neutral-400 text-neutral-700 bg-neutral-100" : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"}`}>
+            {editing ? "Close" : "Edit"}
+          </button>
+        )}
+      </div>
+      {editing && (
+        <EditPanel onCancel={() => { setEditing(false); setName(p.name); }}
+          onDelete={() => onDelete(p.id, p.name)} deleteName={p.name}>
+          <input value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setEditing(false); setName(p.name); } }}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+            placeholder="Person name" autoFocus />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button onClick={save} disabled={saving}
+            className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-50 w-full">
+            {saving ? "Saving…" : "Save name"}
+          </button>
+        </EditPanel>
       )}
     </div>
   );
@@ -234,8 +254,7 @@ function EnsembleRow({ e, isAdmin, onEntityClick, onDelete, onUpdate }: {
   async function save() {
     setSaving(true); setError(null);
     const res = await fetch(`/api/ensembles/${e.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim() }),
     });
     setSaving(false);
@@ -245,36 +264,33 @@ function EnsembleRow({ e, isAdmin, onEntityClick, onDelete, onUpdate }: {
     onUpdate(e.id, { name: name.trim() });
   }
 
-  if (editing) {
-    return (
-      <div className="py-2.5 -mx-2 px-2 space-y-2">
-        <input
-          value={name} onChange={(ev) => setName(ev.target.value)}
-          onKeyDown={(ev) => { if (ev.key === "Enter") save(); if (ev.key === "Escape") { setEditing(false); setName(e.name); } }}
-          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
-          placeholder="Ensemble name"
-          autoFocus
-        />
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <div className="flex gap-2">
-          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
-          <button onClick={() => { setEditing(false); setName(e.name); }} className="text-xs text-neutral-400">Cancel</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
-      <button onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="flex-1 min-w-0 text-left">
-        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{e.name}</span>
-      </button>
-      {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[40%]">{e.roles.join(" · ")}</span>}
-      {isAdmin && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
-          <button onClick={() => onDelete(e.id, e.name)} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
-        </div>
+    <div className="py-2.5 border-b border-neutral-50 last:border-0">
+      <div className="flex items-center gap-2 -mx-2 px-2">
+        <button onClick={() => onEntityClick(e.id, "ensemble", e.name)} className="flex-1 min-w-0 text-left">
+          <span className="text-sm text-neutral-900 font-serif leading-snug hover:underline underline-offset-2 truncate block">{e.name}</span>
+        </button>
+        {e.roles && e.roles.length > 0 && <span className="text-xs text-neutral-400 flex-shrink-0 truncate max-w-[35%]">{e.roles.join(" · ")}</span>}
+        {isAdmin && (
+          <button onClick={() => setEditing((v) => !v)}
+            className={`text-[11px] border rounded px-2 py-0.5 flex-shrink-0 transition-colors ${editing ? "border-neutral-400 text-neutral-700 bg-neutral-100" : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"}`}>
+            {editing ? "Close" : "Edit"}
+          </button>
+        )}
+      </div>
+      {editing && (
+        <EditPanel onCancel={() => { setEditing(false); setName(e.name); }}
+          onDelete={() => onDelete(e.id, e.name)} deleteName={e.name}>
+          <input value={name} onChange={(ev) => setName(ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === "Enter") save(); if (ev.key === "Escape") { setEditing(false); setName(e.name); } }}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+            placeholder="Ensemble name" autoFocus />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button onClick={save} disabled={saving}
+            className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-50 w-full">
+            {saving ? "Saving…" : "Save name"}
+          </button>
+        </EditPanel>
       )}
     </div>
   );
@@ -325,7 +341,7 @@ function PeopleTab({ query, onEntityClick }: { query: string; onEntityClick: (id
         {[...groups.entries()].map(([letter, groupItems]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
             {!roleFilter && <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>}
-            <div className="divide-y divide-neutral-50">{groupItems.map((p) => <PersonRow key={p.id} p={p} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
+            <div>{groupItems.map((p) => <PersonRow key={p.id} p={p} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
           </section>
         ))}
         {filtered.length === 0 && <Empty />}
@@ -366,7 +382,7 @@ function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: 
         {[...groups.entries()].map(([letter, groupItems]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
             {!roleFilter && <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>}
-            <div className="divide-y divide-neutral-50">{groupItems.map((e) => <EnsembleRow key={e.id} e={e} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
+            <div>{groupItems.map((e) => <EnsembleRow key={e.id} e={e} isAdmin={!isGuest} onEntityClick={onEntityClick} onDelete={handleDelete} onUpdate={handleUpdate} />)}</div>
           </section>
         ))}
         {filtered.length === 0 && <Empty />}
@@ -375,29 +391,84 @@ function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: 
   );
 }
 
+type FullVenue = {
+  id: string; name: string; city: string | null; country: string | null;
+  venue_type: string | null; capacity: number | null; website_url: string | null;
+  maps_url: string | null; parent_id: string | null; parent_name: string | null;
+};
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1">{children}</label>;
+}
+
 function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
   v: Venue; allVenues: Venue[]; isAdmin: boolean;
   onVenueClick: (id: string, name?: string) => void;
-  onSaved: (id: string, name: string, parentId: string | null) => void;
+  onSaved: (id: string, updates: Partial<FullVenue>) => void;
   onDeleted: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(v.name);
-  const [parentId, setParentId] = useState<string>(v.parent_id ?? "");
+  const [loading, setLoading] = useState(false);
+  const [full, setFull] = useState<FullVenue | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // form state — initialised when full venue loads
+  const [name, setName] = useState(v.name);
+  const [parentId, setParentId] = useState(v.parent_id ?? "");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [venueType, setVenueType] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [mapsUrl, setMapsUrl] = useState("");
+
+  async function startEdit() {
+    setEditing(true);
+    if (full) return;
+    setLoading(true);
+    const res = await fetch(`/api/venues/${v.id}`);
+    const data: FullVenue = await res.json();
+    setFull(data);
+    setName(data.name);
+    setParentId(data.parent_id ?? "");
+    setCity(data.city ?? "");
+    setCountry(data.country ?? "");
+    setVenueType(data.venue_type ?? "");
+    setCapacity(data.capacity != null ? String(data.capacity) : "");
+    setWebsiteUrl(data.website_url ?? "");
+    setMapsUrl(data.maps_url ?? "");
+    setLoading(false);
+  }
+
+  function cancel() {
+    setEditing(false);
+    if (full) {
+      setName(full.name); setParentId(full.parent_id ?? ""); setCity(full.city ?? "");
+      setCountry(full.country ?? ""); setVenueType(full.venue_type ?? "");
+      setCapacity(full.capacity != null ? String(full.capacity) : "");
+      setWebsiteUrl(full.website_url ?? ""); setMapsUrl(full.maps_url ?? "");
+    }
+  }
+
   async function save() {
     setSaving(true); setError(null);
+    const body: Record<string, unknown> = {
+      name: name.trim(), parent_id: parentId || null,
+      city: city.trim() || null, country: country.trim() || null,
+      venue_type: venueType || null, capacity: capacity ? parseInt(capacity) : null,
+      website_url: websiteUrl.trim() || null, maps_url: mapsUrl.trim() || null,
+    };
     const res = await fetch(`/api/venues/${v.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), parent_id: parentId || null }),
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
     setSaving(false);
     if (!res.ok) { setError("Save failed"); return; }
+    const parentEntry = allVenues.find((p) => p.id === (parentId || null));
+    setFull((f) => f ? { ...f, ...body, parent_name: parentEntry?.name ?? null } as FullVenue : null);
     setEditing(false);
-    onSaved(v.id, name.trim(), parentId || null);
+    onSaved(v.id, { ...body, parent_name: parentEntry?.name ?? null } as Partial<FullVenue>);
   }
 
   async function del() {
@@ -407,43 +478,93 @@ function VenueRow({ v, allVenues, isAdmin, onVenueClick, onSaved, onDeleted }: {
     onDeleted(v.id);
   }
 
-  if (editing) {
-    const parentOptions = allVenues.filter(p => p.id !== v.id);
-    return (
-      <div className="py-2.5 -mx-2 px-2 space-y-2">
-        <input
-          value={name} onChange={e => setName(e.target.value)}
-          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
-          placeholder="Venue name"
-        />
-        <select
-          value={parentId} onChange={e => setParentId(e.target.value)}
-          className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 bg-white focus:outline-none focus:border-neutral-400"
-        >
-          <option value="">— No parent venue —</option>
-          {parentOptions.map(p => <option key={p.id} value={p.id}>{p.name}{p.city ? ` (${p.city})` : ""}</option>)}
-        </select>
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <div className="flex gap-2">
-          <button onClick={save} disabled={saving} className="text-xs border border-neutral-300 rounded px-2.5 py-1 hover:bg-neutral-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
-          <button onClick={() => { setEditing(false); setName(v.name); setParentId(v.parent_id ?? ""); }} className="text-xs text-neutral-400">Cancel</button>
-        </div>
-      </div>
-    );
-  }
+  const parentOptions = allVenues.filter((p) => p.id !== v.id);
 
   return (
-    <div className="flex items-center gap-2 py-2.5 group -mx-2 px-2 rounded-lg hover:bg-neutral-50 transition-colors">
-      <button onClick={() => onVenueClick(v.id, v.name)} className="flex-1 min-w-0 text-left">
-        {v.parent_name && <span className="block text-[10px] text-neutral-400 truncate">{v.parent_name}</span>}
-        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{v.name}</span>
-      </button>
-      {v.city && <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>}
-      {isAdmin && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={() => setEditing(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400">Edit</button>
-          <button onClick={del} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-red-300">Del</button>
-        </div>
+    <div className="py-2.5 border-b border-neutral-50 last:border-0">
+      <div className="flex items-center gap-2 -mx-2 px-2">
+        <button onClick={() => onVenueClick(v.id, v.name)} className="flex-1 min-w-0 text-left">
+          {v.parent_name && <span className="block text-[10px] text-neutral-400 truncate">{v.parent_name}</span>}
+          <span className="text-sm text-neutral-900 font-serif leading-snug hover:underline underline-offset-2 block truncate">{v.name}</span>
+        </button>
+        {v.city && <span className="text-xs text-neutral-400 flex-shrink-0">{v.city}</span>}
+        {isAdmin && (
+          <button onClick={() => editing ? cancel() : startEdit()}
+            className={`text-[11px] border rounded px-2 py-0.5 flex-shrink-0 transition-colors ${editing ? "border-neutral-400 text-neutral-700 bg-neutral-100" : "border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"}`}>
+            {editing ? "Close" : "Edit"}
+          </button>
+        )}
+      </div>
+      {editing && (
+        <EditPanel onCancel={cancel} onDelete={del} deleteName={v.name}>
+          {loading ? (
+            <p className="text-xs text-neutral-400">Loading…</p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <FieldLabel>Name</FieldLabel>
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                  placeholder="Venue name" autoFocus />
+              </div>
+              <div>
+                <FieldLabel>Parent venue</FieldLabel>
+                <select value={parentId} onChange={(e) => setParentId(e.target.value)}
+                  className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 bg-white focus:outline-none focus:border-neutral-400">
+                  <option value="">— None —</option>
+                  {parentOptions.map((p) => <option key={p.id} value={p.id}>{p.name}{p.city ? ` (${p.city})` : ""}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <FieldLabel>City</FieldLabel>
+                  <input value={city} onChange={(e) => setCity(e.target.value)}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                    placeholder="Amsterdam" />
+                </div>
+                <div>
+                  <FieldLabel>Country</FieldLabel>
+                  <input value={country} onChange={(e) => setCountry(e.target.value)}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                    placeholder="Netherlands" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <FieldLabel>Type</FieldLabel>
+                  <select value={venueType} onChange={(e) => setVenueType(e.target.value)}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 bg-white focus:outline-none focus:border-neutral-400">
+                    <option value="">— None —</option>
+                    {VENUE_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel>Capacity</FieldLabel>
+                  <input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                    placeholder="1200" min={0} />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Website</FieldLabel>
+                <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)}
+                  className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                  placeholder="https://…" type="url" />
+              </div>
+              <div>
+                <FieldLabel>Google Maps URL</FieldLabel>
+                <input value={mapsUrl} onChange={(e) => setMapsUrl(e.target.value)}
+                  className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
+                  placeholder="https://maps.google.com/…" type="url" />
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              <button onClick={save} disabled={saving}
+                className="w-full text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-50">
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          )}
+        </EditPanel>
       )}
     </div>
   );
@@ -457,12 +578,8 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   useEffect(() => { (fetchAllVenues() as Promise<Venue[]>).then(setVenues).catch(() => {}).finally(() => setLoading(false)); }, []);
   if (loading) return <Spinner />;
 
-  function handleSaved(id: string, name: string, parentId: string | null) {
-    setVenues(prev => prev.map(v => v.id === id ? {
-      ...v, name,
-      parent_id: parentId,
-      parent_name: parentId ? (prev.find(p => p.id === parentId)?.name ?? v.parent_name) : null,
-    } : v));
+  function handleSaved(id: string, updates: Partial<FullVenue>) {
+    setVenues(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
   }
   function handleDeleted(id: string) {
     setVenues(prev => prev.filter(v => v.id !== id));
