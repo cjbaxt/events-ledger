@@ -9,10 +9,14 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   // Fetch all events with venue country for timezone calculation
-  const { data: events, error } = await supabase.rpc("get_events_list", {
-    p_type: null, p_q: null, p_festival_id: null, p_limit: 2000, p_offset: 0,
-  });
+  const [{ data: events, error }, endTimesRes] = await Promise.all([
+    supabase.rpc("get_events_list", { p_type: null, p_q: null, p_festival_id: null, p_limit: 2000, p_offset: 0 }),
+    supabase.from("event").select("id, end_time"),
+  ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const endTimeMap = new Map<string, string | null>(
+    (endTimesRes.data ?? []).map((r: { id: string; end_time: string | null }) => [r.id, r.end_time])
+  );
 
   const venueIds = [...new Set((events ?? []).map((e: Record<string, unknown>) => e.venue_id as string).filter(Boolean))];
   const { data: venues } = await supabase.from("venue").select("id, country, city").in("id", venueIds);
@@ -30,6 +34,7 @@ export async function POST(req: NextRequest) {
         title: e.title as string,
         date: e.date as string,
         time: e.time as string | null,
+        end_time: endTimeMap.get(e.id as string) ?? null,
         venue_name: e.venue_name as string | null,
         venue_city: venue?.city ?? null,
         venue_country: venue?.country ?? null,

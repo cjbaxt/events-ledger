@@ -184,7 +184,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { data: e, error } = await supabase
     .from("event")
     .select(`
-      id, date, time, type, subtype, title,
+      id, date, time, end_time, type, subtype, title,
       venue_id, festival_id, payment_method_id,
       price_paid, currency,
       rating, rating_context, notes, review, links,
@@ -230,7 +230,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const response = NextResponse.json({
-    id: e.id, date: e.date, time: e.time, type: e.type, subtype: e.subtype, title: e.title,
+    id: e.id, date: e.date, time: e.time, end_time: (e as Record<string, unknown>).end_time as string | null ?? null, type: e.type, subtype: e.subtype, title: e.title,
     venue: { id: venue.id, name: venue.name, city: (venue as VenueRow).city ?? null },
     venue_path: venuePath,
     festival,
@@ -260,7 +260,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const supabase = createServiceClient();
 
   const baseAllowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context",
-    "title", "date", "time", "venue_id", "festival_id", "payment_method_id", "subtype", "type",
+    "title", "date", "time", "end_time", "venue_id", "festival_id", "payment_method_id", "subtype", "type",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "links"];
   const baseUpdate: Record<string, unknown> = {};
   for (const key of baseAllowed) { if (key in body) baseUpdate[key] = body[key]; }

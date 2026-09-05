@@ -41,6 +41,7 @@ export interface GCalEventData {
   title: string;
   date: string;
   time: string | null;
+  end_time?: string | null;
   venue_name?: string | null;
   venue_city?: string | null;
   venue_country?: string | null;
@@ -51,12 +52,26 @@ export interface GCalEventData {
 function buildGCalEvent(e: GCalEventData) {
   const tz = countryToTz(e.venue_country);
   const time = e.time ?? "19:00";
-  const durationHrs = isFringe(e.festival_name) ? 1 : 2;
-
   const [h, m] = time.split(":").map(Number);
-  const endH = h + durationHrs;
-  const endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
   const startTime = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+
+  let endDate = e.date;
+  let endTime: string;
+  if (e.end_time) {
+    const [eh, em] = e.end_time.slice(0, 5).split(":").map(Number);
+    if (eh * 60 + em < h * 60 + m) {
+      // End time is next day
+      const d = new Date(Date.UTC(...(e.date.split("-").map((x, i) => i === 1 ? Number(x) - 1 : Number(x)) as [number, number, number])));
+      d.setUTCDate(d.getUTCDate() + 1);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      endDate = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    }
+    endTime = `${e.end_time.slice(0, 5)}:00`;
+  } else {
+    const durationHrs = isFringe(e.festival_name) ? 1 : 2;
+    const endH = h + durationHrs;
+    endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+  }
 
   const location = [e.venue_name, e.venue_city].filter(Boolean).join(", ");
 
@@ -65,7 +80,7 @@ function buildGCalEvent(e: GCalEventData) {
     location: location || undefined,
     description: e.notes ?? undefined,
     start: { dateTime: `${e.date}T${startTime}`, timeZone: tz },
-    end:   { dateTime: `${e.date}T${endTime}`,   timeZone: tz },
+    end:   { dateTime: `${endDate}T${endTime}`,   timeZone: tz },
   };
 }
 

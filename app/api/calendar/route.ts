@@ -30,6 +30,13 @@ function localPlusHoursUtcZ(dateStr: string, timeStr: string, tz: string, hours:
   return `${utc.getUTCFullYear()}${pad(utc.getUTCMonth() + 1)}${pad(utc.getUTCDate())}T${pad(utc.getUTCHours())}${pad(utc.getUTCMinutes())}00Z`;
 }
 
+function nextDay(dateStr: string): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, mo - 1, d + 1));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
 function escapeIcs(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 }
@@ -47,11 +54,15 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const [eventsResult, venuesResult] = await Promise.all([
+  const [eventsResult, venuesResult, endTimesResult] = await Promise.all([
     supabase.rpc("get_events_list", { p_type: null, p_q: null, p_festival_id: null, p_limit: 2000, p_offset: 0 }),
     supabase.from("venue").select("id, country"),
+    supabase.from("event").select("id, end_time"),
   ]);
   if (eventsResult.error) return new NextResponse("Error fetching events", { status: 500 });
+  const endTimeMap = new Map<string, string | null>(
+    (endTimesResult.data ?? []).map((r: { id: string; end_time: string | null }) => [r.id, r.end_time])
+  );
 
   const debug = req.nextUrl.searchParams.has("debug");
   const venueCountry = new Map<string, string | null>();
@@ -72,14 +83,25 @@ export async function GET(req: NextRequest) {
     const time = (e.time as string | null) ?? "19:00";
     const country = venueCountry.get(e.venue_id as string) ?? null;
     const tz = countryToTz(country);
-    const duration = isFringeEvent(e.festival_name as string | null) ? 1 : 2;
+    const storedEndTime = endTimeMap.get(e.id as string) ?? null;
+    let dtend: string;
+    if (storedEndTime) {
+      const endHHMM = storedEndTime.slice(0, 5);
+      const [sh, sm] = time.split(":").map(Number);
+      const [eh, em] = endHHMM.split(":").map(Number);
+      const endDate = (eh * 60 + em < sh * 60 + sm) ? nextDay(date) : date;
+      dtend = localToUtcZ(endDate, endHHMM, tz);
+    } else {
+      const duration = isFringeEvent(e.festival_name as string | null) ? 1 : 2;
+      dtend = localPlusHoursUtcZ(date, time, tz, duration);
+    }
 
     lines.push(
       "BEGIN:VEVENT",
       `UID:${e.id as string}@ledger.claireheaded.com`,
       `DTSTAMP:${now}`,
       `DTSTART:${localToUtcZ(date, time, tz)}`,
-      `DTEND:${localPlusHoursUtcZ(date, time, tz, duration)}`,
+      `DTEND:${dtend}`,
       `SUMMARY:${escapeIcs(`🎟️ ${e.title as string}`)}`,
       `LOCATION:${escapeIcs((e.venue_name as string) ?? "")}`,
       ...(debug ? [`X-DEBUG:country=${country ?? "null"} tz=${tz} venue_id=${e.venue_id as string}`] : []),

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   // Separate base event fields from extension fields
-  const BASE_FIELDS = new Set(["venue_id", "title", "date", "time", "price_paid", "currency",
+  const BASE_FIELDS = new Set(["venue_id", "title", "date", "time", "end_time", "price_paid", "currency",
     "festival_id", "payment_method_id", "notes", "rating", "rating_context", "review",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "subtype", "links"]);
 

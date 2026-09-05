@@ -662,11 +662,22 @@ const EXTENSION_FIELDS: Record<string, React.ComponentType<{ ext: Ext; set: (k: 
   exhibition: ExhibitionFields, screening: ScreeningFields, other: OtherFields,
 };
 
+const FRINGE_KEYWORDS = ["fringe", "amsterdam", "prague"];
+function isFringeEvent(festivalName: string | null | undefined): boolean {
+  if (!festivalName) return false;
+  return FRINGE_KEYWORDS.some((k) => festivalName.toLowerCase().includes(k));
+}
+function addHoursToTime(timeStr: string, hours: number): string {
+  const [h, m] = timeStr.split(":").map(Number);
+  const totalMins = h * 60 + m + hours * 60;
+  return `${String(Math.floor(totalMins / 60) % 24).padStart(2, "0")}:${String(totalMins % 60).padStart(2, "0")}`;
+}
+
 function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Record<string, unknown> {
   const id = (v: NamedRef | null | undefined) => v?.id ?? null;
   const payload: Record<string, unknown> = {
     type,
-    venue_id: (base.venue as NamedRef | null)?.id, title: base.title, date: base.date, time: base.time || null,
+    venue_id: (base.venue as NamedRef | null)?.id, title: base.title, date: base.date, time: base.time || null, end_time: base.end_time || null,
     price_paid: base.price_paid || null, currency: base.currency || "EUR",
     festival_id: (base.festival as NamedRef | null)?.id ?? null,
     payment_method_id: (base.payment_method as PaymentMethod | null)?.id ?? null,
@@ -699,6 +710,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
   const ref = (v: unknown): NamedRef | null => { if (!v || typeof v !== "object") return null; const r = v as Record<string, unknown>; const name = r.name ?? r.title; return r.id && name ? { id: String(r.id), name: String(name) } : null; };
   const base: Record<string, unknown> = {
     title: event.title, date: String(event.date), time: event.time ? String(event.time).slice(0, 5) : "",
+    end_time: event.end_time ? String(event.end_time).slice(0, 5) : "",
     venue: event.venue, subtype: event.subtype ?? "", price_paid: event.price_paid ? String(event.price_paid) : "",
     currency: event.currency ?? "EUR", festival: event.festival ?? null, payment_method: event.payment_method ?? null,
     rating: event.rating ?? null, rating_context: event.rating_context ?? "", review: event.review ?? "",
@@ -750,6 +762,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [performances, setPerformances] = useState<Array<{ date: string; time: string; label: string }>>([]);
+  const endTimeManualRef = useRef(!!init?.base.end_time);
 
   useEffect(() => { fetchPaymentMethods().then(setPaymentMethods).catch(() => {}); }, []);
 
@@ -916,10 +929,26 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                 </select>
               </Field>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Date" required><input type="date" className={inputCls} value={(base.date as string) ?? ""} onChange={(e) => setBaseField("date", e.target.value)} /></Field>
-                <Field label="Time"><input type="time" className={inputCls} value={(base.time as string) ?? ""} onChange={(e) => setBaseField("time", e.target.value)} /></Field>
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Date" required><input type="date" className={inputCls} value={(base.date as string) ?? ""} onChange={(e) => setBaseField("date", e.target.value)} /></Field>
+                  <Field label="Start time"><input type="time" className={inputCls} value={(base.time as string) ?? ""} onChange={(e) => {
+                    const newTime = e.target.value;
+                    setBaseField("time", newTime);
+                    if (!endTimeManualRef.current && newTime) {
+                      const dur = isFringeEvent((base.festival as NamedRef | null)?.name) ? 1 : 2;
+                      setBaseField("end_time", addHoursToTime(newTime, dur));
+                    }
+                  }} /></Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div />
+                  <Field label="End time"><input type="time" className={inputCls} value={(base.end_time as string) ?? ""} onChange={(e) => {
+                    endTimeManualRef.current = true;
+                    setBaseField("end_time", e.target.value);
+                  }} /></Field>
+                </div>
+              </>
             )}
             <SearchCombo label="Venue" endpoint="venues" value={base.venue as NamedRef | null} onChange={(v) => {
                 setBaseField("venue", v);

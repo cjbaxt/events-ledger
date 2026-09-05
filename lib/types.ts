@@ -16,6 +16,7 @@ export interface EventListItem {
   id: string;
   date: string;
   time: string | null;
+  end_time: string | null;
   type: string;
   subtype: string | null;
   title: string;
@@ -43,6 +44,7 @@ export interface EventDetail {
   id: string;
   date: string;
   time: string | null;
+  end_time: string | null;
   type: string;
   subtype: string | null;
   title: string;
