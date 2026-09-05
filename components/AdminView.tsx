@@ -319,7 +319,8 @@ function Empty({ label }: { label: string }) {
 }
 
 
-type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble" };
+type EventSummary = { id: string; title: string; date: string; type: string };
+type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble"; recentEvents: EventSummary[] };
 
 function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () => void }) {
   const vocab: readonly string[] = entity.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
@@ -337,13 +338,22 @@ function InlineRolePicker({ entity, onSave }: { entity: RoleEntity; onSave: () =
   }
 
   return (
-    <div className="py-2 border-b border-neutral-50">
-      <div className="flex items-start justify-between gap-4 mb-2">
-        <div>
-          <span className="text-sm text-neutral-800">{entity.name}</span>
-          <span className="ml-2 text-[10px] uppercase tracking-widest text-neutral-400">{entity.kind}</span>
-        </div>
+    <div className="py-3 border-b border-neutral-100">
+      <div className="mb-2">
+        <span className="text-sm font-medium text-neutral-800">{entity.name}</span>
+        <span className="ml-2 text-[10px] uppercase tracking-widest text-neutral-400">{entity.kind}</span>
       </div>
+      {entity.recentEvents.length > 0 && (
+        <div className="mb-3 space-y-0.5">
+          {entity.recentEvents.map((ev) => (
+            <div key={ev.id} className="flex items-baseline gap-2">
+              <span className="text-[11px] text-neutral-400 w-[3.5rem] flex-shrink-0 tabular-nums">{ev.date.slice(0, 4)}</span>
+              <span className="text-[11px] text-neutral-500 truncate">{ev.title}</span>
+              <span className="text-[10px] text-neutral-300 flex-shrink-0">{ev.type}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5 mb-2">
         {[...vocab, ...draft.filter((r) => !vocab.includes(r))].map((r) => (
           <button key={r} onClick={() => setDraft((d) => d.includes(r) ? d.filter((x) => x !== r) : [...d, r])}
@@ -374,8 +384,8 @@ function RolesTab() {
     fetch("/api/admin/missing-roles")
       .then((r) => r.json())
       .then((d) => {
-        const persons = (d.persons ?? []).map((p: { id: string; name: string; roles: string[] | null }) => ({ ...p, kind: "person" as const }));
-        const ensembles = (d.ensembles ?? []).map((e: { id: string; name: string; roles: string[] | null }) => ({ ...e, kind: "ensemble" as const }));
+        const persons = (d.persons ?? []).map((p: { id: string; name: string; roles: string[] | null; recentEvents: EventSummary[] }) => ({ ...p, kind: "person" as const }));
+        const ensembles = (d.ensembles ?? []).map((e: { id: string; name: string; roles: string[] | null; recentEvents: EventSummary[] }) => ({ ...e, kind: "ensemble" as const }));
         setItems([...persons, ...ensembles].sort((a, b) => a.name.localeCompare(b.name)));
       })
       .finally(() => setLoading(false));
