@@ -130,7 +130,6 @@ const ALL_TYPES = [
   "exhibition", "music", "opera", "screening", "spoken_word", "talk", "theatre",
 ];
 
-type TypeMeta = { events: EventListItem[]; field: string; endpoint: string; fieldLabel: string; multi: boolean; createOptions?: CreateOption[] };
 
 function RatingTab({ events }: { events: EventListItem[] }) {
   const today = new Date().toLocaleDateString("sv");
@@ -231,52 +230,40 @@ function PriceTab({ events }: { events: EventListItem[] }) {
   );
 }
 
-function TypeFieldsTab({ events }: { events: EventListItem[] }) {
-  const [type, setType] = useState<string>("music");
-  const [meta, setMeta] = useState<TypeMeta | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+function CreditsTab({ events }: { events: EventListItem[] }) {
+  const [type, setType] = useState<string>("");
+  const [missing, setMissing] = useState<EventListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (t: string) => {
     setLoading(true);
-    setSaved(new Set());
-    const res = await fetch(`/api/admin/missing?type=${t}`);
+    const url = t ? `/api/admin/missing?type=${t}` : `/api/admin/missing`;
+    const res = await fetch(url);
     const data = await res.json();
-    // Join with full event list for title/date/type
     const byId = new Map(events.map((e) => [e.id, e]));
-    setMeta({ ...data, events: (data.events ?? []).map((r: { id: string }) => byId.get(r.id)).filter(Boolean) });
+    setMissing((data.events ?? []).map((r: { id: string }) => byId.get(r.id) ?? r).filter(Boolean) as EventListItem[]);
     setLoading(false);
   }, [events]);
 
   useEffect(() => { load(type); }, [type, load]);
-
-  async function handleSelect(eventId: string, fieldValue: string, fieldOverride?: string) {
-    if (!meta) return;
-    await updateEvent(eventId, { [fieldOverride ?? meta.field]: fieldValue });
-    setSaved((s) => new Set([...s, eventId]));
-  }
-
-  const visible = (meta?.events ?? []).filter((e: EventListItem) => !saved.has(e.id));
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
         <select value={type} onChange={(e) => setType(e.target.value)}
           className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-700 focus:outline-none focus:border-neutral-400">
+          <option value="">All types</option>
           {ALL_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
         </select>
-        {meta && <span className="text-[10px] uppercase tracking-widest text-neutral-400">{visible.length} missing {meta.fieldLabel.toLowerCase()}</span>}
+        {!loading && <span className="text-[10px] uppercase tracking-widest text-neutral-400">{missing.length} without credits</span>}
       </div>
       {loading && <div className="text-sm text-neutral-400">Loading…</div>}
-      {!loading && visible.length === 0 && meta && <Empty label={`All ${type} events have a ${meta.fieldLabel.toLowerCase()}`} />}
-      {!loading && visible.length > 0 && meta && (
+      {!loading && missing.length === 0 && <Empty label={type ? `All ${type} events have credits` : "All events have credits"} />}
+      {!loading && missing.length > 0 && (
         <div className="space-y-1">
-          {visible.map((e: EventListItem) => (
-            <div key={e.id} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-50">
+          {missing.map((e: EventListItem) => (
+            <div key={e.id} className="py-2 border-b border-neutral-50">
               <EventMeta event={e} />
-              <EntitySearch endpoint={meta.endpoint} placeholder={`Find ${meta.fieldLabel.toLowerCase()}…`}
-                onSelect={(id, _name, field) => handleSelect(e.id, id, field)}
-                createOptions={meta.createOptions} />
             </div>
           ))}
         </div>
@@ -412,7 +399,7 @@ function RolesTab() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const TABS = ["Rating", "Venue", "Price", "Type fields", "Venue scale", "Roles"] as const;
+const TABS = ["Rating", "Venue", "Price", "Credits", "Venue scale", "Roles"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminView() {
@@ -439,7 +426,7 @@ export default function AdminView() {
       {tab === "Rating"      && <RatingTab events={events} />}
       {tab === "Venue"       && <VenueTab events={events} />}
       {tab === "Price"       && <PriceTab events={events} />}
-      {tab === "Type fields" && <TypeFieldsTab events={events} />}
+      {tab === "Credits"     && <CreditsTab events={events} />}
       {tab === "Venue scale" && <VenueScaleTab />}
       {tab === "Roles"       && <RolesTab />}
     </div>
