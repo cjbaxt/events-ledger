@@ -29,7 +29,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 const SUBTYPES: Record<string, string[]> = {
   music: ["gig", "festival", "choir", "comedy_music", "community", "open_mic", "residency", "other"],
-  classical: ["orchestral", "chamber", "choral", "recital", "contemporary", "comedy_classical", "other"],
+  classical: ["orchestral", "chamber", "choir", "recital", "folk", "contemporary", "comedy_classical", "other"],
   opera: ["full_length", "contemporary", "opera", "operetta", "musical_theatre", "other"],
   ballet: ["full_length", "mixed_bill", "contemporary", "other"],
   dance: ["contemporary", "flamenco", "folk", "ballroom", "other"],
@@ -379,8 +379,29 @@ function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
+function ProgrammeEditor({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
+  const items = (ext.setlist as string[]) ?? [];
+  const text = items.join("\n");
+  return (
+    <Field label="Programme (one piece per line)">
+      <textarea
+        className={`${inputCls} resize-y`}
+        rows={6}
+        placeholder={"Dvořák — Slavonic Dances\nBeethoven — Symphony No. 2"}
+        value={text}
+        onChange={(e) => {
+          const lines = e.target.value.split("\n").map(l => l.trimEnd()).filter(Boolean);
+          set("setlist", lines.length ? lines : null);
+        }}
+      />
+    </Field>
+  );
+}
+
 function ClassicalFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
+    <ProgrammeEditor ext={ext} set={set} />
+    <Field label="Notes on performance"><textarea className={`${inputCls} resize-y`} rows={3} value={(ext.notes_on_performance as string) ?? ""} onChange={(e) => set("notes_on_performance", e.target.value || null)} /></Field>
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
