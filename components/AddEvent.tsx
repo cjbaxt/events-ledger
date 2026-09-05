@@ -3,15 +3,17 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   createEvent, updateEvent, searchEntities, createEntity,
-  fetchPaymentMethods, createPaymentMethod,
+  fetchPaymentMethods, createPaymentMethod, saveClassicalProgramme,
 } from "@/lib/api";
-import type { PaymentMethod } from "@/lib/api";
+import type { PaymentMethod, ProgrammeItemSave } from "@/lib/api";
 import type { EventDetail } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
 type NamedRef = { id: string; name: string };
 type LinkRow = { url: string; label: string; description: string };
 type Step = "import" | "type" | "basic" | "details" | "take";
+type PieceResult = { id: string; title: string; movement: string | null; catalogue_number: string | null; composer: NamedRef | null; composer_text: string | null };
+type ProgrammeItemState = { piece_id: string | null; piece_title: string; composer: NamedRef | null; composer_text: string; soloists: NamedRef[]; notes: string };
 
 const EVENT_TYPES = [
   "music", "classical", "opera", "ballet", "dance",
@@ -379,28 +381,198 @@ function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
-function ProgrammeEditor({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
-  const items = (ext.setlist as string[]) ?? [];
-  const text = items.join("\n");
+function pieceLabel(p: PieceResult): string {
+  const parts = [p.title, p.movement].filter(Boolean).join(" — ");
+  const composer = p.composer?.name ?? p.composer_text ?? null;
+  return composer ? `${parts} (${composer})` : parts;
+}
+
+function MusicalPiecePicker({ value, onChange }: {
+  value: { id: string | null; title: string; composer: NamedRef | null; composer_text: string } | null;
+  onChange: (v: { id: string | null; title: string; composer: NamedRef | null; composer_text: string } | null) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PieceResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newComposer, setNewComposer] = useState<NamedRef | null>(null);
+  const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function search(q: string) {
+    clearTimeout(t.current);
+    if (!q.trim()) { setResults([]); return; }
+    t.current = setTimeout(async () => {
+      const data = await searchEntities("musical_pieces", q, 8);
+      setResults(data as unknown as PieceResult[]);
+    }, 200);
+  }
+
+  function startCreate(q: string) {
+    setCreating(true);
+    setNewTitle(q);
+    setNewComposer(null);
+    setOpen(false);
+  }
+
+  function confirmCreate() {
+    if (!newTitle.trim()) return;
+    onChange({ id: null, title: newTitle.trim(), composer: newComposer, composer_text: "" });
+    setCreating(false);
+    setQuery("");
+  }
+
+  if (value) {
+    const label = value.id
+      ? `${value.title}`
+      : `${value.title}${value.composer ? ` (${value.composer.name})` : ""}`;
+    const sub = value.id ? (value.composer?.name ?? "") : "new";
+    return (
+      <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-neutral-800 truncate">{label}</div>
+          {sub && <div className="text-xs text-neutral-400">{sub}</div>}
+        </div>
+        <button type="button" onClick={() => onChange(null)} className="text-neutral-300 hover:text-neutral-600 text-xs flex-shrink-0">✕</button>
+      </div>
+    );
+  }
+
+  if (creating) {
+    return (
+      <div className="space-y-2 border border-neutral-200 rounded-lg p-3">
+        <div className="text-[10px] uppercase tracking-widest text-neutral-400">New piece</div>
+        <input className={inputCls} placeholder="Title (e.g. Symphony No. 6)" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus />
+        <SearchCombo label="Composer" endpoint="persons" optional value={newComposer} onChange={setNewComposer} displayFn={(i) => (i.name as string) ?? ""} />
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={confirmCreate} disabled={!newTitle.trim()} className="px-3 py-1 text-xs bg-neutral-900 text-white rounded hover:bg-neutral-700 disabled:opacity-40">Add</button>
+          <button type="button" onClick={() => setCreating(false)} className="px-3 py-1 text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Field label="Programme (one piece per line)">
-      <textarea
-        className={`${inputCls} resize-y`}
-        rows={6}
-        placeholder={"Dvořák — Slavonic Dances\nBeethoven — Symphony No. 2"}
-        value={text}
-        onChange={(e) => {
-          const lines = e.target.value.split("\n").map(l => l.trimEnd()).filter(Boolean);
-          set("setlist", lines.length ? lines : null);
-        }}
+    <div className="relative">
+      <input
+        className={inputCls}
+        placeholder="Search pieces…"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); search(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-    </Field>
+      {open && (results.length > 0 || query.trim()) && (
+        <div className="absolute z-30 top-full mt-0.5 w-full bg-white border border-neutral-200 rounded shadow-sm overflow-hidden">
+          {results.map((r) => (
+            <button key={r.id} type="button" onMouseDown={() => { onChange({ id: r.id, title: pieceLabel(r), composer: r.composer, composer_text: r.composer_text ?? "" }); setQuery(""); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
+              <div>{[r.title, r.movement].filter(Boolean).join(" — ")}</div>
+              {(r.composer?.name ?? r.composer_text) && <div className="text-xs text-neutral-400">{r.composer?.name ?? r.composer_text}</div>}
+            </button>
+          ))}
+          {query.trim() && (
+            <button type="button" onMouseDown={() => startCreate(query.trim())}
+              className="w-full text-left px-3 py-2 text-xs text-neutral-400 hover:bg-neutral-50 border-t border-neutral-100">
+              + Create &ldquo;{query.trim()}&rdquo;
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SoloistsPicker({ soloists, set }: { soloists: NamedRef[]; set: (v: NamedRef[]) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NamedRef[]>([]);
+  const [open, setOpen] = useState(false);
+  const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function search(q: string) {
+    clearTimeout(t.current);
+    if (!q.trim()) { setResults([]); return; }
+    t.current = setTimeout(async () => {
+      const data = await searchEntities("persons", q, 6);
+      setResults(data as unknown as NamedRef[]);
+    }, 200);
+  }
+
+  return (
+    <div className="space-y-1">
+      {soloists.map((s) => (
+        <div key={s.id} className="flex items-center gap-2 text-xs text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1">
+          <span className="flex-1">{s.name}</span>
+          <button type="button" onClick={() => set(soloists.filter((x) => x.id !== s.id))} className="text-neutral-300 hover:text-red-400">✕</button>
+        </div>
+      ))}
+      <div className="relative">
+        <input className={`${inputCls} text-xs py-1`} placeholder="Add soloist…" value={query}
+          onChange={(e) => { setQuery(e.target.value); search(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)} />
+        {open && results.length > 0 && (
+          <div className="absolute z-30 top-full mt-0.5 w-full bg-white border border-neutral-200 rounded shadow-sm overflow-hidden">
+            {results.filter((r) => !soloists.some((s) => s.id === r.id)).map((r) => (
+              <button key={r.id} type="button" onMouseDown={() => { set([...soloists, r]); setQuery(""); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">{r.name}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function emptyProgrammeItem(): ProgrammeItemState {
+  return { piece_id: null, piece_title: "", composer: null, composer_text: "", soloists: [], notes: "" };
+}
+
+function ClassicalProgrammeEditor({ items, set }: { items: ProgrammeItemState[]; set: (v: ProgrammeItemState[]) => void }) {
+  function update(i: number, patch: Partial<ProgrammeItemState>) {
+    const next = [...items];
+    next[i] = { ...next[i], ...patch };
+    set(next);
+  }
+
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Programme</div>
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="border border-neutral-100 rounded-lg p-3 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-300 w-5 text-right flex-shrink-0">{i + 1}.</span>
+              <div className="flex-1 min-w-0">
+                <MusicalPiecePicker
+                  value={item.piece_id !== null || item.piece_title ? { id: item.piece_id, title: item.piece_title, composer: item.composer, composer_text: item.composer_text } : null}
+                  onChange={(v) => update(i, v ? { piece_id: v.id, piece_title: v.title, composer: v.composer, composer_text: v.composer_text } : emptyProgrammeItem())}
+                />
+              </div>
+              <button type="button" onClick={() => set(items.filter((_, j) => j !== i))} className="text-neutral-200 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+            </div>
+            <div className="pl-7">
+              <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-1">Soloists</div>
+              <SoloistsPicker soloists={item.soloists} set={(v) => update(i, { soloists: v })} />
+            </div>
+            <div className="pl-7">
+              <input className={`${inputCls} text-xs py-1`} placeholder="Notes (optional)" value={item.notes}
+                onChange={(e) => update(i, { notes: e.target.value })} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={() => set([...items, emptyProgrammeItem()])}
+        className="mt-2 text-xs text-neutral-400 hover:text-neutral-700 border border-dashed border-neutral-200 rounded-lg px-3 py-2 w-full">
+        + Add piece
+      </button>
+    </div>
   );
 }
 
 function ClassicalFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
-    <ProgrammeEditor ext={ext} set={set} />
+    <ClassicalProgrammeEditor items={(ext.programme as ProgrammeItemState[]) ?? []} set={(v) => set("programme", v)} />
     <Field label="Notes on performance"><textarea className={`${inputCls} resize-y`} rows={3} value={(ext.notes_on_performance as string) ?? ""} onChange={(e) => set("notes_on_performance", e.target.value || null)} /></Field>
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
@@ -506,7 +678,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
   };
   const creditsPayload = (ext.credits as CreditRow[] | undefined)?.filter((c) => c.role && (c.person || c.ensemble)).map((c, i) => ({ role: c.role, person_id: c.person?.id ?? null, ensemble_id: c.ensemble?.id ?? null, sort_order: i, note: c.note ?? null, is_main: c.is_main ?? false })) ?? null;
   if (type === "music") Object.assign(payload, { tour_name: ext.tour_name || null, credits: creditsPayload });
-  else if (type === "classical") Object.assign(payload, { credits: creditsPayload });
+  else if (type === "classical") Object.assign(payload, { notes_on_performance: ext.notes_on_performance || null, credits: creditsPayload });
   else if (type === "opera") { const surtitles = (ext.surtitles_languages as string) ? (ext.surtitles_languages as string).split(",").map((s) => s.trim()).filter(Boolean) : null; Object.assign(payload, { work_id: id(ext.work as NamedRef), production_id: id(ext.production as NamedRef), libretto_language: ext.libretto_language || null, surtitles_languages: surtitles, credits: creditsPayload }); }
   else if (type === "ballet") Object.assign(payload, { work_id: id(ext.work as NamedRef), credits: creditsPayload });
   else if (type === "dance") Object.assign(payload, { work_id: id(ext.work as NamedRef), credits: creditsPayload });
@@ -541,6 +713,19 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     libretto_language: e.libretto_language ?? "",
     surtitles_languages: Array.isArray(e.surtitles_languages) ? (e.surtitles_languages as string[]).join(", ") : "",
     setlist_fm_url: e.setlist_fm_url ?? "", setlist: Array.isArray(e.setlist) ? e.setlist : [],
+    notes_on_performance: e.notes_on_performance ?? "",
+    programme: Array.isArray(e.programme) ? (e.programme as Array<Record<string, unknown>>).map((item) => {
+      const piece = item.piece as { id: string; name: string } | null;
+      const composer = item.composer as { id: string; name: string } | null;
+      return {
+        piece_id: piece?.id ?? null,
+        piece_title: piece?.name ?? "",
+        composer: (composer?.id) ? { id: composer.id, name: composer.name } : null,
+        composer_text: (!composer?.id && composer?.name) ? composer.name : "",
+        soloists: ((item.soloists as Array<{ id: string; name: string }>) ?? []).filter((s) => s.id),
+        notes: (item.notes as string) ?? "",
+      } as ProgrammeItemState;
+    }) : [],
     credits: Array.isArray(e.credits) ? (e.credits as Array<{ role: string; note?: string | null; is_main?: boolean; person: { id: string; name: string } | null; ensemble: { id: string; name: string } | null }>).map((c) => ({ role: c.role, note: c.note ?? null, is_main: c.is_main ?? false, person: c.person ?? null, ensemble: c.ensemble ?? null, useEnsemble: !!c.ensemble })) : [],
     topic: e.topic ?? "", host_organisation: e.host_organisation ?? "",
     exhibition_title: e.exhibition_title ?? "", period: e.period ?? "", medium: e.medium ?? "",
@@ -613,6 +798,20 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
       } else {
         const result = await createEvent(type, payload);
         eventId = result.id;
+      }
+      if (type === "classical") {
+        const programmeItems = (ext.programme as ProgrammeItemState[] | undefined) ?? [];
+        const saves: ProgrammeItemSave[] = programmeItems
+          .filter((item) => item.piece_id || item.piece_title.trim())
+          .map((item) => ({
+            musical_piece_id: item.piece_id,
+            piece_title: item.piece_title || undefined,
+            composer_id: item.composer?.id || null,
+            composer_text: item.composer_text || null,
+            soloists: item.soloists.map((s) => s.id),
+            notes: item.notes || null,
+          }));
+        await saveClassicalProgramme(eventId, saves);
       }
       router.push(`/?event=${eventId}`);
     } catch (e: unknown) {

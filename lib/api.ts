@@ -244,6 +244,27 @@ export async function updateEvent(id: string, data: Record<string, unknown>): Pr
   invalidateEventDetail(id);
 }
 
+export type ProgrammeItemSave = {
+  musical_piece_id: string | null;
+  piece_title?: string;
+  movement?: string | null;
+  catalogue_number?: string | null;
+  composer_id?: string | null;
+  composer_text?: string | null;
+  soloists?: string[];
+  notes?: string | null;
+};
+
+export async function saveClassicalProgramme(eventId: string, items: ProgrammeItemSave[]): Promise<void> {
+  const res = await apiFetch(`/api/events/${eventId}/programme`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(items),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? "Failed to save programme"); }
+  invalidateEventDetail(eventId);
+}
+
 export async function createPaymentMethod(data: Record<string, unknown>): Promise<PaymentMethod> {
   const res = await apiFetch("/api/payment-methods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
   if (!res.ok) throw new Error("Failed to create payment method");
