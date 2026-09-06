@@ -177,6 +177,26 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
 }
 
 const VENUE_TYPES = ["theatre", "concert_hall", "museum", "arena", "outdoor", "circus_tent", "church", "other"];
+const WORK_TYPES = ["music", "ballet", "opera", "musical", "play", "circus_show", "dance_show", "spoken_word", "film", "book", "other"];
+
+function AddPanel({ onCancel, onSave, saving, label, children, error }: {
+  onCancel: () => void; onSave: () => void; saving: boolean;
+  label: string; children: React.ReactNode; error?: string | null;
+}) {
+  return (
+    <div className="py-3 px-3 -mx-2 mb-4 bg-neutral-50 rounded-xl border border-neutral-100 space-y-2.5">
+      {children}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex items-center justify-between pt-1">
+        <button onClick={onCancel} className="text-xs text-neutral-400 hover:text-neutral-600">Cancel</button>
+        <button onClick={onSave} disabled={saving} className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-50">{saving ? "Adding…" : label}</button>
+      </div>
+    </div>
+  );
+}
+
+function inputCls() { return "w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"; }
+function selectCls() { return "w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"; }
 
 function EditPanel({ onCancel, onDelete, deleteName, children }: {
   onCancel: () => void;
@@ -330,6 +350,10 @@ function PeopleTab({ query, onEntityClick }: { query: string; onEntityClick: (id
   const [items, setItems] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => { fetchAllPersons().then(setItems as (v: unknown) => void).catch(() => {}).finally(() => setLoading(false)); }, []);
   function handleDelete(id: string, name: string) {
@@ -340,6 +364,16 @@ function PeopleTab({ query, onEntityClick }: { query: string; onEntityClick: (id
     });
   }
   function handleUpdate(id: string, updates: Partial<Person>) { setItems((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p)); }
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAddSaving(true); setAddError(null);
+    const res = await fetch("/api/persons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName.trim() }) });
+    setAddSaving(false);
+    if (!res.ok) { setAddError("Save failed"); return; }
+    const created = await res.json() as Person;
+    setItems((prev) => [...prev, { ...created, roles: [] }]);
+    setNewName(""); setAdding(false);
+  }
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = items
@@ -351,8 +385,16 @@ function PeopleTab({ query, onEntityClick }: { query: string; onEntityClick: (id
   return (
     <div>
       <RoleFilterRow roles={PERSON_ROLE_VOCAB} active={roleFilter} onToggle={(r) => setRoleFilter((prev) => prev === r ? null : r)} />
+      {!isGuest && adding && (
+        <AddPanel onCancel={() => { setAdding(false); setNewName(""); }} onSave={handleAdd} saving={addSaving} label="Add person" error={addError}>
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setAdding(false); setNewName(""); } }} className={inputCls()} placeholder="Person name" autoFocus />
+        </AddPanel>
+      )}
       {!q && !roleFilter && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
-      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "person" : "people"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-widest text-neutral-300">{filtered.length} {filtered.length === 1 ? "person" : "people"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+        {!isGuest && !adding && <button onClick={() => setAdding(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 hover:border-neutral-400 rounded px-2 py-0.5 transition-colors">+ Add person</button>}
+      </div>
       <div className="space-y-6">
         {[...groups.entries()].map(([letter, groupItems]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
@@ -371,6 +413,10 @@ function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: 
   const [items, setItems] = useState<Ensemble[]>([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => { fetchAllEnsembles().then(setItems as (v: unknown) => void).catch(() => {}).finally(() => setLoading(false)); }, []);
   function handleDelete(id: string, name: string) {
@@ -381,6 +427,16 @@ function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: 
     });
   }
   function handleUpdate(id: string, updates: Partial<Ensemble>) { setItems((prev) => prev.map((e) => e.id === id ? { ...e, ...updates } : e)); }
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAddSaving(true); setAddError(null);
+    const res = await fetch("/api/ensembles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName.trim() }) });
+    setAddSaving(false);
+    if (!res.ok) { setAddError("Save failed"); return; }
+    const created = await res.json() as Ensemble;
+    setItems((prev) => [...prev, { ...created, roles: [] }]);
+    setNewName(""); setAdding(false);
+  }
   if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = items
@@ -392,8 +448,16 @@ function EnsemblesTab({ query, onEntityClick }: { query: string; onEntityClick: 
   return (
     <div>
       <RoleFilterRow roles={ENSEMBLE_ROLE_VOCAB} active={roleFilter} onToggle={(r) => setRoleFilter((prev) => prev === r ? null : r)} />
+      {!isGuest && adding && (
+        <AddPanel onCancel={() => { setAdding(false); setNewName(""); }} onSave={handleAdd} saving={addSaving} label="Add ensemble" error={addError}>
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setAdding(false); setNewName(""); } }} className={inputCls()} placeholder="Ensemble name" autoFocus />
+        </AddPanel>
+      )}
       {!q && !roleFilter && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
-      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "ensemble" : "ensembles"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-widest text-neutral-300">{filtered.length} {filtered.length === 1 ? "ensemble" : "ensembles"}{roleFilter ? ` · ${roleFilter}` : ""}</p>
+        {!isGuest && !adding && <button onClick={() => setAdding(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 hover:border-neutral-400 rounded px-2 py-0.5 transition-colors">+ Add ensemble</button>}
+      </div>
       <div className="space-y-6">
         {[...groups.entries()].map(([letter, groupItems]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
@@ -590,9 +654,14 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   const isGuest = useGuest();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newType, setNewType] = useState("theatre");
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
   useEffect(() => { (fetchAllVenues() as Promise<Venue[]>).then(setVenues).catch(() => {}).finally(() => setLoading(false)); }, []);
-  if (loading) return <Spinner />;
 
   function handleSaved(id: string, updates: Partial<FullVenue>) {
     setVenues(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
@@ -600,7 +669,18 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   function handleDeleted(id: string) {
     setVenues(prev => prev.filter(v => v.id !== id));
   }
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAddSaving(true); setAddError(null);
+    const res = await fetch("/api/venues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName.trim(), city: newCity.trim() || null, venue_type: newType }) });
+    setAddSaving(false);
+    if (!res.ok) { setAddError("Save failed"); return; }
+    const created = await res.json() as Venue;
+    setVenues((prev) => [...prev, created]);
+    setNewName(""); setNewCity(""); setNewType("theatre"); setAdding(false);
+  }
 
+  if (loading) return <Spinner />;
   const q = query.trim().toLowerCase();
   const filtered = venues.filter((v) => !q || v.name.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q) || v.parent_name?.toLowerCase().includes(q)).sort((a, b) => {
     const aRoot = a.parent_name ?? a.name;
@@ -612,8 +692,20 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   const presentLetters = new Set(groups.keys());
   return (
     <div>
+      {!isGuest && adding && (
+        <AddPanel onCancel={() => { setAdding(false); setNewName(""); setNewCity(""); }} onSave={handleAdd} saving={addSaving} label="Add venue" error={addError}>
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") { setAdding(false); setNewName(""); } }} className={inputCls()} placeholder="Venue name" autoFocus />
+          <input value={newCity} onChange={(e) => setNewCity(e.target.value)} className={inputCls()} placeholder="City (optional)" />
+          <select value={newType} onChange={(e) => setNewType(e.target.value)} className={selectCls()}>
+            {VENUE_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+          </select>
+        </AddPanel>
+      )}
       {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
-      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "venue" : "venues"}</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-widest text-neutral-300">{filtered.length} {filtered.length === 1 ? "venue" : "venues"}</p>
+        {!isGuest && !adding && <button onClick={() => setAdding(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 hover:border-neutral-400 rounded px-2 py-0.5 transition-colors">+ Add venue</button>}
+      </div>
       <div className="space-y-6">
         {[...groups.entries()].map(([letter, items]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
@@ -661,9 +753,15 @@ function TypeChip({ type }: { type: string }) {
 }
 
 function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: string) => void }) {
+  const isGuest = useGuest();
   const [rows, setRows] = useState<WorkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newWorkType, setNewWorkType] = useState("ballet");
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
@@ -686,6 +784,27 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  async function handleAddWork() {
+    if (!newTitle.trim()) return;
+    setAddSaving(true); setAddError(null);
+    let newRow: WorkRow;
+    if (newWorkType === "music") {
+      const res = await fetch("/api/musical_pieces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: newTitle.trim() }) });
+      setAddSaving(false);
+      if (!res.ok) { setAddError("Save failed"); return; }
+      const created = await res.json() as { id: string; title: string };
+      newRow = { id: `p:${created.id}`, title: created.title, workType: "music", creatorName: null, movement: null, events: [], source: "piece" };
+    } else {
+      const res = await fetch("/api/works", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: newTitle.trim(), type: newWorkType }) });
+      setAddSaving(false);
+      if (!res.ok) { setAddError("Save failed"); return; }
+      const created = await res.json() as { id: string; title: string };
+      newRow = { id: `w:${created.id}`, title: created.title, workType: newWorkType, creatorName: null, movement: null, events: [], source: "work" };
+    }
+    setRows((prev) => [...prev, newRow]);
+    setNewTitle(""); setAdding(false);
+  }
+
   if (loading) return <Spinner />;
 
   const q = query.trim().toLowerCase();
@@ -703,8 +822,19 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
   return (
     <div>
       <div className="mb-4 text-[10px] uppercase tracking-widest text-amber-500">Works tracking is in early access — data may be incomplete.</div>
+      {!isGuest && adding && (
+        <AddPanel onCancel={() => { setAdding(false); setAddError(null); }} onSave={handleAddWork} saving={addSaving} label="Add work" error={addError}>
+          <input autoFocus value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddWork()} placeholder="Title" className={inputCls()} />
+          <select value={newWorkType} onChange={(e) => setNewWorkType(e.target.value)} className={selectCls()}>
+            {WORK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </AddPanel>
+      )}
       {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
-      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{allGroups.length} {allGroups.length === 1 ? "work" : "works"}</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-widest text-neutral-300">{allGroups.length} {allGroups.length === 1 ? "work" : "works"}</p>
+        {!isGuest && !adding && <button onClick={() => setAdding(true)} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 hover:border-neutral-400 rounded px-2 py-0.5 transition-colors">+ Add work</button>}
+      </div>
       <div className="space-y-6">
         {[...alphaGroups.entries()].map(([letter, letterGroups]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
