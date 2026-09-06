@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   let query = supabase
     .from("musical_piece")
-    .select("id, title, movement, catalogue_number, composer_text, composer:composer_id(id, name)")
+    .select("id, title, movement, catalogue_number, composer_text, work_type, composer:composer_id(id, name)")
     .order("title")
     .limit(limit);
   if (q) query = query.ilike("title", `%${q}%`);
