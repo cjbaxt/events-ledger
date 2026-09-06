@@ -72,7 +72,8 @@ export interface ScrapeResult {
 
 async function parseSummaryPage(
   root: ReturnType<typeof parse>,
-  db: ReturnType<typeof createServiceClient>
+  db: ReturnType<typeof createServiceClient>,
+  pageTitle: string
 ): Promise<Omit<ScrapeResult, "pageTitle">> {
   const perfH2 = root.querySelectorAll("h2").find(
     (h) => h.innerText.trim().toLowerCase() === "performance information"
@@ -101,6 +102,7 @@ async function parseSummaryPage(
   const pendingWorks: PendingWork[] = [];
   let currentSection = "Production";
   let currentWork: PendingWork | null = null;
+  let topLevelComposer: string | null = null;
 
   for (const { tag, el } of allEls) {
     if (!el) continue;
@@ -130,9 +132,14 @@ async function parseSummaryPage(
 
       if (role.startsWith("*")) continue;
 
-      // For "Music"/"Music and libretto" lines: save composer for current work
-      if (currentWork && (normRole === "music" || normRole === "music and libretto")) {
-        currentWork.composerName = name;
+      // For "Music"/"Music and libretto" lines: save composer for current or top-level work
+      if (normRole === "music" || normRole === "music and libretto") {
+        if (currentWork) {
+          currentWork.composerName = name;
+        } else {
+          // Single-work page — we'll create the work after parsing using pageTitle
+          topLevelComposer = name;
+        }
         // Still fall through to add as Composer credit below
       }
 
@@ -141,6 +148,11 @@ async function parseSummaryPage(
     }
   }
   if (currentWork) pendingWorks.push(currentWork);
+
+  // If no H3 sub-sections found, treat the whole page as a single work
+  if (pendingWorks.length === 0 && pageTitle) {
+    pendingWorks.push({ title: pageTitle, composerName: topLevelComposer });
+  }
 
   return buildResult(rawEntries, pendingWorks, db);
 }
@@ -276,7 +288,7 @@ async function fetchAndParse(url: string): Promise<ScrapeResult> {
   const pageTitle = root.querySelector("h1")?.innerText?.trim() ?? "";
   const db = createServiceClient();
 
-  const result = await parseSummaryPage(root, db);
+  const result = await parseSummaryPage(root, db, pageTitle);
   if (result.cards.length === 0 && result.works.length === 0) {
     const fallback = await parseCarrouselPage(root, db);
     return { pageTitle, ...fallback };

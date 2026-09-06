@@ -10,8 +10,13 @@ interface Person { id: string; name: string; roles?: string[] | null; }
 interface Ensemble { id: string; name: string; roles?: string[] | null; }
 interface Venue { id: string; name: string; city?: string | null; parent_id?: string | null; parent_name?: string | null; }
 interface Festival { id: string; name: string; edition?: string | null; }
+interface MusicalPiece {
+  id: string; title: string; movement: string | null; catalogue_number: string | null;
+  composer_text: string | null; composer: { id: string; name: string } | null;
+  events: { id: string; title: string; date: string; type: string }[];
+}
 
-type ActiveTab = "events" | "people" | "ensembles" | "venues" | "festivals";
+type ActiveTab = "events" | "people" | "ensembles" | "venues" | "festivals" | "works";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
 
@@ -615,12 +620,85 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   );
 }
 
+function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: string) => void }) {
+  const [pieces, setPieces] = useState<MusicalPiece[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const letterRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  useEffect(() => {
+    fetch("/api/musical_pieces?withEvents=true&limit=2000")
+      .then((r) => r.json())
+      .then(setPieces)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Spinner />;
+
+  const q = query.trim().toLowerCase();
+  const filtered = pieces
+    .filter((p) => !q || p.title.toLowerCase().includes(q) || p.composer?.name.toLowerCase().includes(q) || p.composer_text?.toLowerCase().includes(q))
+    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+
+  const groups = groupAlpha(filtered, (p) => p.title);
+  const presentLetters = new Set(groups.keys());
+
+  function toggle(id: string) {
+    setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  return (
+    <div>
+      {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
+      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "work" : "works"}</p>
+      <div className="space-y-6">
+        {[...groups.entries()].map(([letter, items]) => (
+          <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
+            <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
+            <div className="divide-y divide-neutral-50">
+              {items.map((piece) => {
+                const composerName = piece.composer?.name ?? piece.composer_text ?? null;
+                const seenCount = piece.events.length;
+                const isExpanded = expanded.has(piece.id);
+                return (
+                  <div key={piece.id}>
+                    <button onClick={() => toggle(piece.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2 truncate block">{piece.title}{piece.movement ? ` — ${piece.movement}` : ""}</span>
+                        {composerName && <span className="text-xs text-neutral-400">{composerName}</span>}
+                      </div>
+                      {seenCount > 0 && <span className="text-[11px] text-neutral-400 flex-shrink-0">seen {seenCount}×</span>}
+                    </button>
+                    {isExpanded && seenCount > 0 && (
+                      <div className="ml-4 mb-2 space-y-0.5">
+                        {piece.events.map((ev) => (
+                          <button key={ev.id} onClick={() => onEventClick(ev.id)} className="w-full flex items-center gap-2 py-1 text-left text-xs text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">
+                            <span className="text-neutral-300 tabular-nums flex-shrink-0">{ev.date}</span>
+                            <span className="truncate">{ev.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+        {filtered.length === 0 && <Empty />}
+      </div>
+    </div>
+  );
+}
+
 const TABS: { id: ActiveTab; label: string }[] = [
   { id: "events", label: "Events" },
   { id: "people", label: "People" },
   { id: "ensembles", label: "Ensembles" },
   { id: "venues", label: "Venues" },
   { id: "festivals", label: "Festivals" },
+  { id: "works", label: "Works" },
 ];
 
 export default function Search({ onEventClick, onEntityClick, onVenueClick, onFestivalClick }: {
@@ -657,6 +735,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
           )}
         />
       )}
+      {tab === "works" && <WorksTab query={query} onEventClick={onEventClick} />}
     </div>
   );
 }
