@@ -681,7 +681,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} />}
 
                   {!isGuest && (
-                    <NobProgrammeFetcher eventId={event.id} onDone={() => setRefreshKey((k) => k + 1)} />
+                    <NobProgrammeFetcher eventId={event.id} eventType={event.type} onDone={() => setRefreshKey((k) => k + 1)} />
                   )}
                 </>
               ) : detailLoading && !preview && (

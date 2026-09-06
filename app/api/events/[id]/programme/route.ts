@@ -62,3 +62,59 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({ ok: true });
 }
+
+// POST: append a single programme item without wiping existing ones
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const deny = await requireOwner(); if (deny) return deny;
+  const { id } = await params;
+  const body = await req.json() as {
+    musical_piece_id?: string | null;
+    piece_title?: string;
+    movement?: string | null;
+    catalogue_number?: string | null;
+    composer_id?: string | null;
+    composer_text?: string | null;
+    notes?: string | null;
+    order?: number;
+  };
+  const supabase = createServiceClient();
+
+  let pieceId = body.musical_piece_id ?? null;
+  if (!pieceId && body.piece_title?.trim()) {
+    const { data } = await supabase
+      .from("musical_piece")
+      .insert({
+        id: randomUUID(),
+        title: body.piece_title.trim(),
+        movement: body.movement?.trim() || null,
+        catalogue_number: body.catalogue_number?.trim() || null,
+        composer_id: body.composer_id || null,
+        composer_text: body.composer_text?.trim() || null,
+      })
+      .select("id")
+      .single();
+    pieceId = data?.id ?? null;
+  }
+  if (!pieceId) return NextResponse.json({ error: "musical_piece_id or piece_title required" }, { status: 400 });
+
+  const { data: existing } = await supabase
+    .from("classical_programme_item")
+    .select("order")
+    .eq("event_id", id)
+    .order("order", { ascending: false })
+    .limit(1);
+  const nextOrder = (body.order ?? ((existing?.[0] as { order: number | null } | undefined)?.order ?? 0) + 1);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await supabase.from("classical_programme_item").insert({
+    id: randomUUID(),
+    event_id: id,
+    musical_piece_id: pieceId,
+    soloists: [],
+    order: nextOrder,
+    notes: body.notes?.trim() || null,
+  } as any).select("id").single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
