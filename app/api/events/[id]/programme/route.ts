@@ -17,8 +17,14 @@ type ItemInput = {
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const deny = await requireOwner(); if (deny) return deny;
   const { id } = await params;
-  const items = (await req.json()) as ItemInput[];
+  const body = await req.json() as ItemInput[] | { items: ItemInput[]; clear: boolean };
+  const items: ItemInput[] = Array.isArray(body) ? body : (body.items ?? []);
+  const clear: boolean = !Array.isArray(body) && !!body.clear;
   const supabase = createServiceClient();
+
+  // Only wipe existing items if there are replacements to put in their place,
+  // or if the caller explicitly passes clear:true (intentional programme reset).
+  if (items.length === 0 && !clear) return NextResponse.json({ ok: true });
 
   await supabase.from("classical_programme_item").delete().eq("event_id", id);
 

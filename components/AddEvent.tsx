@@ -812,9 +812,8 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         const result = await createEvent(type, payload);
         eventId = result.id;
       }
-      if (type === "classical") {
-        const programmeItems = (ext.programme as ProgrammeItemState[] | undefined) ?? [];
-        const saves: ProgrammeItemSave[] = programmeItems
+      if (type === "classical" && Array.isArray(ext.programme)) {
+        const saves: ProgrammeItemSave[] = (ext.programme as ProgrammeItemState[])
           .filter((item) => item.piece_id || item.piece_title.trim())
           .map((item) => ({
             musical_piece_id: item.piece_id,
