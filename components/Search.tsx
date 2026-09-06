@@ -673,10 +673,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-orange-100 text-orange-600 border border-orange-200">Beta</span>
-        <span className="text-[10px] text-neutral-400">Works tracking is in early access — data may be incomplete.</span>
-      </div>
+      <div className="mb-4 text-[10px] uppercase tracking-widest text-amber-500">Works tracking is in early access — data may be incomplete.</div>
       {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
       <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "work" : "works"}</p>
       <div className="space-y-6">
@@ -693,7 +690,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{row.title}{row.movement ? ` — ${row.movement}` : ""}</span>
-                          {row.workType && row.workType !== "music" && (
+                          {row.workType && (
                             <span className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium uppercase tracking-wider bg-neutral-100 text-neutral-400 border border-neutral-200 flex-shrink-0">{row.workType.replace(/_/g, " ")}</span>
                           )}
                         </div>
