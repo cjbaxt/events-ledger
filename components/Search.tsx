@@ -15,6 +15,17 @@ interface MusicalPiece {
   composer_text: string | null; work_type: string | null; composer: { id: string; name: string } | null;
   events: { id: string; title: string; date: string; type: string }[];
 }
+interface WorkItem {
+  id: string; title: string; type: string | null; creator: { id: string; name: string } | null;
+  events: { id: string; title: string; date: string; type: string }[];
+}
+// Unified row for the Works tab
+interface WorkRow {
+  id: string; title: string; workType: string | null; creatorName: string | null;
+  movement: string | null;
+  events: { id: string; title: string; date: string; type: string }[];
+  source: "work" | "piece";
+}
 
 type ActiveTab = "events" | "people" | "ensembles" | "venues" | "festivals" | "works";
 
@@ -621,27 +632,39 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
 }
 
 function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: string) => void }) {
-  const [pieces, setPieces] = useState<MusicalPiece[]>([]);
+  const [rows, setRows] = useState<WorkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
-    fetch("/api/musical_pieces?withEvents=true&limit=2000")
-      .then((r) => r.json())
-      .then(setPieces)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/works?withEvents=true&limit=1000").then((r) => r.json() as Promise<WorkItem[]>),
+      fetch("/api/musical_pieces?withEvents=true&limit=2000").then((r) => r.json() as Promise<MusicalPiece[]>),
+    ]).then(([works, pieces]) => {
+      const workRows: WorkRow[] = works.map((w) => ({
+        id: `w:${w.id}`, title: w.title, workType: w.type ?? null,
+        creatorName: w.creator?.name ?? null, movement: null, events: w.events ?? [], source: "work",
+      }));
+      const pieceRows: WorkRow[] = pieces
+        .filter((p) => p.events.length > 0 && p.work_type === "music")
+        .map((p) => ({
+          id: `p:${p.id}`, title: p.title, workType: "music",
+          creatorName: p.composer?.name ?? p.composer_text ?? null,
+          movement: p.movement ?? null, events: p.events, source: "piece",
+        }));
+      setRows([...workRows, ...pieceRows]);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Spinner />;
 
   const q = query.trim().toLowerCase();
-  const filtered = pieces
-    .filter((p) => p.events.length > 0 && (!q || p.title.toLowerCase().includes(q) || p.composer?.name.toLowerCase().includes(q) || p.composer_text?.toLowerCase().includes(q)))
+  const filtered = rows
+    .filter((r) => r.events.length > 0 && (!q || r.title.toLowerCase().includes(q) || r.creatorName?.toLowerCase().includes(q)))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 
-  const groups = groupAlpha(filtered, (p) => p.title);
+  const groups = groupAlpha(filtered, (r) => r.title);
   const presentLetters = new Set(groups.keys());
 
   function toggle(id: string) {
@@ -661,27 +684,26 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
             <div className="divide-y divide-neutral-50">
-              {items.map((piece) => {
-                const composerName = piece.composer?.name ?? piece.composer_text ?? null;
-                const seenCount = piece.events.length;
-                const isExpanded = expanded.has(piece.id);
+              {items.map((row) => {
+                const seenCount = row.events.length;
+                const isExpanded = expanded.has(row.id);
                 return (
-                  <div key={piece.id}>
-                    <button onClick={() => toggle(piece.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+                  <div key={row.id}>
+                    <button onClick={() => toggle(row.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{piece.title}{piece.movement ? ` — ${piece.movement}` : ""}</span>
-                          {piece.work_type && piece.work_type !== "music" && (
-                            <span className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium uppercase tracking-wider bg-neutral-100 text-neutral-400 border border-neutral-200 flex-shrink-0">{piece.work_type}</span>
+                          <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{row.title}{row.movement ? ` — ${row.movement}` : ""}</span>
+                          {row.workType && row.workType !== "music" && (
+                            <span className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium uppercase tracking-wider bg-neutral-100 text-neutral-400 border border-neutral-200 flex-shrink-0">{row.workType.replace(/_/g, " ")}</span>
                           )}
                         </div>
-                        {composerName && <span className="text-xs text-neutral-400">{composerName}</span>}
+                        {row.creatorName && <span className="text-xs text-neutral-400">{row.creatorName}</span>}
                       </div>
                       {seenCount > 0 && <span className="text-[11px] text-neutral-400 flex-shrink-0">seen {seenCount}×</span>}
                     </button>
                     {isExpanded && seenCount > 0 && (
                       <div className="ml-4 mb-2 space-y-0.5">
-                        {piece.events.map((ev) => (
+                        {row.events.map((ev) => (
                           <button key={ev.id} onClick={() => onEventClick(ev.id)} className="w-full flex items-center gap-2 py-1 text-left text-xs text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">
                             <span className="text-neutral-300 tabular-nums flex-shrink-0">{ev.date}</span>
                             <span className="truncate">{ev.title}</span>
