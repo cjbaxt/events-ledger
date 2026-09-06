@@ -17,10 +17,9 @@ const INCLUDE_BY_DEFAULT = new Set([
   "choreography",
 ]);
 
+// Only skip historical composer/librettist credits for the work itself —
+// not live performers. Everything else (design, dramaturgy, etc.) is shown.
 const SKIP_BY_DEFAULT = new Set([
-  "set design", "costume design", "lighting design", "dramaturgy",
-  "revival director", "chorus master", "movement coach", "ballet master",
-  "staging", "costume and set design", "lighting and set design",
   "music", "music and libretto", "libretto",
 ]);
 
