@@ -631,6 +631,35 @@ function VenuesTab({ query, onVenueClick }: { query: string; onVenueClick: (id: 
   );
 }
 
+interface WorkGroup {
+  key: string;        // normalised title for dedup
+  title: string;      // display title (from first form)
+  forms: WorkRow[];   // 1 = simple, 2+ = tiered
+  totalEvents: number;
+}
+
+function buildGroups(rows: WorkRow[]): WorkGroup[] {
+  const map = new Map<string, WorkGroup>();
+  for (const row of rows) {
+    const key = row.title.toLowerCase().trim();
+    if (!map.has(key)) {
+      map.set(key, { key, title: row.title, forms: [], totalEvents: 0 });
+    }
+    const g = map.get(key)!;
+    g.forms.push(row);
+    g.totalEvents += row.events.length;
+  }
+  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+}
+
+function TypeChip({ type }: { type: string }) {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium uppercase tracking-wider bg-neutral-100 text-neutral-400 border border-neutral-200 flex-shrink-0">
+      {type.replace(/_/g, " ")}
+    </span>
+  );
+}
+
 function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: string) => void }) {
   const [rows, setRows] = useState<WorkRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -660,52 +689,79 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
   if (loading) return <Spinner />;
 
   const q = query.trim().toLowerCase();
-  const filtered = rows
-    .filter((r) => r.events.length > 0 && (!q || r.title.toLowerCase().includes(q) || r.creatorName?.toLowerCase().includes(q)))
-    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+  const allGroups = buildGroups(
+    rows.filter((r) => r.events.length > 0 && (!q || r.title.toLowerCase().includes(q) || r.creatorName?.toLowerCase().includes(q)))
+  );
 
-  const groups = groupAlpha(filtered, (r) => r.title);
-  const presentLetters = new Set(groups.keys());
+  const alphaGroups = groupAlpha(allGroups, (g) => g.title);
+  const presentLetters = new Set(alphaGroups.keys());
 
-  function toggle(id: string) {
-    setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  function toggle(key: string) {
+    setExpanded((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
   return (
     <div>
       <div className="mb-4 text-[10px] uppercase tracking-widest text-amber-500">Works tracking is in early access — data may be incomplete.</div>
       {!q && <AlphaNav presentLetters={presentLetters} onScroll={(l) => letterRefs.current[l]?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
-      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{filtered.length} {filtered.length === 1 ? "work" : "works"}</p>
+      <p className="text-[10px] uppercase tracking-widest text-neutral-300 mb-4">{allGroups.length} {allGroups.length === 1 ? "work" : "works"}</p>
       <div className="space-y-6">
-        {[...groups.entries()].map(([letter, items]) => (
+        {[...alphaGroups.entries()].map(([letter, letterGroups]) => (
           <section key={letter} ref={(el) => { letterRefs.current[letter] = el; }}>
             <div className="font-serif text-2xl text-neutral-200 mb-1 select-none">{letter}</div>
             <div className="divide-y divide-neutral-50">
-              {items.map((row) => {
-                const seenCount = row.events.length;
-                const isExpanded = expanded.has(row.id);
+              {letterGroups.map((group) => {
+                const isExpanded = expanded.has(group.key);
+                const isMulti = group.forms.length > 1;
                 return (
-                  <div key={row.id}>
-                    <button onClick={() => toggle(row.id)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
+                  <div key={group.key}>
+                    <button onClick={() => toggle(group.key)} className="w-full flex items-center gap-3 py-2.5 text-left group hover:bg-neutral-50 -mx-2 px-2 rounded-lg transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{row.title}{row.movement ? ` — ${row.movement}` : ""}</span>
-                          {row.workType && (
-                            <span className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium uppercase tracking-wider bg-neutral-100 text-neutral-400 border border-neutral-200 flex-shrink-0">{row.workType.replace(/_/g, " ")}</span>
-                          )}
+                          <span className="text-sm text-neutral-900 font-serif leading-snug group-hover:underline underline-offset-2">{group.title}</span>
+                          {group.forms.map((f) => f.workType && <TypeChip key={f.id} type={f.workType} />)}
                         </div>
-                        {row.creatorName && <span className="text-xs text-neutral-400">{row.creatorName}</span>}
+                        {!isMulti && group.forms[0].creatorName && (
+                          <span className="text-xs text-neutral-400">{group.forms[0].creatorName}</span>
+                        )}
                       </div>
-                      {seenCount > 0 && <span className="text-[11px] text-neutral-400 flex-shrink-0">seen {seenCount}×</span>}
+                      <span className="text-[11px] text-neutral-400 flex-shrink-0">seen {group.totalEvents}×</span>
                     </button>
-                    {isExpanded && seenCount > 0 && (
-                      <div className="ml-4 mb-2 space-y-0.5">
-                        {row.events.map((ev) => (
-                          <button key={ev.id} onClick={() => onEventClick(ev.id)} className="w-full flex items-center gap-2 py-1 text-left text-xs text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">
-                            <span className="text-neutral-300 tabular-nums flex-shrink-0">{ev.date}</span>
-                            <span className="truncate">{ev.title}</span>
-                          </button>
-                        ))}
+
+                    {isExpanded && (
+                      <div className="ml-2 mb-2">
+                        {isMulti ? (
+                          // Tiered: each form gets its own section
+                          <div className="space-y-2">
+                            {group.forms.map((form) => (
+                              <div key={form.id}>
+                                <div className="flex items-center gap-1.5 py-1">
+                                  {form.workType && <TypeChip type={form.workType} />}
+                                  {form.movement && <span className="text-[10px] text-neutral-400">{form.movement}</span>}
+                                  {form.creatorName && <span className="text-xs text-neutral-400">{form.creatorName}</span>}
+                                </div>
+                                <div className="ml-2 space-y-0.5">
+                                  {form.events.map((ev) => (
+                                    <button key={ev.id} onClick={() => onEventClick(ev.id)} className="w-full flex items-center gap-2 py-1 text-left text-xs text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">
+                                      <span className="text-neutral-300 tabular-nums flex-shrink-0">{ev.date}</span>
+                                      <span className="truncate">{ev.title}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          // Simple: flat event list
+                          <div className="space-y-0.5">
+                            {group.forms[0].events.map((ev) => (
+                              <button key={ev.id} onClick={() => onEventClick(ev.id)} className="w-full flex items-center gap-2 py-1 text-left text-xs text-neutral-500 hover:text-neutral-900 hover:underline underline-offset-2">
+                                <span className="text-neutral-300 tabular-nums flex-shrink-0">{ev.date}</span>
+                                <span className="truncate">{ev.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -714,7 +770,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
             </div>
           </section>
         ))}
-        {filtered.length === 0 && <Empty />}
+        {allGroups.length === 0 && <Empty />}
       </div>
     </div>
   );
