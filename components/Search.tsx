@@ -638,7 +638,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
 
   const q = query.trim().toLowerCase();
   const filtered = pieces
-    .filter((p) => !q || p.title.toLowerCase().includes(q) || p.composer?.name.toLowerCase().includes(q) || p.composer_text?.toLowerCase().includes(q))
+    .filter((p) => p.events.length > 0 && (!q || p.title.toLowerCase().includes(q) || p.composer?.name.toLowerCase().includes(q) || p.composer_text?.toLowerCase().includes(q)))
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
 
   const groups = groupAlpha(filtered, (p) => p.title);
