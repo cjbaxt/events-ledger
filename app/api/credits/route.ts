@@ -1,5 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { requireOwner } from "@/lib/auth";
+
+export async function POST(req: NextRequest) {
+  const deny = await requireOwner(); if (deny) return deny;
+  const body = await req.json();
+  const { event_id, person_id, ensemble_id, role, note, is_main, sort_order } = body;
+  if (!event_id || !role || (!person_id && !ensemble_id)) {
+    return NextResponse.json({ error: "event_id, role and person_id or ensemble_id required" }, { status: 400 });
+  }
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.from("event_credit").insert({
+    event_id, role,
+    person_id: person_id ?? null,
+    ensemble_id: ensemble_id ?? null,
+    note: note ?? null,
+    is_main: is_main ?? false,
+    sort_order: sort_order ?? 0,
+  }).select("id").single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
 
 export async function GET() {
   const supabase = createServiceClient();

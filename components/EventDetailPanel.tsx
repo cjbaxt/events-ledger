@@ -12,6 +12,7 @@ import {
 import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 import { useGuest } from "./GuestContext";
+import NobProgrammeFetcher from "./NobProgrammeFetcher";
 
 const REVIEW_PROMPTS_ENTHUSIASM = [
   "Name one scene or image you'd describe to someone at the pub.",
@@ -518,6 +519,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [navTarget, setNavTarget] = useState<NavTarget | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const navigate = useCallback((kind: NavKind, id: string, hint?: string) => setNavTarget({ kind, id, hint }), []);
 
@@ -530,7 +532,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
       .then(setEvent)
       .catch((err) => setDetailError(err?.message ?? "Failed to load event"))
       .finally(() => setDetailLoading(false));
-  }, [eventId]);
+  }, [eventId, refreshKey]);
 
   useEffect(() => {
     if (directTarget) setNavTarget(directTarget);
@@ -677,6 +679,10 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   )}
 
                   {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} />}
+
+                  {!isGuest && (
+                    <NobProgrammeFetcher eventId={event.id} onDone={() => setRefreshKey((k) => k + 1)} />
+                  )}
                 </>
               ) : detailLoading && !preview && (
                 <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
