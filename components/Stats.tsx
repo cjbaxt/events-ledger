@@ -18,6 +18,24 @@ const PASTEL_COLORS = [
   "#e8e8d5", "#d5e8e8", "#e2d5e8", "#d5e4e8", "#e8d8d5",
 ];
 
+// Saturated per-type colors for the Over Time chart
+const TYPE_COLORS: Record<string, string> = {
+  ballet:      "#c97a88",
+  cabaret:     "#c45c32",
+  circus:      "#c94e4e",
+  classical:   "#4a7abf",
+  comedy:      "#d4a02a",
+  dance:       "#c965a8",
+  exhibition:  "#7a8c3a",
+  music:       "#3a8cbf",
+  opera:       "#7a4abf",
+  other:       "#8c8c8c",
+  screening:   "#4a5abf",
+  spoken_word: "#2a9e8c",
+  talk:        "#8c6a3a",
+  theatre:     "#9a4abf",
+};
+
 const SUBTYPE_COLORS: string[] = [
   "#a3a3a3", "#d4b896", "#9db8b8", "#b8a9c9", "#b8c9a9",
   "#c9b8a9", "#a9b8c9", "#c9a9b8", "#b8b8a3", "#a9c9c9",
@@ -382,8 +400,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ label: string; count: number; cx: number } | null>(null);
 
-  // Use the same pastel palette as the By Type subtype bars, keyed consistently by type name
-  function typeColor(type: string) { return PASTEL_COLORS[strHash(type) % PASTEL_COLORS.length]; }
+  function typeColor(type: string) { return TYPE_COLORS[type] ?? "#aaaaaa"; }
 
   // Fixed stack order (bottom → top)
   const STACK_ORDER = ["circus","comedy","music","theatre","dance","other","classical","ballet","cabaret","opera","spoken_word","exhibition","screening","talk"];
@@ -464,7 +481,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                 return (
                   <g key="gap-line">
                     <line x1={gapX} x2={gapX} y1={MT - 2} y2={MT + CH} stroke="#fed7aa" strokeWidth={1} strokeDasharray="3,2.5" />
-                    <text x={gapX + 4} y={MT - 3} fontSize={6} fill="#fb923c" fontFamily="system-ui" letterSpacing="0.02em">▸ reliable tracking begins</text>
+                    <text x={gapX + 4} y={MT - 3} fontSize={6} fill="#fb923c" fontFamily="system-ui" letterSpacing="0.02em">▸ reliable era</text>
                   </g>
                 );
               })()}
