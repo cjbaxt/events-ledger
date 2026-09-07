@@ -380,28 +380,12 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   const [filterOpen, setFilterOpen] = useState(false);
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{ year: string; cx: number; items: { type: string; count: number }[] } | null>(null);
+  const [tooltip, setTooltip] = useState<{ label: string; count: number; cx: number } | null>(null);
 
-  // Categorical palette: 8 reference slots (validated, adjacent ΔE ≥ 8.4 CVD), neutral grays for overflow.
-  // Tooltip provides secondary encoding for the 3 sub-3:1 contrast slots (aqua, yellow, magenta).
-  const TYPE_COLORS: Record<string, string> = {
-    circus:      "#2a78d6",  // slot 1 blue
-    comedy:      "#eb6834",  // slot 2 orange
-    music:       "#1baf7a",  // slot 3 aqua
-    theatre:     "#eda100",  // slot 4 yellow
-    dance:       "#e87ba4",  // slot 5 magenta
-    other:       "#008300",  // slot 6 green
-    classical:   "#4a3aa7",  // slot 7 violet
-    ballet:      "#e34948",  // slot 8 red
-    cabaret:     "#a09e97",  // overflow grays
-    opera:       "#b8b6af",
-    spoken_word: "#8e8c86",
-    exhibition:  "#c8c6bf",
-    screening:   "#d4d2cb",
-    talk:        "#dddbd4",
-  };
+  // Use the same pastel palette as the By Type subtype bars, keyed consistently by type name
+  function typeColor(type: string) { return PASTEL_COLORS[strHash(type) % PASTEL_COLORS.length]; }
 
-  // Fixed stack order (bottom → top), matches categorical slot order
+  // Fixed stack order (bottom → top)
   const STACK_ORDER = ["circus","comedy","music","theatre","dance","other","classical","ballet","cabaret","opera","spoken_word","exhibition","screening","talk"];
 
   const presentTypes = new Set(events.map((e) => e.type));
@@ -474,14 +458,16 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
               {/* Baseline */}
               <line x1={ML} x2={ML + CW} y1={MT + CH} y2={MT + CH} stroke="#d4d2cb" strokeWidth={1} />
 
-              {/* Memory-gap dotted separator between pre-2025 and 2025+ */}
-              {showGapLine && (
-                <line
-                  x1={ML + gap2025Idx * gap} x2={ML + gap2025Idx * gap}
-                  y1={MT - 2} y2={MT + CH}
-                  stroke="#fed7aa" strokeWidth={1} strokeDasharray="3,2.5"
-                />
-              )}
+              {/* Memory-gap dotted separator + annotation */}
+              {showGapLine && (() => {
+                const gapX = ML + gap2025Idx * gap;
+                return (
+                  <g key="gap-line">
+                    <line x1={gapX} x2={gapX} y1={MT - 2} y2={MT + CH} stroke="#fed7aa" strokeWidth={1} strokeDasharray="3,2.5" />
+                    <text x={gapX + 4} y={MT - 3} fontSize={6} fill="#fb923c" fontFamily="system-ui" letterSpacing="0.02em">▸ reliable tracking begins</text>
+                  </g>
+                );
+              })()}
 
               {/* Bars */}
               {years.map((year, i) => {
@@ -490,50 +476,38 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                 const barX = ML + i * gap + (gap - barW) / 2;
                 const isSelected = selectedYear === year;
                 const isPre2025 = parseInt(year) < 2025;
-                const alpha = isPre2025 ? 0.52 : 0.9;
+                const alpha = isPre2025 ? 0.6 : 1;
                 const barTopY = MT + CH - (total / maxCount) * CH;
                 const hitW = Math.max(barW + 4, gap * 0.88);
                 const hitX = ML + i * gap + (gap - hitW) / 2;
 
-                // Build segments bottom-to-top with 1.5px gap between
-                const segments: { type: string; y: number; h: number; isTop: boolean }[] = [];
+                // Build segments bottom-to-top, no gaps
+                const segments: { type: string; cnt: number; y: number; h: number }[] = [];
                 let stackTop = MT + CH;
-                const GAP = 1.5;
                 for (const t of STACK_ORDER) {
                   if (hiddenTypes.has(t)) continue;
                   const cnt = typeMap.get(t) ?? 0;
                   if (cnt <= 0) continue;
                   const segH = (cnt / maxCount) * CH;
-                  const isFirst = segments.length === 0;
-                  const adj = isFirst ? 0 : GAP;
                   stackTop -= segH;
-                  segments.push({ type: t, y: stackTop + adj, h: Math.max(1, segH - adj), isTop: false });
+                  segments.push({ type: t, cnt, y: stackTop, h: Math.max(1, segH) });
                 }
-                if (segments.length > 0) segments[segments.length - 1].isTop = true;
 
                 return (
-                  <g key={year}
-                    onClick={() => setSelectedYear(isSelected ? null : year)}
-                    onMouseEnter={() => {
-                      const items = STACK_ORDER
-                        .filter((t) => !hiddenTypes.has(t) && (typeMap.get(t) ?? 0) > 0)
-                        .map((t) => ({ type: t, count: typeMap.get(t)! }));
-                      setTooltip({ year, cx: barX + barW / 2, items });
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {/* Invisible hit area (wider than bar for easy hover) */}
-                    <rect x={hitX} y={MT} width={hitW} height={CH} fill="transparent" />
+                  <g key={year} onClick={() => setSelectedYear(isSelected ? null : year)} style={{ cursor: "pointer" }}>
+                    {/* Invisible hit area */}
+                    <rect x={hitX} y={MT} width={hitW} height={CH} fill="transparent" onMouseLeave={() => setTooltip(null)} />
 
-                    {/* Stacked segments */}
-                    {segments.map(({ type, y, h, isTop }) => (
+                    {/* Stacked segments — per-segment hover */}
+                    {segments.map(({ type, cnt, y, h }) => (
                       <rect
                         key={type}
                         x={barX} y={y} width={barW} height={h}
-                        fill={TYPE_COLORS[type] ?? "#c8c6bf"}
+                        fill={typeColor(type)}
                         opacity={alpha}
-                        rx={isTop ? 3 : 0}
-                        ry={isTop ? 3 : 0}
+                        rx={0} ry={0}
+                        onMouseEnter={() => setTooltip({ label: type.replace(/_/g, " "), count: cnt, cx: barX + barW / 2 })}
+                        onMouseLeave={() => setTooltip(null)}
                       />
                     ))}
 
@@ -562,21 +536,15 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
               })}
             </svg>
 
-            {/* Hover tooltip (secondary encoding: names + counts for sub-3:1 hues) */}
+            {/* Per-segment hover tooltip */}
             {tooltip && (
               <div
                 className="absolute pointer-events-none z-20"
                 style={{ left: `${(tooltip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}
               >
-                <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-2 text-[10px] shadow-lg" style={{ minWidth: 80 }}>
-                  <div className="text-neutral-400 mb-1.5 font-medium">{tooltip.year}</div>
-                  {tooltip.items.map(({ type, count }) => (
-                    <div key={type} className="flex items-center gap-1.5 py-px">
-                      <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
-                      <span className="capitalize flex-1 whitespace-nowrap">{type.replace(/_/g, " ")}</span>
-                      <span className="text-neutral-400 ml-2">{count}</span>
-                    </div>
-                  ))}
+                <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-1.5 text-[10px] shadow-lg whitespace-nowrap">
+                  <span className="capitalize">{tooltip.label}</span>
+                  <span className="text-neutral-400 ml-2">{tooltip.count}</span>
                 </div>
               </div>
             )}
@@ -589,7 +557,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                 .filter((t) => years.some((y) => (byYear.get(y)?.get(t) ?? 0) > 0))
                 .map((type) => (
                   <div key={type} className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
+                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: typeColor(type) }} />
                     <span className="text-[9px] text-neutral-400 capitalize">{type.replace(/_/g, " ")}</span>
                   </div>
                 ))}
@@ -610,7 +578,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
               {yearEvents.map((e) => (
                 <button key={e.id} onClick={() => onEventClick(e.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-50 transition-colors text-left group">
                   <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(5, 7)}/{e.date.slice(8, 10)}</span>
-                  <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[e.type] ?? "#c8c6bf" }} />
+                  <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: typeColor(e.type) }} />
                   <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{e.title}</span>
                   {e.rating && <span className="text-[10px] text-neutral-300 flex-shrink-0">{e.rating}★</span>}
                 </button>
@@ -636,7 +604,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                     <div className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"}`}>
                       {!hidden && <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                     </div>
-                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
+                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: typeColor(type) }} />
                     <span className={`text-sm capitalize flex-1 text-left transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>{type.replace(/_/g, " ")}</span>
                   </button>
                 );
