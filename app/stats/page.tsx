@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import Nav from "@/components/Nav";
 import Stats from "@/components/Stats";
 import EventDetailPanel from "@/components/EventDetailPanel";
@@ -48,7 +48,9 @@ export default function StatsPage() {
     <div className="min-h-screen bg-white">
       <Nav />
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-24 md:pt-20 md:pb-8">
-        <Stats onEventClick={handleEventClick} onEntityClick={handleEntityClick} onVenueClick={handleVenueClick} />
+        <Suspense fallback={<div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>}>
+          <Stats onEventClick={handleEventClick} onEntityClick={handleEntityClick} onVenueClick={handleVenueClick} />
+        </Suspense>
       </main>
       <EventDetailPanel
         open={panelOpen}

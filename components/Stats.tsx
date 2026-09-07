@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchEvents, patchEventRating, fetchAllPersons, fetchAllEnsembles } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
@@ -107,7 +108,7 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
   editorMode: boolean; onRatingChange: (id: string, rating: number | null) => void;
 }) {
   const [groupByContext, setGroupByContext] = useState(false);
-  const [groupBySubtype, setGroupBySubtype] = useState(false);
+  const [groupBySubtype, setGroupBySubtype] = useState(!subtype);
   const [saving, setSaving] = useState<string | null>(null);
   const filtered = subtype ? evts.filter((e) => e.subtype === subtype) : evts;
   const label = subtype ? `${TYPE_LABELS[type] ?? type} — ${subtype.replace(/_/g, " ")}` : TYPE_LABELS[type] ?? type;
@@ -178,12 +179,13 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
   );
 }
 
-function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingChange }: {
+function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingChange, drill, onDrill }: {
   events: EventListItem[]; onEventClick: (id: string) => void;
   onEntityClick: (id: string, kind: "person" | "ensemble" | null) => void;
   editorMode: boolean; onRatingChange: (id: string, rating: number | null) => void;
+  drill: { type: string; subtype?: string } | null;
+  onDrill: (d: { type: string; subtype?: string } | null) => void;
 }) {
-  const [drill, setDrill] = useState<{ type: string; subtype?: string } | null>(null);
   const [hovered, setHovered] = useState<{ type: string; subtype: string; count: number } | null>(null);
   const byType = new Map<string, EventListItem[]>();
   for (const e of events) { if (!byType.has(e.type)) byType.set(e.type, []); byType.get(e.type)!.push(e); }
@@ -191,7 +193,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
   const primaryTypes = [...byType.entries()].filter(([t]) => !SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   const secondaryTypes = [...byType.entries()].filter(([t]) => SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   if (drill) {
-    return <TypeDrillDown type={drill.type} evts={byType.get(drill.type) ?? []} subtype={drill.subtype} onBack={() => setDrill(null)} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={editorMode} onRatingChange={onRatingChange} />;
+    return <TypeDrillDown type={drill.type} evts={byType.get(drill.type) ?? []} subtype={drill.subtype} onBack={() => onDrill(null)} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={editorMode} onRatingChange={onRatingChange} />;
   }
   function renderCard([type, evts]: [string, EventListItem[]]) {
     const entityCounts = new Map<string, { name: string; id: string; kind: "person" | "ensemble" | null; n: number }>();
@@ -207,7 +209,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
     const lastSeenEntityId = lastSeenEvt?.primary_entity_id ?? null;
     const lastSeenEntityKind = lastSeenEvt?.primary_entity_kind ?? null;
     return (
-      <div key={type} onClick={() => setDrill({ type })} className="border border-neutral-100 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all">
+      <div key={type} onClick={() => onDrill({ type })} className="border border-neutral-100 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-neutral-300 hover:shadow-sm transition-all">
         <div className="flex items-center gap-1.5 text-neutral-400"><EventTypeIcon type={type} size={12} /><span className="text-[10px] uppercase tracking-widest">{TYPE_LABELS[type] ?? type}</span></div>
         <div className="flex items-end gap-2"><span className="font-serif text-3xl text-neutral-900 leading-none">{evts.length}</span>{avgRating !== null && <span className="text-[10px] text-neutral-400 mb-0.5">{avgRating.toFixed(1)}★</span>}</div>
         {subtypes.length > 0 && (
@@ -217,7 +219,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
                 <button key={sub} style={{ width: `${(count / evts.length) * 100}%`, background: PASTEL_COLORS[(strHash(type) + i) % PASTEL_COLORS.length], filter: hovered?.type === type && hovered?.subtype === sub ? "brightness(0.9)" : "none" }} className="h-full focus:outline-none transition-all"
                   onMouseEnter={(e) => { e.stopPropagation(); setHovered({ type, subtype: sub, count }); }}
                   onMouseLeave={() => setHovered(null)}
-                  onClick={(e) => { e.stopPropagation(); setDrill({ type, subtype: sub }); }} />
+                  onClick={(e) => { e.stopPropagation(); onDrill({ type, subtype: sub }); }} />
               ))}
             </div>
             {hovered?.type === type && <div className="absolute top-full mt-1.5 right-0 bg-neutral-900 text-white text-[10px] rounded-md px-2 py-1 whitespace-nowrap pointer-events-none z-10 capitalize">{hovered.subtype.replace(/_/g, " ")} · {hovered.count}</div>}
@@ -642,15 +644,42 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
 const TABS = ["By type", "Artists", "Venues", "Over time"] as const;
 type Tab = typeof TABS[number];
 
+const TAB_SLUG: Record<Tab, string> = {
+  "By type": "by-type", "Artists": "artists", "Venues": "venues", "Over time": "over-time",
+};
+const SLUG_TAB: Record<string, Tab> = Object.fromEntries(
+  (Object.entries(TAB_SLUG) as [Tab, string][]).map(([t, s]) => [s, t])
+);
+
 export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
   onEventClick: (id: string) => void;
   onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void;
   onVenueClick: (id: string, name?: string) => void;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("By type");
   const today = new Date().toLocaleDateString("sv");
+
+  const tab: Tab = SLUG_TAB[searchParams.get("tab") ?? ""] ?? "By type";
+  const typeParam = searchParams.get("type");
+  const subtypeParam = searchParams.get("subtype");
+  const drill = typeParam ? { type: typeParam, subtype: subtypeParam ?? undefined } : null;
+
+  function setTab(t: Tab) {
+    router.push(`/stats?tab=${TAB_SLUG[t]}`);
+  }
+  function setDrill(d: { type: string; subtype?: string } | null) {
+    if (!d) {
+      router.push(`/stats?tab=by-type`);
+    } else {
+      const p = new URLSearchParams({ tab: "by-type", type: d.type });
+      if (d.subtype) p.set("subtype", d.subtype);
+      router.push(`/stats?${p}`);
+    }
+  }
+
   useEffect(() => {
     fetchEvents({ limit: 500 }).then((evts) => setEvents(evts.filter((e) => e.date <= today))).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -661,7 +690,7 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
       <div className="flex gap-1 border-b border-neutral-100">
         {TABS.map((t) => <button key={t} onClick={() => setTab(t)} className={`px-3 py-2 text-xs uppercase tracking-widest transition-colors border-b-2 -mb-px ${tab === t ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-400 hover:text-neutral-600"}`}>{t}</button>)}
       </div>
-      {tab === "By type" && <ByTypeTab events={events} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={true} onRatingChange={handleRatingChange} />}
+      {tab === "By type" && <ByTypeTab events={events} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={true} onRatingChange={handleRatingChange} drill={drill} onDrill={setDrill} />}
       {tab === "Artists" && <ArtistsTab events={events} onEntityClick={onEntityClick} />}
       {tab === "Venues" && <VenuesTab events={events} onVenueClick={onVenueClick} />}
       {tab === "Over time" && <OverTimeTab events={events} onEventClick={onEventClick} />}
