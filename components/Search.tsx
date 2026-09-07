@@ -16,7 +16,9 @@ interface MusicalPiece {
   events: { id: string; title: string; date: string; type: string }[];
 }
 interface WorkItem {
-  id: string; title: string; type: string | null; creator: { id: string; name: string } | null;
+  id: string; title: string; type: string | null;
+  creator: { id: string; name: string } | null;
+  ensemble_creator: { id: string; name: string } | null;
   events: { id: string; title: string; date: string; type: string }[];
 }
 // Unified row for the Works tab
@@ -771,7 +773,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
     ]).then(([works, pieces]) => {
       const workRows: WorkRow[] = works.map((w) => ({
         id: `w:${w.id}`, title: w.title, workType: w.type ?? null,
-        creatorName: w.creator?.name ?? null, movement: null, events: w.events ?? [], source: "work",
+        creatorName: w.creator?.name ?? w.ensemble_creator?.name ?? null, movement: null, events: w.events ?? [], source: "work",
       }));
       const pieceRows: WorkRow[] = pieces
         .filter((p) => p.events.length > 0 && p.work_type === "music")
