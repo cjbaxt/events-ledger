@@ -43,7 +43,7 @@ const SUBTYPES: Record<string, string[]> = {
   talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "science", "interview", "other"],
   exhibition: ["art", "natural_history", "science", "photography", "sculpture", "design", "historical", "other"],
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
-  other: ["street", "immersive_experience", "escape_room", "game", "workshop", "tour", "ceremony", "installation", "other"],
+  other: ["street_circus", "street_magic", "street_music", "street", "immersive_experience", "escape_room", "game", "workshop", "tour", "ceremony", "installation", "other"],
 };
 
 const inputCls = "w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-neutral-400";
