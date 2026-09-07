@@ -8,6 +8,8 @@ import {
 import type { PaymentMethod, ProgrammeItemSave } from "@/lib/api";
 import type { EventDetail } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
+import NobProgrammeFetcher from "./NobProgrammeFetcher";
+import ConcertgebouwProgrammeFetcher from "./ConcertgebouwProgrammeFetcher";
 
 type NamedRef = { id: string; name: string };
 type LinkRow = { url: string; label: string; description: string };
@@ -981,6 +983,12 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         <div>
           <h2 className="font-serif text-xl text-neutral-900 mb-6"><button type="button" onClick={() => setStep("basic")} className="text-neutral-300 mr-2 hover:text-neutral-600">←</button>{TYPE_LABELS[type!]} details</h2>
           <ExtFields ext={ext} set={setExtField} />
+          {editMode && initialEvent && ["ballet", "opera", "dance"].includes(type!) && (
+            <NobProgrammeFetcher eventId={initialEvent.id as unknown as string} eventType={type!} onDone={() => {}} />
+          )}
+          {editMode && initialEvent && type === "classical" && (
+            <ConcertgebouwProgrammeFetcher eventId={initialEvent.id as unknown as string} onDone={() => {}} />
+          )}
           <div className="flex justify-end pt-6"><button type="button" onClick={() => setStep("take")} className="bg-neutral-900 text-white text-sm rounded-lg px-6 py-2.5 hover:bg-neutral-700 transition-colors">Next →</button></div>
         </div>
       )}

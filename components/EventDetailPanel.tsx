@@ -12,7 +12,6 @@ import {
 import type { EventListItem, EventDetail, NamedRef } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 import { useGuest } from "./GuestContext";
-import NobProgrammeFetcher from "./NobProgrammeFetcher";
 
 const REVIEW_PROMPTS_ENTHUSIASM = [
   "Name one scene or image you'd describe to someone at the pub.",
@@ -680,9 +679,6 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
 
                   {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} />}
 
-                  {!isGuest && (
-                    <NobProgrammeFetcher eventId={event.id} eventType={event.type} onDone={() => setRefreshKey((k) => k + 1)} />
-                  )}
                 </>
               ) : detailLoading && !preview && (
                 <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>
