@@ -224,8 +224,17 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
   }
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{primaryTypes.map(renderCard)}</div>
-      {secondaryTypes.length > 0 && <><hr className="border-neutral-100" /><div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{secondaryTypes.map(renderCard)}</div></>}
+      <div>
+        <div className="text-[10px] uppercase tracking-widest text-neutral-300 mb-2">Live performance arts</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{primaryTypes.map(renderCard)}</div>
+      </div>
+      {secondaryTypes.length > 0 && (
+        <div>
+          <hr className="border-neutral-100 mb-4" />
+          <div className="text-[10px] uppercase tracking-widest text-neutral-300 mb-2">Non-live or non-performance</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{secondaryTypes.map(renderCard)}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -371,22 +380,70 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   const [filterOpen, setFilterOpen] = useState(false);
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{ year: string; cx: number; items: { type: string; count: number }[] } | null>(null);
+
+  // Categorical palette: 8 reference slots (validated, adjacent ΔE ≥ 8.4 CVD), neutral grays for overflow.
+  // Tooltip provides secondary encoding for the 3 sub-3:1 contrast slots (aqua, yellow, magenta).
+  const TYPE_COLORS: Record<string, string> = {
+    circus:      "#2a78d6",  // slot 1 blue
+    comedy:      "#eb6834",  // slot 2 orange
+    music:       "#1baf7a",  // slot 3 aqua
+    theatre:     "#eda100",  // slot 4 yellow
+    dance:       "#e87ba4",  // slot 5 magenta
+    other:       "#008300",  // slot 6 green
+    classical:   "#4a3aa7",  // slot 7 violet
+    ballet:      "#e34948",  // slot 8 red
+    cabaret:     "#a09e97",  // overflow grays
+    opera:       "#b8b6af",
+    spoken_word: "#8e8c86",
+    exhibition:  "#c8c6bf",
+    screening:   "#d4d2cb",
+    talk:        "#dddbd4",
+  };
+
+  // Fixed stack order (bottom → top), matches categorical slot order
+  const STACK_ORDER = ["circus","comedy","music","theatre","dance","other","classical","ballet","cabaret","opera","spoken_word","exhibition","screening","talk"];
+
   const presentTypes = new Set(events.map((e) => e.type));
   const filtered = events.filter((e) => !hiddenTypes.has(e.type));
-  const byYear = new Map<string, { count: number; spend: number }>();
+  const activeTypes = ALL_OVER_TIME_TYPES.filter((t) => presentTypes.has(t) && !hiddenTypes.has(t));
+
+  // year → type → count, and year → spend
+  const byYear = new Map<string, Map<string, number>>();
+  const spendByYear = new Map<string, number>();
   for (const e of filtered) {
     const y = e.date.slice(0, 4);
-    const prev = byYear.get(y) ?? { count: 0, spend: 0 };
+    if (!byYear.has(y)) byYear.set(y, new Map());
+    byYear.get(y)!.set(e.type, (byYear.get(y)!.get(e.type) ?? 0) + 1);
     const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1) : 0;
-    byYear.set(y, { count: prev.count + 1, spend: prev.spend + price });
+    spendByYear.set(y, (spendByYear.get(y) ?? 0) + price);
   }
-  const years = [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  const maxCount = Math.max(...years.map(([, v]) => v.count));
+
+  const years = [...byYear.keys()].sort(); // chronological left→right
+  const maxCount = years.length > 0 ? Math.max(...years.map((y) => [...byYear.get(y)!.values()].reduce((a, b) => a + b, 0))) : 1;
+
   function openFilter() { setPendingHidden(new Set(hiddenTypes)); setFilterOpen(true); }
   function applyFilter() { setHiddenTypes(new Set(pendingHidden)); setFilterOpen(false); }
   function togglePending(type: string) { setPendingHidden((prev) => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; }); }
-  const hiddenCount = hiddenTypes.size;
-  const yearEvents = selectedYear ? [...filtered].filter((e) => e.date.startsWith(selectedYear)).sort((a, b) => b.date.localeCompare(a.date)) : [];
+
+  const yearEvents = selectedYear
+    ? [...filtered].filter((e) => e.date.startsWith(selectedYear)).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+
+  // SVG chart dimensions
+  const SVG_W = 340, SVG_H = 190;
+  const ML = 26, MR = 8, MT = 14, MB = 28;
+  const CW = SVG_W - ML - MR, CH = SVG_H - MT - MB;
+  const n = years.length;
+  const gap = n > 0 ? CW / n : CW;
+  const barW = Math.max(6, Math.min(28, gap * 0.68));
+
+  // Grid lines at 25/50/75/100% of max
+  const gridFracs = [0.25, 0.5, 0.75, 1.0];
+
+  // Memory-gap separator: dotted line between 2024 and 2025
+  const gap2025Idx = years.indexOf("2025");
+  const showGapLine = gap2025Idx > 0;
 
   return (
     <>
@@ -394,38 +451,166 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
         <div>
           <div className="flex items-center justify-between mb-4">
             <div className="text-[10px] uppercase tracking-widest text-neutral-400">Events per year</div>
-            <button onClick={openFilter} className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest transition-colors ${hiddenCount > 0 ? "text-neutral-400" : "text-neutral-300"}`}>
+            <button onClick={openFilter} className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest transition-colors ${hiddenTypes.size > 0 ? "text-neutral-400" : "text-neutral-300"}`}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-              {hiddenCount > 0 ? `${ALL_OVER_TIME_TYPES.filter((t) => presentTypes.has(t)).length - hiddenCount} types` : "All types"}
+              {hiddenTypes.size > 0 ? `${activeTypes.length} types` : "All types"}
             </button>
           </div>
-          <div className="space-y-2">
-            {years.map(([year, { count, spend }], i) => (
-              <div key={year}>
-                {i > 0 && years[i - 1][0] === "2025" && parseInt(year) < 2025 && (
-                  <div className="flex items-center gap-3 py-1"><span className="text-[10px] uppercase tracking-widest text-orange-300 w-full">memory gaps below</span></div>
-                )}
-                <button className={`flex items-center gap-3 w-full rounded-lg px-1 py-0.5 transition-colors ${selectedYear === year ? "bg-neutral-50" : "hover:bg-neutral-50"}`}
-                  onClick={() => setSelectedYear(selectedYear === year ? null : year)}>
-                  <span className={`text-xs w-10 flex-shrink-0 text-left ${selectedYear === year ? "text-neutral-700 font-medium" : parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-400"}`}>{year}</span>
-                  <div className="flex-1 h-6 bg-neutral-50 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${selectedYear === year ? "bg-neutral-400" : parseInt(year) < 2025 ? "bg-neutral-100" : "bg-neutral-200"}`} style={{ width: `${(count / maxCount) * 100}%` }} />
-                  </div>
-                  <span className={`text-xs w-6 text-right flex-shrink-0 ${selectedYear === year ? "text-neutral-700 font-medium" : parseInt(year) < 2025 ? "text-neutral-300" : "text-neutral-500"}`}>{count}</span>
-                  <span className="text-xs text-neutral-300 w-14 text-right flex-shrink-0">{spend > 0 ? `€${Math.round(spend)}` : ""}</span>
-                </button>
+
+          {/* Stacked vertical bar chart */}
+          <div className="relative select-none" onMouseLeave={() => setTooltip(null)}>
+            <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+              {/* Y gridlines */}
+              {gridFracs.map((frac) => {
+                const gridY = MT + CH - frac * CH;
+                const label = Math.round(frac * maxCount);
+                return (
+                  <g key={frac}>
+                    <line x1={ML} x2={ML + CW} y1={gridY} y2={gridY} stroke="#e8e7e0" strokeWidth={0.75} />
+                    <text x={ML - 4} y={gridY + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">{label}</text>
+                  </g>
+                );
+              })}
+              {/* Baseline */}
+              <line x1={ML} x2={ML + CW} y1={MT + CH} y2={MT + CH} stroke="#d4d2cb" strokeWidth={1} />
+
+              {/* Memory-gap dotted separator between pre-2025 and 2025+ */}
+              {showGapLine && (
+                <line
+                  x1={ML + gap2025Idx * gap} x2={ML + gap2025Idx * gap}
+                  y1={MT - 2} y2={MT + CH}
+                  stroke="#fed7aa" strokeWidth={1} strokeDasharray="3,2.5"
+                />
+              )}
+
+              {/* Bars */}
+              {years.map((year, i) => {
+                const typeMap = byYear.get(year)!;
+                const total = [...typeMap.values()].reduce((a, b) => a + b, 0);
+                const barX = ML + i * gap + (gap - barW) / 2;
+                const isSelected = selectedYear === year;
+                const isPre2025 = parseInt(year) < 2025;
+                const alpha = isPre2025 ? 0.52 : 0.9;
+                const barTopY = MT + CH - (total / maxCount) * CH;
+                const hitW = Math.max(barW + 4, gap * 0.88);
+                const hitX = ML + i * gap + (gap - hitW) / 2;
+
+                // Build segments bottom-to-top with 1.5px gap between
+                const segments: { type: string; y: number; h: number; isTop: boolean }[] = [];
+                let stackTop = MT + CH;
+                const GAP = 1.5;
+                for (const t of STACK_ORDER) {
+                  if (hiddenTypes.has(t)) continue;
+                  const cnt = typeMap.get(t) ?? 0;
+                  if (cnt <= 0) continue;
+                  const segH = (cnt / maxCount) * CH;
+                  const isFirst = segments.length === 0;
+                  const adj = isFirst ? 0 : GAP;
+                  stackTop -= segH;
+                  segments.push({ type: t, y: stackTop + adj, h: Math.max(1, segH - adj), isTop: false });
+                }
+                if (segments.length > 0) segments[segments.length - 1].isTop = true;
+
+                return (
+                  <g key={year}
+                    onClick={() => setSelectedYear(isSelected ? null : year)}
+                    onMouseEnter={() => {
+                      const items = STACK_ORDER
+                        .filter((t) => !hiddenTypes.has(t) && (typeMap.get(t) ?? 0) > 0)
+                        .map((t) => ({ type: t, count: typeMap.get(t)! }));
+                      setTooltip({ year, cx: barX + barW / 2, items });
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {/* Invisible hit area (wider than bar for easy hover) */}
+                    <rect x={hitX} y={MT} width={hitW} height={CH} fill="transparent" />
+
+                    {/* Stacked segments */}
+                    {segments.map(({ type, y, h, isTop }) => (
+                      <rect
+                        key={type}
+                        x={barX} y={y} width={barW} height={h}
+                        fill={TYPE_COLORS[type] ?? "#c8c6bf"}
+                        opacity={alpha}
+                        rx={isTop ? 3 : 0}
+                        ry={isTop ? 3 : 0}
+                      />
+                    ))}
+
+                    {/* Selection ring */}
+                    {isSelected && (
+                      <rect
+                        x={barX - 2} y={barTopY - 2}
+                        width={barW + 4} height={(total / maxCount) * CH + 4}
+                        fill="none" stroke="#737370" strokeWidth={1.5} rx={4} ry={4}
+                      />
+                    )}
+
+                    {/* Count label above selected bar */}
+                    {isSelected && (
+                      <text x={barX + barW / 2} y={barTopY - 5} textAnchor="middle" fontSize={8} fill="#525250" fontFamily="system-ui">{total}</text>
+                    )}
+
+                    {/* Year label */}
+                    <text
+                      x={barX + barW / 2} y={SVG_H - MB + 13}
+                      textAnchor="middle" fontSize={8} fontFamily="system-ui"
+                      fill={isSelected ? "#3d3c3a" : isPre2025 ? "#c8c6bf" : "#9b9991"}
+                    >{year.slice(2)}</text>
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Hover tooltip (secondary encoding: names + counts for sub-3:1 hues) */}
+            {tooltip && (
+              <div
+                className="absolute pointer-events-none z-20"
+                style={{ left: `${(tooltip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}
+              >
+                <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-2 text-[10px] shadow-lg" style={{ minWidth: 80 }}>
+                  <div className="text-neutral-400 mb-1.5 font-medium">{tooltip.year}</div>
+                  {tooltip.items.map(({ type, count }) => (
+                    <div key={type} className="flex items-center gap-1.5 py-px">
+                      <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
+                      <span className="capitalize flex-1 whitespace-nowrap">{type.replace(/_/g, " ")}</span>
+                      <span className="text-neutral-400 ml-2">{count}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
+
+          {/* Legend */}
+          {years.length > 0 && activeTypes.length > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3">
+              {activeTypes
+                .filter((t) => years.some((y) => (byYear.get(y)?.get(t) ?? 0) > 0))
+                .map((type) => (
+                  <div key={type} className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
+                    <span className="text-[9px] text-neutral-400 capitalize">{type.replace(/_/g, " ")}</span>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
+
+        {/* Selected year — event list */}
         {selectedYear && (
           <div>
-            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">{selectedYear}</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] uppercase tracking-widest text-neutral-400">{selectedYear}</div>
+              {(spendByYear.get(selectedYear) ?? 0) > 0 && (
+                <div className="text-[10px] text-neutral-300">€{Math.round(spendByYear.get(selectedYear)!)}</div>
+              )}
+            </div>
             <div className="space-y-0.5">
               {yearEvents.map((e) => (
                 <button key={e.id} onClick={() => onEventClick(e.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-50 transition-colors text-left group">
                   <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(5, 7)}/{e.date.slice(8, 10)}</span>
-                  <EventTypeIcon type={e.type} size={11} />
+                  <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[e.type] ?? "#c8c6bf" }} />
                   <span className="flex-1 font-serif text-sm text-neutral-900 truncate group-hover:underline underline-offset-2">{e.title}</span>
                   {e.rating && <span className="text-[10px] text-neutral-300 flex-shrink-0">{e.rating}★</span>}
                 </button>
@@ -434,17 +619,24 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
           </div>
         )}
       </div>
+
+      {/* Filter modal */}
       {filterOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setFilterOpen(false)}>
           <div className="bg-white rounded-t-2xl border-t border-neutral-200 px-5 pt-5 pb-8 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5"><h3 className="font-serif text-lg text-neutral-900">Filter by type</h3><button onClick={() => setFilterOpen(false)} className="text-neutral-400 hover:text-neutral-700 text-sm">✕</button></div>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-serif text-lg text-neutral-900">Filter by type</h3>
+              <button onClick={() => setFilterOpen(false)} className="text-neutral-400 hover:text-neutral-700 text-sm">✕</button>
+            </div>
             <div className="space-y-1 mb-6">
               {ALL_OVER_TIME_TYPES.filter((t) => presentTypes.has(t)).map((type) => {
                 const hidden = pendingHidden.has(type);
                 return (
                   <button key={type} onClick={() => togglePending(type)} className="w-full flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-neutral-50 transition-colors">
-                    <div className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"}`}>{!hidden && <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}</div>
-                    <div className="w-6 h-6 border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 flex-shrink-0"><EventTypeIcon type={type} size={12} /></div>
+                    <div className={`w-4 h-4 rounded border flex-shrink-0 transition-colors ${hidden ? "border-neutral-200 bg-white" : "border-neutral-900 bg-neutral-900"}`}>
+                      {!hidden && <svg viewBox="0 0 12 12" className="w-full h-full text-white" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </div>
+                    <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TYPE_COLORS[type] ?? "#c8c6bf" }} />
                     <span className={`text-sm capitalize flex-1 text-left transition-colors ${hidden ? "text-neutral-300" : "text-neutral-700"}`}>{type.replace(/_/g, " ")}</span>
                   </button>
                 );
