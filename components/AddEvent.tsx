@@ -962,7 +962,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
               }} optional={false} displayFn={(i) => i.parent_name ? `${String(i.name)} — ${String(i.parent_name)}` : String(i.name)} />
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2"><Field label="Price paid"><input type="number" step="0.01" className={inputCls} value={(base.price_paid as string) ?? ""} onChange={(e) => setBaseField("price_paid", e.target.value)} placeholder="0.00" /></Field></div>
-              <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
+              <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "AUD", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
             </div>
             <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} />
             {SUBTYPES[type!] && (
@@ -1014,7 +1014,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                   <input className={inputCls} placeholder="Name (e.g. Museumkaart 2026)" value={newPM.name} onChange={(e) => setNewPM((v) => ({ ...v, name: e.target.value }))} />
                   <div className="grid grid-cols-2 gap-2">
                     <input className={inputCls} type="number" step="0.01" placeholder="Total cost" value={newPM.total_cost} onChange={(e) => setNewPM((v) => ({ ...v, total_cost: e.target.value }))} />
-                    <select className={inputCls} value={newPM.currency} onChange={(e) => setNewPM((v) => ({ ...v, currency: e.target.value }))}>{["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}</select>
+                    <select className={inputCls} value={newPM.currency} onChange={(e) => setNewPM((v) => ({ ...v, currency: e.target.value }))}>{["EUR", "GBP", "AUD", "USD"].map((c) => <option key={c}>{c}</option>)}</select>
                   </div>
                   <input className={inputCls} type="date" value={newPM.purchase_date} onChange={(e) => setNewPM((v) => ({ ...v, purchase_date: e.target.value }))} />
                   <input className={inputCls} placeholder="Notes (optional)" value={newPM.notes} onChange={(e) => setNewPM((v) => ({ ...v, notes: e.target.value }))} />

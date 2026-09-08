@@ -420,7 +420,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
     const y = e.date.slice(0, 4);
     if (!byYear.has(y)) byYear.set(y, new Map());
     byYear.get(y)!.set(e.type, (byYear.get(y)!.get(e.type) ?? 0) + 1);
-    const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1) : 0;
+    const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : e.currency === "AUD" ? 0.58 : 1) : 0;
     spendByYear.set(y, (spendByYear.get(y) ?? 0) + price);
   }
 
@@ -433,7 +433,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
       const r = ratingAcc.get(y)!; r.sum += e.rating; r.n++;
     }
     if (e.price_paid) {
-      const p2 = parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1);
+      const p2 = parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : e.currency === "AUD" ? 0.58 : 1);
       if (p2 > 0) {
         if (!priceAcc.has(y)) priceAcc.set(y, { sum: 0, n: 0 });
         const p = priceAcc.get(y)!; p.sum += p2; p.n++;

@@ -528,7 +528,7 @@ function PriceEditor({ price, currency, onSave }: { price: string | null; curren
     <Field label="Price paid">
       <div className="flex items-center gap-2">
         <select value={cur} onChange={(e) => setCur(e.target.value)} className="border border-neutral-200 rounded px-1.5 py-1 text-xs text-neutral-700 bg-white">
-          {["EUR", "GBP", "USD"].map((c) => <option key={c}>{c}</option>)}
+          {["EUR", "GBP", "AUD", "USD"].map((c) => <option key={c}>{c}</option>)}
         </select>
         <input type="number" step="0.01" value={val} onChange={(e) => setVal(e.target.value)} className="border border-neutral-200 rounded px-2 py-1 text-xs w-24 text-neutral-700" autoFocus />
         <button onClick={() => { onSave(val, cur); setEditing(false); }} className="text-xs text-neutral-700 border border-neutral-300 rounded px-2 py-1 hover:bg-neutral-50">Save</button>
