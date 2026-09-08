@@ -6,8 +6,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from("work")
-    .select("id, title, type, year, creator:creator_id(id, name)")
+    .from("musical_piece")
+    .select("id, title, movement, catalogue_number, composer_text, work_type, composer:composer_id(id, name)")
     .eq("id", id)
     .single();
   if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -20,13 +20,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const updates: Record<string, unknown> = {};
   if ("title" in body && body.title?.trim()) updates.title = body.title.trim();
-  if ("year" in body) updates.year = body.year ? Number(body.year) : null;
+  if ("movement" in body) updates.movement = body.movement?.trim() || null;
+  if ("catalogue_number" in body) updates.catalogue_number = body.catalogue_number?.trim() || null;
+  if ("composer_text" in body) updates.composer_text = body.composer_text?.trim() || null;
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from("work")
+    .from("musical_piece")
     .update(updates)
     .eq("id", id)
-    .select("id, title, type, year, creator:creator_id(id, name)")
+    .select("id, title, movement, catalogue_number, composer_text, work_type, composer:composer_id(id, name)")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

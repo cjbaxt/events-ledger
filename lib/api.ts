@@ -203,8 +203,33 @@ export async function fetchWork(id: string): Promise<{ id: string; title: string
   });
 }
 
+export async function updateWork(id: string, updates: { title?: string; year?: number | null }): Promise<void> {
+  const res = await apiFetch(`/api/works/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update work (${res.status})`); }
+  invalidateNameCache(`work:${id}`);
+}
+
 export async function fetchWorkEvents(id: string): Promise<EventListItem[]> {
   const ids = await fetchEntityEventIds(`/api/works/${id}/events`);
+  return filterFromCache(ids);
+}
+
+export async function fetchPiece(id: string): Promise<{ id: string; title: string; movement: string | null; catalogue_number: string | null; composer_text: string | null; work_type: string | null; composer: { id: string; name: string } | null }> {
+  return cachedFetch(`piece:${id}`, async () => {
+    const res = await apiFetch(`/api/musical_pieces/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch piece: ${res.status}`);
+    return res.json();
+  });
+}
+
+export async function updatePiece(id: string, updates: { title?: string; movement?: string | null; catalogue_number?: string | null; composer_text?: string | null }): Promise<void> {
+  const res = await apiFetch(`/api/musical_pieces/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update piece (${res.status})`); }
+  invalidateNameCache(`piece:${id}`);
+}
+
+export async function fetchPieceEvents(id: string): Promise<EventListItem[]> {
+  const ids = await fetchEntityEventIds(`/api/musical_pieces/${id}/events`);
   return filterFromCache(ids);
 }
 

@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import Search from "@/components/Search";
 import EventDetailPanel from "@/components/EventDetailPanel";
 
-type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method";
+type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method" | "work" | "piece";
 type DirectTarget = { kind: NavKind; id: string; hint?: string } | null;
 
 export default function SearchPage() {
@@ -49,6 +49,12 @@ export default function SearchPage() {
     setPanelOpen(true);
   }, []);
 
+  const handleWorkClick = useCallback((id: string, source: "work" | "piece") => {
+    setSelectedId(null);
+    setDirectTarget({ kind: source === "piece" ? "piece" : "work", id });
+    setPanelOpen(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <Nav />
@@ -58,6 +64,7 @@ export default function SearchPage() {
           onEntityClick={handleEntityClick}
           onVenueClick={handleVenueClick}
           onFestivalClick={handleFestivalClick}
+          onWorkClick={handleWorkClick}
         />
       </main>
       <EventDetailPanel

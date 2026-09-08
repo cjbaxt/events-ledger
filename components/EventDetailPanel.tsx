@@ -5,7 +5,8 @@ import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents, fetchEnsemble, fetchEnsembleEvents,
   fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents,
-  fetchWork, fetchWorkEvents,
+  fetchWork, fetchWorkEvents, updateWork,
+  fetchPiece, fetchPieceEvents, updatePiece,
   patchEventRating, patchEventPrice, patchEventReview,
   updatePersonRoles, updateEnsembleRoles,
 } from "@/lib/api";
@@ -123,9 +124,9 @@ function WorkField({ work, onPersonClick, onWorkClick }: { work: WorkObj; onPers
 }
 
 
-function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWorkClick }: {
+function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWorkClick, onPieceClick }: {
   extension: Record<string, unknown>; type: string;
-  onPersonClick: (id: string) => void; onEnsembleClick: (id: string) => void; onWorkClick: (id: string) => void;
+  onPersonClick: (id: string) => void; onEnsembleClick: (id: string) => void; onWorkClick: (id: string) => void; onPieceClick: (id: string) => void;
 }) {
   const skip = new Set(["id", "event_id", "subtype", "setlist", "setlist_fm_url", "credits",
     ...((new Set(["opera", "circus"])).has(type) ? ["notes", "notes_on_performance"] : [])]);
@@ -184,7 +185,9 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWo
               return (
                 <li key={i} className="text-sm">
                   <span className="text-neutral-400 mr-2">{item.order as number}.</span>
-                  <span className="text-neutral-800">{piece ? namedStr(piece) : "—"}</span>
+                  {piece
+                    ? <button onClick={() => onPieceClick(piece.id)} className="text-neutral-800 hover:underline underline-offset-2 hover:text-neutral-900 text-left">{namedStr(piece)}</button>
+                    : <span className="text-neutral-800">—</span>}
                   {(composer || choreographer) && <span className="text-neutral-500"> — <ClickableRef obj={(composer ?? choreographer)!} onClick={onPersonClick} /></span>}
                   {soloists && soloists.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Soloists: {soloists.map((s, j) => <span key={s.id}>{j > 0 && ", "}<ClickableRef obj={s} onClick={onPersonClick} /></span>)}</div>}
                   {music && music.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Music: {music.map((m, j) => <span key={m.id ?? j}>{j > 0 && "; "}<span className="text-neutral-600">{m.name}</span>{m.composer && <span> — <ClickableRef obj={m.composer} onClick={onPersonClick} /></span>}</span>)}</div>}
@@ -244,9 +247,9 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWo
   );
 }
 
-type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method" | "work";
+type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method" | "work" | "piece";
 interface NavTarget { kind: NavKind; id: string; hint?: string; }
-const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method", work: "Work" };
+const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method", work: "Work", piece: "Classical piece" };
 
 const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
 const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
@@ -258,6 +261,7 @@ async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<s
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
   if (kind === "payment_method") return id;
   if (kind === "work") return (await fetchWork(id)).title;
+  if (kind === "piece") { const p = await fetchPiece(id); return [p.title, p.movement].filter(Boolean).join(" — "); }
   return (await fetchEnsemble(id)).name;
 }
 async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[]> {
@@ -266,8 +270,15 @@ async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[
   if (kind === "festival") return fetchFestivalEvents(id);
   if (kind === "payment_method") return fetchPaymentMethodEvents(id);
   if (kind === "work") return fetchWorkEvents(id);
+  if (kind === "piece") return fetchPieceEvents(id);
   return fetchEnsembleEvents(id);
 }
+
+type WorkMetaState = {
+  creator?: string | null; year?: number | null;
+  movement?: string | null; catalogue_number?: string | null; composer_text?: string | null;
+  source: "work" | "piece";
+};
 
 function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; onBack: () => void; onEventClick: (id: string) => void }) {
   const [name, setName] = useState("");
@@ -277,11 +288,16 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
   const [editingRoles, setEditingRoles] = useState(false);
   const [draftRoles, setDraftRoles] = useState<string[]>([]);
   const [savingRoles, setSavingRoles] = useState(false);
-  const [workMeta, setWorkMeta] = useState<{ creator?: string | null; year?: number | null } | null>(null);
+  const [workMeta, setWorkMeta] = useState<WorkMetaState | null>(null);
+  const [editingWork, setEditingWork] = useState(false);
+  const [workDraft, setWorkDraft] = useState<{ title: string; year: string; movement: string; catalogue_number: string; composer_text: string }>({ title: "", year: "", movement: "", catalogue_number: "", composer_text: "" });
+  const [savingWork, setSavingWork] = useState(false);
+  const [workSaveError, setWorkSaveError] = useState<string | null>(null);
   const isGuest = useGuest();
 
   const [customInput, setCustomInput] = useState("");
   const hasRoles = target.kind === "person" || target.kind === "ensemble";
+  const hasWorkMeta = target.kind === "work" || target.kind === "piece";
   const vocab = target.kind === "person" ? PERSON_ROLE_VOCAB : ENSEMBLE_ROLE_VOCAB;
 
   useEffect(() => {
@@ -289,13 +305,16 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
     setRoles([]);
     setEditingRoles(false);
     setWorkMeta(null);
+    setEditingWork(false);
     const rolesPromise: Promise<string[]> = target.kind === "person"
       ? fetchPerson(target.id).then(p => p.roles ?? [])
       : target.kind === "ensemble"
       ? fetchEnsemble(target.id).then(e => e.roles ?? [])
       : Promise.resolve([]);
-    const workMetaPromise = target.kind === "work"
-      ? fetchWork(target.id).then(w => ({ creator: (w.creator as { name?: string } | null)?.name ?? null, year: w.year ?? null }))
+    const workMetaPromise: Promise<WorkMetaState | null> = target.kind === "work"
+      ? fetchWork(target.id).then(w => ({ creator: (w.creator as { name?: string } | null)?.name ?? null, year: w.year ?? null, source: "work" as const }))
+      : target.kind === "piece"
+      ? fetchPiece(target.id).then(p => ({ creator: p.composer?.name ?? p.composer_text ?? null, year: null, movement: p.movement ?? null, catalogue_number: p.catalogue_number ?? null, composer_text: p.composer_text ?? null, source: "piece" as const }))
       : Promise.resolve(null);
     Promise.all([fetchNavName(target.kind, target.id, target.hint), fetchNavEvents(target.kind, target.id), rolesPromise, workMetaPromise])
       .then(([n, evts, r, wm]) => { setName(n); setEvents(evts); setRoles(r); setWorkMeta(wm); })
@@ -314,6 +333,43 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
     }
   }
 
+  function startEditWork() {
+    if (!workMeta) return;
+    setWorkDraft({
+      title: name.split(" — ")[0] ?? "",
+      year: workMeta.year ? String(workMeta.year) : "",
+      movement: workMeta.movement ?? "",
+      catalogue_number: workMeta.catalogue_number ?? "",
+      composer_text: workMeta.composer_text ?? workMeta.creator ?? "",
+    });
+    setWorkSaveError(null);
+    setEditingWork(true);
+  }
+
+  async function saveWork() {
+    setSavingWork(true); setWorkSaveError(null);
+    try {
+      if (workMeta?.source === "work") {
+        await updateWork(target.id, { title: workDraft.title || undefined, year: workDraft.year ? parseInt(workDraft.year) : null });
+        setWorkMeta(wm => wm ? { ...wm, year: workDraft.year ? parseInt(workDraft.year) : null } : wm);
+      } else {
+        await updatePiece(target.id, {
+          title: workDraft.title || undefined,
+          movement: workDraft.movement || null,
+          catalogue_number: workDraft.catalogue_number || null,
+          composer_text: workDraft.composer_text || null,
+        });
+        setWorkMeta(wm => wm ? { ...wm, movement: workDraft.movement || null, catalogue_number: workDraft.catalogue_number || null, composer_text: workDraft.composer_text || null, creator: workDraft.composer_text || wm.creator } : wm);
+      }
+      if (workDraft.title) setName(workMeta?.source === "piece" && workDraft.movement ? `${workDraft.title} — ${workDraft.movement}` : workDraft.title);
+      setEditingWork(false);
+    } catch (e) {
+      setWorkSaveError((e as Error).message ?? "Save failed");
+    } finally {
+      setSavingWork(false);
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
@@ -325,10 +381,56 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
         {loading ? <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div> : (
           <>
             <h2 className="font-serif text-2xl text-neutral-900 mb-1">{name}</h2>
-            {workMeta && (workMeta.creator || workMeta.year) && (
-              <p className="text-sm text-neutral-500 mb-2">
+            {workMeta && !editingWork && (workMeta.creator || workMeta.year) && (
+              <p className="text-sm text-neutral-500 mb-1">
                 {workMeta.creator}{workMeta.creator && workMeta.year ? " · " : ""}{workMeta.year}
               </p>
+            )}
+            {workMeta && !editingWork && workMeta.catalogue_number && (
+              <p className="text-xs text-neutral-400 mb-1">{workMeta.catalogue_number}</p>
+            )}
+            {hasWorkMeta && !isGuest && !editingWork && (
+              <button onClick={startEditWork} className="text-[11px] text-neutral-400 hover:text-neutral-700 border border-neutral-200 hover:border-neutral-400 rounded px-2 py-0.5 transition-colors mb-3">Edit details</button>
+            )}
+            {hasWorkMeta && editingWork && (
+              <div className="mb-3 space-y-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Title</label>
+                  <input value={workDraft.title} onChange={e => setWorkDraft(d => ({ ...d, title: e.target.value }))}
+                    className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
+                </div>
+                {workMeta?.source === "piece" && (
+                  <>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Movement / subtitle</label>
+                      <input value={workDraft.movement} onChange={e => setWorkDraft(d => ({ ...d, movement: e.target.value }))}
+                        placeholder="e.g. Adagio" className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Catalogue number</label>
+                      <input value={workDraft.catalogue_number} onChange={e => setWorkDraft(d => ({ ...d, catalogue_number: e.target.value }))}
+                        placeholder="e.g. Op. 74" className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Composer</label>
+                      <input value={workDraft.composer_text} onChange={e => setWorkDraft(d => ({ ...d, composer_text: e.target.value }))}
+                        placeholder="Composer name" className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
+                    </div>
+                  </>
+                )}
+                {workMeta?.source === "work" && (
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Year</label>
+                    <input type="number" value={workDraft.year} onChange={e => setWorkDraft(d => ({ ...d, year: e.target.value }))}
+                      placeholder="e.g. 2019" className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
+                  </div>
+                )}
+                {workSaveError && <p className="text-xs text-red-500">{workSaveError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={saveWork} disabled={savingWork} className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full disabled:opacity-50">Save</button>
+                  <button onClick={() => { setEditingWork(false); setWorkSaveError(null); }} className="text-xs px-3 py-1 text-neutral-500 hover:text-neutral-700">Cancel</button>
+                </div>
+              </div>
             )}
             {hasRoles && !editingRoles && (
               <p
@@ -677,7 +779,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                     </div>
                   )}
 
-                  {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} />}
+                  {event.extension && <ExtensionFields extension={event.extension} type={event.type} onPersonClick={(id) => navigate("person", id)} onEnsembleClick={(id) => navigate("ensemble", id)} onWorkClick={(id) => navigate("work", id)} onPieceClick={(id) => navigate("piece", id)} />}
 
                 </>
               ) : detailLoading && !preview && (

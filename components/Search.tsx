@@ -754,7 +754,7 @@ function TypeChip({ type }: { type: string }) {
   );
 }
 
-function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: string) => void }) {
+function WorksTab({ query, onEventClick, onWorkClick }: { query: string; onEventClick: (id: string) => void; onWorkClick?: (id: string, source: "work" | "piece") => void }) {
   const isGuest = useGuest();
   const [rows, setRows] = useState<WorkRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -776,7 +776,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
         creatorName: w.creator?.name ?? w.ensemble_creator?.name ?? null, movement: null, events: w.events ?? [], source: "work",
       }));
       const pieceRows: WorkRow[] = pieces
-        .filter((p) => p.events.length > 0 && p.work_type === "music")
+        .filter((p) => p.work_type === "music")
         .map((p) => ({
           id: `p:${p.id}`, title: p.title, workType: "music",
           creatorName: p.composer?.name ?? p.composer_text ?? null,
@@ -811,7 +811,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
 
   const q = query.trim().toLowerCase();
   const allGroups = buildGroups(
-    rows.filter((r) => r.events.length > 0 && (!q || r.title.toLowerCase().includes(q) || r.creatorName?.toLowerCase().includes(q)))
+    rows.filter((r) => !q || r.title.toLowerCase().includes(q) || r.creatorName?.toLowerCase().includes(q))
   );
 
   const alphaGroups = groupAlpha(allGroups, (g) => g.title);
@@ -857,7 +857,11 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
                           <span className="text-xs text-neutral-400">{group.forms[0].creatorName}</span>
                         )}
                       </div>
-                      <span className="text-[11px] text-neutral-400 flex-shrink-0">seen {group.totalEvents}×</span>
+                      <span className={`text-[11px] flex-shrink-0 ${group.totalEvents === 0 ? "text-neutral-200" : "text-neutral-400"}`}>seen {group.totalEvents}×</span>
+                      {onWorkClick && !isMulti && (
+                        <span role="button" onClick={(e) => { e.stopPropagation(); onWorkClick(group.forms[0].id.slice(2), group.forms[0].source); }}
+                          className="text-[11px] text-neutral-300 hover:text-neutral-600 flex-shrink-0 px-1 py-0.5 hover:bg-neutral-100 rounded" title="Edit details">Edit</span>
+                      )}
                     </button>
 
                     {isExpanded && (
@@ -871,6 +875,7 @@ function WorksTab({ query, onEventClick }: { query: string; onEventClick: (id: s
                                   {form.workType && <TypeChip type={form.workType} />}
                                   {form.movement && <span className="text-[10px] text-neutral-400">{form.movement}</span>}
                                   {form.creatorName && <span className="text-xs text-neutral-400">{form.creatorName}</span>}
+                                  {onWorkClick && <button onClick={() => onWorkClick(form.id.slice(2), form.source)} className="text-[11px] text-neutral-300 hover:text-neutral-600 ml-1">Edit</button>}
                                 </div>
                                 <div className="ml-2 space-y-0.5">
                                   {form.events.map((ev) => (
@@ -917,11 +922,12 @@ const TABS: { id: ActiveTab; label: string }[] = [
   { id: "works", label: "Works" },
 ];
 
-export default function Search({ onEventClick, onEntityClick, onVenueClick, onFestivalClick }: {
+export default function Search({ onEventClick, onEntityClick, onVenueClick, onFestivalClick, onWorkClick }: {
   onEventClick: (id: string) => void;
   onEntityClick: (id: string, kind: "person" | "ensemble", name?: string) => void;
   onVenueClick: (id: string, name?: string) => void;
   onFestivalClick: (id: string, name?: string) => void;
+  onWorkClick?: (id: string, source: "work" | "piece") => void;
 }) {
   const isGuest = useGuest();
   const [tab, setTab] = useState<ActiveTab>("events");
@@ -951,7 +957,7 @@ export default function Search({ onEventClick, onEntityClick, onVenueClick, onFe
           )}
         />
       )}
-      {tab === "works" && <WorksTab query={query} onEventClick={onEventClick} />}
+      {tab === "works" && <WorksTab query={query} onEventClick={onEventClick} onWorkClick={onWorkClick} />}
     </div>
   );
 }
