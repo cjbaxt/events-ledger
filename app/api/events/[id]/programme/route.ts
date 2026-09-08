@@ -14,6 +14,33 @@ type ItemInput = {
   notes?: string | null;
 };
 
+async function findOrCreatePiece(supabase: ReturnType<typeof createServiceClient>, opts: {
+  title: string; composerId?: string | null; composerText?: string | null;
+  catalogueNumber?: string | null;
+}): Promise<string | null> {
+  const title = opts.title.trim();
+  // Look for an exact title match (case-insensitive) with the same composer
+  let query = supabase.from("musical_piece").select("id").ilike("title", title);
+  if (opts.composerId) query = query.eq("composer_id", opts.composerId);
+  else if (opts.composerText?.trim()) query = query.ilike("composer_text", opts.composerText.trim());
+  const { data: existing } = await query.limit(1).maybeSingle();
+  if (existing) return existing.id;
+  // Not found — create it
+  const { data } = await supabase
+    .from("musical_piece")
+    .insert({
+      id: randomUUID(),
+      title,
+      catalogue_number: opts.catalogueNumber?.trim() || null,
+      composer_id: opts.composerId || null,
+      // Only store composer_text when there's no linked composer_id
+      composer_text: opts.composerId ? null : (opts.composerText?.trim() || null),
+    })
+    .select("id")
+    .single();
+  return data?.id ?? null;
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const deny = await requireOwner(); if (deny) return deny;
   const { id } = await params;
@@ -35,19 +62,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const item = items[i];
     let pieceId = item.musical_piece_id;
     if (!pieceId && item.piece_title?.trim()) {
-      const { data } = await supabase
-        .from("musical_piece")
-        .insert({
-          id: randomUUID(),
-          title: item.piece_title.trim(),
-          movement: item.movement?.trim() || null,
-          catalogue_number: item.catalogue_number?.trim() || null,
-          composer_id: item.composer_id || null,
-          composer_text: item.composer_text?.trim() || null,
-        })
-        .select("id")
-        .single();
-      pieceId = data?.id ?? null;
+      pieceId = await findOrCreatePiece(supabase, {
+        title: item.piece_title,
+        composerId: item.composer_id || null,
+        composerText: item.composer_text || null,
+        catalogueNumber: item.catalogue_number || null,
+      });
     }
     if (!pieceId) continue;
     resolved.push({
@@ -87,19 +107,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   let pieceId = body.musical_piece_id ?? null;
   if (!pieceId && body.piece_title?.trim()) {
-    const { data } = await supabase
-      .from("musical_piece")
-      .insert({
-        id: randomUUID(),
-        title: body.piece_title.trim(),
-        movement: body.movement?.trim() || null,
-        catalogue_number: body.catalogue_number?.trim() || null,
-        composer_id: body.composer_id || null,
-        composer_text: body.composer_text?.trim() || null,
-      })
-      .select("id")
-      .single();
-    pieceId = data?.id ?? null;
+    pieceId = await findOrCreatePiece(supabase, {
+      title: body.piece_title,
+      composerId: body.composer_id || null,
+      composerText: body.composer_text || null,
+      catalogueNumber: body.catalogue_number || null,
+    });
   }
   if (!pieceId) return NextResponse.json({ error: "musical_piece_id or piece_title required" }, { status: 400 });
 

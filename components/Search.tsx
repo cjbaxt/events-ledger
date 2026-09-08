@@ -764,7 +764,31 @@ function WorksTab({ query, onEventClick, onWorkClick }: { query: string; onEvent
   const [newWorkType, setNewWorkType] = useState("ballet");
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [mergingKey, setMergingKey] = useState<string | null>(null);
   const letterRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  async function handleMerge(group: WorkGroup) {
+    if (group.forms.length < 2) return;
+    const allPieces = group.forms.every(f => f.source === "piece");
+    if (!allPieces) return;
+    // Keep the form with the most events; absorb the rest
+    const sorted = [...group.forms].sort((a, b) => b.events.length - a.events.length);
+    const canonical = sorted[0];
+    const toAbsorb = sorted.slice(1).map(f => f.id.slice(2));
+    const keepId = canonical.id.slice(2);
+    setMergingKey(group.key);
+    try {
+      const res = await fetch(`/api/musical_pieces/${keepId}/merge`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ absorb_ids: toAbsorb }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(`Merge failed: ${d.error}`); return; }
+      // Remove absorbed rows from state
+      setRows(prev => prev.filter(r => !toAbsorb.map(id => `p:${id}`).includes(r.id)));
+    } finally {
+      setMergingKey(null);
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -869,6 +893,12 @@ function WorksTab({ query, onEventClick, onWorkClick }: { query: string; onEvent
                         {isMulti ? (
                           // Tiered: each form gets its own section
                           <div className="space-y-2">
+                            {!isGuest && group.forms.every(f => f.source === "piece") && (
+                              <button onClick={() => handleMerge(group)} disabled={mergingKey === group.key}
+                                className="text-[11px] text-amber-500 hover:text-amber-700 border border-amber-200 hover:border-amber-400 rounded px-2 py-0.5 disabled:opacity-50 mb-1">
+                                {mergingKey === group.key ? "Merging…" : "Merge duplicates into one"}
+                              </button>
+                            )}
                             {group.forms.map((form) => (
                               <div key={form.id}>
                                 <div className="flex items-center gap-1.5 py-1">
