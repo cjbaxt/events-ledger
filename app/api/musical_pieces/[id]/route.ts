@@ -20,7 +20,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const updates: Record<string, unknown> = {};
   if ("title" in body && body.title?.trim()) updates.title = body.title.trim();
-  if ("movement" in body) updates.movement = body.movement?.trim() || null;
   if ("catalogue_number" in body) updates.catalogue_number = body.catalogue_number?.trim() || null;
   if ("composer_text" in body) updates.composer_text = body.composer_text?.trim() || null;
   const supabase = createServiceClient();

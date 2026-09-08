@@ -222,7 +222,7 @@ export async function fetchPiece(id: string): Promise<{ id: string; title: strin
   });
 }
 
-export async function updatePiece(id: string, updates: { title?: string; movement?: string | null; catalogue_number?: string | null; composer_text?: string | null }): Promise<void> {
+export async function updatePiece(id: string, updates: { title?: string; catalogue_number?: string | null; composer_text?: string | null }): Promise<void> {
   const res = await apiFetch(`/api/musical_pieces/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? `Failed to update piece (${res.status})`); }
   invalidateNameCache(`piece:${id}`);

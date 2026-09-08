@@ -182,6 +182,7 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWo
               const choreographer = item.choreographer as NamedObj | null;
               const soloists = item.soloists as NamedObj[] | null;
               const music = item.music as Array<{ id: string; name: string; composer: NamedObj | null }> | null;
+              const notes = item.notes as string | null;
               return (
                 <li key={i} className="text-sm">
                   <span className="text-neutral-400 mr-2">{item.order as number}.</span>
@@ -189,6 +190,7 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWo
                     ? <button onClick={() => onPieceClick(piece.id)} className="text-neutral-800 hover:underline underline-offset-2 hover:text-neutral-900 text-left">{namedStr(piece)}</button>
                     : <span className="text-neutral-800">—</span>}
                   {(composer || choreographer) && <span className="text-neutral-500"> — <ClickableRef obj={(composer ?? choreographer)!} onClick={onPersonClick} /></span>}
+                  {notes && <div className="text-xs text-neutral-400 mt-0.5 ml-4">{notes}</div>}
                   {soloists && soloists.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Soloists: {soloists.map((s, j) => <span key={s.id}>{j > 0 && ", "}<ClickableRef obj={s} onClick={onPersonClick} /></span>)}</div>}
                   {music && music.length > 0 && <div className="text-xs text-neutral-400 mt-0.5 ml-4">Music: {music.map((m, j) => <span key={m.id ?? j}>{j > 0 && "; "}<span className="text-neutral-600">{m.name}</span>{m.composer && <span> — <ClickableRef obj={m.composer} onClick={onPersonClick} /></span>}</span>)}</div>}
                 </li>
@@ -355,13 +357,12 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
       } else {
         await updatePiece(target.id, {
           title: workDraft.title || undefined,
-          movement: workDraft.movement || null,
           catalogue_number: workDraft.catalogue_number || null,
           composer_text: workDraft.composer_text || null,
         });
-        setWorkMeta(wm => wm ? { ...wm, movement: workDraft.movement || null, catalogue_number: workDraft.catalogue_number || null, composer_text: workDraft.composer_text || null, creator: workDraft.composer_text || wm.creator } : wm);
+        setWorkMeta(wm => wm ? { ...wm, catalogue_number: workDraft.catalogue_number || null, composer_text: workDraft.composer_text || null, creator: workDraft.composer_text || wm.creator } : wm);
       }
-      if (workDraft.title) setName(workMeta?.source === "piece" && workDraft.movement ? `${workDraft.title} — ${workDraft.movement}` : workDraft.title);
+      if (workDraft.title) setName(workDraft.title);
       setEditingWork(false);
     } catch (e) {
       setWorkSaveError((e as Error).message ?? "Save failed");
@@ -386,7 +387,7 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
                 {workMeta.creator}{workMeta.creator && workMeta.year ? " · " : ""}{workMeta.year}
               </p>
             )}
-            {workMeta && !editingWork && workMeta.catalogue_number && (
+            {workMeta && !editingWork && (workMeta.catalogue_number) && (
               <p className="text-xs text-neutral-400 mb-1">{workMeta.catalogue_number}</p>
             )}
             {hasWorkMeta && !isGuest && !editingWork && (
@@ -401,11 +402,6 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
                 </div>
                 {workMeta?.source === "piece" && (
                   <>
-                    <div>
-                      <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Movement / subtitle</label>
-                      <input value={workDraft.movement} onChange={e => setWorkDraft(d => ({ ...d, movement: e.target.value }))}
-                        placeholder="e.g. Adagio" className="w-full text-sm px-2.5 py-1.5 border border-neutral-200 rounded-lg outline-none focus:border-neutral-400" />
-                    </div>
                     <div>
                       <label className="text-[10px] uppercase tracking-widest text-neutral-400 block mb-0.5">Catalogue number</label>
                       <input value={workDraft.catalogue_number} onChange={e => setWorkDraft(d => ({ ...d, catalogue_number: e.target.value }))}

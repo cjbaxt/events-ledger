@@ -48,7 +48,7 @@ async function fetchClassicalProgramme(sb: SupabaseClient, eventId: string): Pro
   return rows.map((item) => {
     const mp = item.musical_piece;
     const composer = mp?.composer ?? (mp?.composer_text ? { id: "", name: mp.composer_text } : null);
-    const pieceTitle = [mp?.title, mp?.movement].filter(Boolean).join(" — ");
+    const pieceTitle = mp?.title ?? "";
     return {
       order: item.order,
       piece: mp ? { id: mp.id, name: pieceTitle + (mp.catalogue_number ? ` (${mp.catalogue_number})` : "") } : null,

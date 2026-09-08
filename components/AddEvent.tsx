@@ -384,9 +384,8 @@ function MusicFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
   </div>;
 }
 function pieceLabel(p: PieceResult): string {
-  const parts = [p.title, p.movement].filter(Boolean).join(" — ");
   const composer = p.composer?.name ?? p.composer_text ?? null;
-  return composer ? `${parts} (${composer})` : parts;
+  return composer ? `${p.title} (${composer})` : p.title;
 }
 
 function MusicalPiecePicker({ value, onChange }: {
@@ -469,7 +468,7 @@ function MusicalPiecePicker({ value, onChange }: {
           {results.map((r) => (
             <button key={r.id} type="button" onMouseDown={() => { onChange({ id: r.id, title: pieceLabel(r), composer: r.composer, composer_text: r.composer_text ?? "" }); setQuery(""); setOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100 last:border-0">
-              <div>{[r.title, r.movement].filter(Boolean).join(" — ")}</div>
+              <div>{r.title}</div>
               {(r.composer?.name ?? r.composer_text) && <div className="text-xs text-neutral-400">{r.composer?.name ?? r.composer_text}</div>}
             </button>
           ))}
