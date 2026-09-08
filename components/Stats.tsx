@@ -401,6 +401,8 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ label: string; count: number; cx: number } | null>(null);
+  const [ratingTip, setRatingTip] = useState<{ year: string; v: number; cx: number } | null>(null);
+  const [priceTip, setPriceTip] = useState<{ year: string; v: number; cx: number } | null>(null);
 
   function typeColor(type: string) { return TYPE_COLORS[type] ?? "#aaaaaa"; }
 
@@ -421,6 +423,25 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
     const price = e.price_paid ? parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1) : 0;
     spendByYear.set(y, (spendByYear.get(y) ?? 0) + price);
   }
+
+  const ratingAcc = new Map<string, { sum: number; n: number }>();
+  const priceAcc = new Map<string, { sum: number; n: number }>();
+  for (const e of filtered) {
+    const y = e.date.slice(0, 4);
+    if (e.rating != null) {
+      if (!ratingAcc.has(y)) ratingAcc.set(y, { sum: 0, n: 0 });
+      const r = ratingAcc.get(y)!; r.sum += e.rating; r.n++;
+    }
+    if (e.price_paid) {
+      const p2 = parseFloat(e.price_paid) * (e.currency === "GBP" ? 1.19 : 1);
+      if (p2 > 0) {
+        if (!priceAcc.has(y)) priceAcc.set(y, { sum: 0, n: 0 });
+        const p = priceAcc.get(y)!; p.sum += p2; p.n++;
+      }
+    }
+  }
+  const yearAvgRating = (y: string) => { const r = ratingAcc.get(y); return (r && r.n > 0) ? r.sum / r.n : null; };
+  const yearAvgPrice = (y: string) => { const p = priceAcc.get(y); return (p && p.n > 0) ? p.sum / p.n : null; };
 
   const years = [...byYear.keys()].sort(); // chronological left→right
   const maxCount = years.length > 0 ? Math.max(...years.map((y) => [...byYear.get(y)!.values()].reduce((a, b) => a + b, 0))) : 1;
@@ -447,6 +468,44 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   // Memory-gap separator: dotted line between 2024 and 2025
   const gap2025Idx = years.indexOf("2025");
   const showGapLine = gap2025Idx > 0;
+
+  // Line chart dimensions (shared x-axis layout with bar chart)
+  const SVG_LH = 90, MT_L = 8, MB_L = 28, CH_L = SVG_LH - MT_L - MB_L;
+  const xCenter = (i: number) => ML + i * gap + gap / 2;
+
+  const ratingPts = years.map((y, i) => {
+    const v = yearAvgRating(y);
+    if (v === null) return null;
+    return { y, v, cx: xCenter(i), cy: MT_L + CH_L - (v / 5) * CH_L };
+  });
+  const ratingSegs = (() => {
+    const segs: string[] = []; let cur = "";
+    for (const pt of ratingPts) {
+      if (pt) { cur += cur ? ` L ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}` : `M ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}`; }
+      else if (cur) { segs.push(cur); cur = ""; }
+    }
+    if (cur) segs.push(cur);
+    return segs;
+  })();
+  const hasRatingData = ratingPts.some(p => p !== null);
+
+  const allAvgPrices = years.map(y => yearAvgPrice(y)).filter(v => v !== null) as number[];
+  const priceYMax = allAvgPrices.length > 0 ? Math.max(10, Math.ceil(Math.max(...allAvgPrices) / 10) * 10) : 10;
+  const pricePts = years.map((y, i) => {
+    const v = yearAvgPrice(y);
+    if (v === null) return null;
+    return { y, v, cx: xCenter(i), cy: MT_L + CH_L - (v / priceYMax) * CH_L };
+  });
+  const priceSegs = (() => {
+    const segs: string[] = []; let cur = "";
+    for (const pt of pricePts) {
+      if (pt) { cur += cur ? ` L ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}` : `M ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}`; }
+      else if (cur) { segs.push(cur); cur = ""; }
+    }
+    if (cur) segs.push(cur);
+    return segs;
+  })();
+  const hasPriceData = pricePts.some(p => p !== null);
 
   return (
     <>
@@ -584,6 +643,92 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
           )}
         </div>
 
+        {/* Average rating per year */}
+        {hasRatingData && (
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Avg rating by year</div>
+            <div className="relative select-none" onMouseLeave={() => setRatingTip(null)}>
+              <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_LH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+                {[2, 3, 4].map(v => {
+                  const gy = MT_L + CH_L - (v / 5) * CH_L;
+                  return (
+                    <g key={v}>
+                      <line x1={ML} x2={ML + CW} y1={gy} y2={gy} stroke="#e8e7e0" strokeWidth={0.75} />
+                      <text x={ML - 4} y={gy + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">{v}★</text>
+                    </g>
+                  );
+                })}
+                <line x1={ML} x2={ML + CW} y1={MT_L + CH_L} y2={MT_L + CH_L} stroke="#d4d2cb" strokeWidth={1} />
+                {ratingSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#b45309" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
+                {ratingPts.map((pt) => {
+                  if (!pt) return null;
+                  const isPre = parseInt(pt.y) < 2025;
+                  return (
+                    <g key={pt.y} onMouseEnter={() => setRatingTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setRatingTip(null)}>
+                      <circle cx={pt.cx} cy={pt.cy} r={8} fill="transparent" />
+                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#b45309" opacity={isPre ? 0.5 : 1} />
+                    </g>
+                  );
+                })}
+                {years.map((y, i) => {
+                  const isPre = parseInt(y) < 2025;
+                  return <text key={y} x={xCenter(i)} y={SVG_LH - MB_L + 13} textAnchor="middle" fontSize={8} fontFamily="system-ui" fill={isPre ? "#c8c6bf" : "#9b9991"}>{y.slice(2)}</text>;
+                })}
+              </svg>
+              {ratingTip && (
+                <div className="absolute pointer-events-none z-20" style={{ left: `${(ratingTip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}>
+                  <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-1.5 text-[10px] shadow-lg whitespace-nowrap">
+                    {ratingTip.year} · {ratingTip.v.toFixed(1)}★
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Average ticket price per year */}
+        {hasPriceData && (
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Avg ticket price by year</div>
+            <div className="relative select-none" onMouseLeave={() => setPriceTip(null)}>
+              <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_LH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+                {[Math.round(priceYMax / 2), priceYMax].map(v => {
+                  const gy = MT_L + CH_L - (v / priceYMax) * CH_L;
+                  return (
+                    <g key={v}>
+                      <line x1={ML} x2={ML + CW} y1={gy} y2={gy} stroke="#e8e7e0" strokeWidth={0.75} />
+                      <text x={ML - 4} y={gy + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">€{v}</text>
+                    </g>
+                  );
+                })}
+                <line x1={ML} x2={ML + CW} y1={MT_L + CH_L} y2={MT_L + CH_L} stroke="#d4d2cb" strokeWidth={1} />
+                {priceSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#0891b2" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
+                {pricePts.map((pt) => {
+                  if (!pt) return null;
+                  const isPre = parseInt(pt.y) < 2025;
+                  return (
+                    <g key={pt.y} onMouseEnter={() => setPriceTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setPriceTip(null)}>
+                      <circle cx={pt.cx} cy={pt.cy} r={8} fill="transparent" />
+                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#0891b2" opacity={isPre ? 0.5 : 1} />
+                    </g>
+                  );
+                })}
+                {years.map((y, i) => {
+                  const isPre = parseInt(y) < 2025;
+                  return <text key={y} x={xCenter(i)} y={SVG_LH - MB_L + 13} textAnchor="middle" fontSize={8} fontFamily="system-ui" fill={isPre ? "#c8c6bf" : "#9b9991"}>{y.slice(2)}</text>;
+                })}
+              </svg>
+              {priceTip && (
+                <div className="absolute pointer-events-none z-20" style={{ left: `${(priceTip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}>
+                  <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-1.5 text-[10px] shadow-lg whitespace-nowrap">
+                    {priceTip.year} · €{Math.round(priceTip.v)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Selected year — event list */}
         {selectedYear && (
           <div>
@@ -651,10 +796,11 @@ const SLUG_TAB: Record<string, Tab> = Object.fromEntries(
   (Object.entries(TAB_SLUG) as [Tab, string][]).map(([t, s]) => [s, t])
 );
 
-export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
+export default function Stats({ onEventClick, onEntityClick, onVenueClick, refreshKey }: {
   onEventClick: (id: string) => void;
   onEntityClick: (id: string, kind: "person" | "ensemble" | null, name?: string) => void;
   onVenueClick: (id: string, name?: string) => void;
+  refreshKey?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -681,8 +827,10 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick }: {
   }
 
   useEffect(() => {
+    setLoading(true);
     fetchEvents({ limit: 500 }).then((evts) => setEvents(evts.filter((e) => e.date <= today))).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
   const handleRatingChange = useCallback((id: string, rating: number | null) => { setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, rating } : e))); }, []);
   if (loading) return <div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>;
   return (

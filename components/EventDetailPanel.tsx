@@ -295,6 +295,7 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
   const [workDraft, setWorkDraft] = useState<{ title: string; year: string; movement: string; catalogue_number: string; composer_text: string }>({ title: "", year: "", movement: "", catalogue_number: "", composer_text: "" });
   const [savingWork, setSavingWork] = useState(false);
   const [workSaveError, setWorkSaveError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isGuest = useGuest();
 
   const [customInput, setCustomInput] = useState("");
@@ -369,6 +370,23 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
     } finally {
       setSavingWork(false);
     }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    const path = target.kind === "work" ? `/api/works/${target.id}`
+      : target.kind === "piece" ? `/api/musical_pieces/${target.id}`
+      : target.kind === "person" ? `/api/persons/${target.id}`
+      : target.kind === "ensemble" ? `/api/ensembles/${target.id}`
+      : null;
+    if (!path) return;
+    const res = await fetch(path, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setDeleteError(body.error ?? "Delete failed");
+      return;
+    }
+    onBack();
   }
 
   return (
@@ -460,6 +478,12 @@ function NavEventsView({ target, onBack, onEventClick }: { target: NavTarget; on
                   <button onClick={saveRoles} disabled={savingRoles} className="text-xs px-3 py-1 bg-neutral-900 text-white rounded-full disabled:opacity-50">Save</button>
                   <button onClick={() => { setEditingRoles(false); setCustomInput(""); }} className="text-xs px-3 py-1 text-neutral-500 hover:text-neutral-700">Cancel</button>
                 </div>
+              </div>
+            )}
+            {!isGuest && !editingWork && !editingRoles && (target.kind === "work" || target.kind === "piece" || target.kind === "person" || target.kind === "ensemble") && (
+              <div className="mb-4">
+                <button onClick={handleDelete} className="text-[11px] text-neutral-300 hover:text-red-500 border border-neutral-200 rounded-md px-2.5 py-1 hover:border-red-300 transition-colors">Delete</button>
+                {deleteError && <p className="text-xs text-red-500 mt-1">{deleteError}</p>}
               </div>
             )}
             <p className="text-xs text-neutral-400 mb-5 uppercase tracking-widest">{events.length} event{events.length !== 1 ? "s" : ""}</p>

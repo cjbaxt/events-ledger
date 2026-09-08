@@ -13,6 +13,7 @@ export default function StatsPage() {
   const [directTarget, setDirectTarget] = useState<DirectTarget>(null);
 
   const [preview] = useState(null);
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
 
   const handleEventClick = useCallback((id: string) => {
     setDirectTarget(null);
@@ -23,6 +24,7 @@ export default function StatsPage() {
   const handleClose = useCallback(() => {
     setPanelOpen(false);
     setDirectTarget(null);
+    setStatsRefreshKey(k => k + 1);
   }, []);
 
   const handleNavigate = useCallback((id: string) => {
@@ -49,7 +51,7 @@ export default function StatsPage() {
       <Nav />
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-24 md:pt-20 md:pb-8">
         <Suspense fallback={<div className="flex items-center justify-center h-32 text-neutral-300 text-xs uppercase tracking-widest">Loading…</div>}>
-          <Stats onEventClick={handleEventClick} onEntityClick={handleEntityClick} onVenueClick={handleVenueClick} />
+          <Stats onEventClick={handleEventClick} onEntityClick={handleEntityClick} onVenueClick={handleVenueClick} refreshKey={statsRefreshKey} />
         </Suspense>
       </main>
       <EventDetailPanel

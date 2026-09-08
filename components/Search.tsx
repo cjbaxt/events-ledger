@@ -179,7 +179,7 @@ function DeletableEntityTab<T extends { id: string; name: string }>({
 }
 
 const VENUE_TYPES = ["theatre", "concert_hall", "museum", "arena", "outdoor", "circus_tent", "church", "other"];
-const WORK_TYPES = ["music", "ballet", "opera", "musical", "play", "circus_show", "dance_show", "spoken_word", "film", "book", "other"];
+const WORK_TYPES = ["music", "ballet", "opera", "musical", "play", "circus_show", "dance_show", "spoken_word", "film", "literature", "book", "other"];
 
 function AddPanel({ onCancel, onSave, saving, label, children, error }: {
   onCancel: () => void; onSave: () => void; saving: boolean;
