@@ -107,7 +107,7 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
   editorMode: boolean; onRatingChange: (id: string, rating: number | null) => void;
 }) {
   const [groupByContext, setGroupByContext] = useState(false);
-  const [groupBySubtype, setGroupBySubtype] = useState(!subtype);
+  const [groupBySubtype, setGroupBySubtype] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const filtered = subtype ? evts.filter((e) => e.subtype === subtype) : evts;
   const label = subtype ? `${TYPE_LABELS[type] ?? type} — ${subtype.replace(/_/g, " ")}` : TYPE_LABELS[type] ?? type;
@@ -116,11 +116,18 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
     try { await patchEventRating(id, v); onRatingChange(id, v); } finally { setSaving(null); }
   }, [onRatingChange]);
 
+  const showSubtypeInRow = !subtype && !groupBySubtype;
+
   function renderRow(e: EventListItem) {
     return (
       <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-neutral-50 transition-colors group">
         <span className="text-[10px] text-neutral-300 w-10 flex-shrink-0">{e.date.slice(0, 4)}</span>
-        <button onClick={() => onEventClick(e.id)} className="flex-1 font-serif text-sm text-neutral-900 truncate text-left group-hover:underline underline-offset-2">{e.title}</button>
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+          <button onClick={() => onEventClick(e.id)} className="font-serif text-sm text-neutral-900 truncate text-left group-hover:underline underline-offset-2">{e.title}</button>
+          {showSubtypeInRow && e.subtype && (
+            <span className="text-[9px] text-neutral-300 truncate capitalize flex-shrink-0">{e.subtype.replace(/_/g, " ")}</span>
+          )}
+        </div>
         {editorMode ? (
           <div className={saving === e.id ? "opacity-40" : ""}><HalfStarPicker value={e.rating} onChange={(v) => handleRate(e.id, v)} /></div>
         ) : (
@@ -402,6 +409,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   const [tooltip, setTooltip] = useState<{ label: string; count: number; cx: number } | null>(null);
   const [ratingTip, setRatingTip] = useState<{ year: string; v: number; cx: number } | null>(null);
   const [priceTip, setPriceTip] = useState<{ year: string; v: number; cx: number } | null>(null);
+  const [venueTip, setVenueTip] = useState<{ year: string; v: number; cx: number } | null>(null);
 
   function typeColor(type: string) { return TYPE_COLORS[type] ?? "#aaaaaa"; }
 
@@ -487,6 +495,32 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
     return segs;
   })();
   const hasRatingData = ratingPts.some(p => p !== null);
+
+  const venuesByYear = new Map<string, Set<string>>();
+  for (const e of filtered) {
+    const y = e.date.slice(0, 4);
+    if (e.venue_id) {
+      const parentId = e.venue_parent_id ?? e.venue_id;
+      if (!venuesByYear.has(y)) venuesByYear.set(y, new Set());
+      venuesByYear.get(y)!.add(parentId);
+    }
+  }
+  const venueYMax = years.length > 0 ? Math.max(1, Math.max(...years.map(y => venuesByYear.get(y)?.size ?? 0))) : 1;
+  const venuePts = years.map((y, i) => {
+    const v = venuesByYear.get(y)?.size ?? 0;
+    if (v === 0) return null;
+    return { y, v, cx: xCenter(i), cy: MT_L + CH_L - (v / venueYMax) * CH_L };
+  });
+  const venueSegs = (() => {
+    const segs: string[] = []; let cur = "";
+    for (const pt of venuePts) {
+      if (pt) { cur += cur ? ` L ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}` : `M ${pt.cx.toFixed(1)} ${pt.cy.toFixed(1)}`; }
+      else if (cur) { segs.push(cur); cur = ""; }
+    }
+    if (cur) segs.push(cur);
+    return segs;
+  })();
+  const hasVenueData = venuePts.some(p => p !== null);
 
   const allAvgPrices = years.map(y => yearAvgPrice(y)).filter(v => v !== null) as number[];
   const priceYMax = allAvgPrices.length > 0 ? Math.max(10, Math.ceil(Math.max(...allAvgPrices) / 10) * 10) : 10;
@@ -642,6 +676,49 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
           )}
         </div>
 
+        {/* Average ticket price per year */}
+        {hasPriceData && (
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Avg ticket price by year</div>
+            <div className="relative select-none" onMouseLeave={() => setPriceTip(null)}>
+              <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_LH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+                {[Math.round(priceYMax / 2), priceYMax].map(v => {
+                  const gy = MT_L + CH_L - (v / priceYMax) * CH_L;
+                  return (
+                    <g key={v}>
+                      <line x1={ML} x2={ML + CW} y1={gy} y2={gy} stroke="#e8e7e0" strokeWidth={0.75} />
+                      <text x={ML - 4} y={gy + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">€{v}</text>
+                    </g>
+                  );
+                })}
+                <line x1={ML} x2={ML + CW} y1={MT_L + CH_L} y2={MT_L + CH_L} stroke="#d4d2cb" strokeWidth={1} />
+                {priceSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#2a9e8c" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
+                {pricePts.map((pt) => {
+                  if (!pt) return null;
+                  const isPre = parseInt(pt.y) < 2025;
+                  return (
+                    <g key={pt.y} onMouseEnter={() => setPriceTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setPriceTip(null)}>
+                      <circle cx={pt.cx} cy={pt.cy} r={8} fill="transparent" />
+                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#2a9e8c" opacity={isPre ? 0.5 : 1} />
+                    </g>
+                  );
+                })}
+                {years.map((y, i) => {
+                  const isPre = parseInt(y) < 2025;
+                  return <text key={y} x={xCenter(i)} y={SVG_LH - MB_L + 13} textAnchor="middle" fontSize={8} fontFamily="system-ui" fill={isPre ? "#c8c6bf" : "#9b9991"}>{y.slice(2)}</text>;
+                })}
+              </svg>
+              {priceTip && (
+                <div className="absolute pointer-events-none z-20" style={{ left: `${(priceTip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}>
+                  <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-1.5 text-[10px] shadow-lg whitespace-nowrap">
+                    {priceTip.year} · €{Math.round(priceTip.v)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Average rating per year */}
         {hasRatingData && (
           <div>
@@ -658,14 +735,14 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                   );
                 })}
                 <line x1={ML} x2={ML + CW} y1={MT_L + CH_L} y2={MT_L + CH_L} stroke="#d4d2cb" strokeWidth={1} />
-                {ratingSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#b45309" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
+                {ratingSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#c97a88" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
                 {ratingPts.map((pt) => {
                   if (!pt) return null;
                   const isPre = parseInt(pt.y) < 2025;
                   return (
                     <g key={pt.y} onMouseEnter={() => setRatingTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setRatingTip(null)}>
                       <circle cx={pt.cx} cy={pt.cy} r={8} fill="transparent" />
-                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#b45309" opacity={isPre ? 0.5 : 1} />
+                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#c97a88" opacity={isPre ? 0.5 : 1} />
                     </g>
                   );
                 })}
@@ -685,30 +762,30 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
           </div>
         )}
 
-        {/* Average ticket price per year */}
-        {hasPriceData && (
+        {/* Unique venues per year */}
+        {hasVenueData && (
           <div>
-            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Avg ticket price by year</div>
-            <div className="relative select-none" onMouseLeave={() => setPriceTip(null)}>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Venues per year</div>
+            <div className="relative select-none" onMouseLeave={() => setVenueTip(null)}>
               <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_LH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
-                {[Math.round(priceYMax / 2), priceYMax].map(v => {
-                  const gy = MT_L + CH_L - (v / priceYMax) * CH_L;
+                {[Math.round(venueYMax / 2), venueYMax].map(v => {
+                  const gy = MT_L + CH_L - (v / venueYMax) * CH_L;
                   return (
                     <g key={v}>
                       <line x1={ML} x2={ML + CW} y1={gy} y2={gy} stroke="#e8e7e0" strokeWidth={0.75} />
-                      <text x={ML - 4} y={gy + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">€{v}</text>
+                      <text x={ML - 4} y={gy + 3.5} textAnchor="end" fontSize={7} fill="#b8b6af" fontFamily="system-ui">{v}</text>
                     </g>
                   );
                 })}
                 <line x1={ML} x2={ML + CW} y1={MT_L + CH_L} y2={MT_L + CH_L} stroke="#d4d2cb" strokeWidth={1} />
-                {priceSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#0891b2" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
-                {pricePts.map((pt) => {
+                {venueSegs.map((d, i) => <path key={i} d={d} fill="none" stroke="#7a4abf" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />)}
+                {venuePts.map((pt) => {
                   if (!pt) return null;
                   const isPre = parseInt(pt.y) < 2025;
                   return (
-                    <g key={pt.y} onMouseEnter={() => setPriceTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setPriceTip(null)}>
+                    <g key={pt.y} onMouseEnter={() => setVenueTip({ year: pt.y, v: pt.v, cx: pt.cx })} onMouseLeave={() => setVenueTip(null)}>
                       <circle cx={pt.cx} cy={pt.cy} r={8} fill="transparent" />
-                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#0891b2" opacity={isPre ? 0.5 : 1} />
+                      <circle cx={pt.cx} cy={pt.cy} r={2.5} fill="#7a4abf" opacity={isPre ? 0.5 : 1} />
                     </g>
                   );
                 })}
@@ -717,10 +794,10 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
                   return <text key={y} x={xCenter(i)} y={SVG_LH - MB_L + 13} textAnchor="middle" fontSize={8} fontFamily="system-ui" fill={isPre ? "#c8c6bf" : "#9b9991"}>{y.slice(2)}</text>;
                 })}
               </svg>
-              {priceTip && (
-                <div className="absolute pointer-events-none z-20" style={{ left: `${(priceTip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}>
+              {venueTip && (
+                <div className="absolute pointer-events-none z-20" style={{ left: `${(venueTip.cx / SVG_W) * 100}%`, top: "6px", transform: "translateX(-50%)" }}>
                   <div className="bg-neutral-900 text-white rounded-lg px-2.5 py-1.5 text-[10px] shadow-lg whitespace-nowrap">
-                    {priceTip.year} · €{Math.round(priceTip.v)}
+                    {venueTip.year} · {venueTip.v} venue{venueTip.v !== 1 ? "s" : ""}
                   </div>
                 </div>
               )}
