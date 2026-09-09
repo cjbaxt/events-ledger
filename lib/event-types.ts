@@ -9,7 +9,6 @@ export const EXTENSION_TABLE: Record<string, string> = {
   cabaret: "event_cabaret",
   comedy: "event_comedy",
   spoken_word: "event_spoken_word",
-  talk: "event_talk",
   exhibition: "event_exhibition",
   screening: "event_screening",
   other: "event_other",

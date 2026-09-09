@@ -153,10 +153,6 @@ async function resolveExtension(
   }
 
   if (type === "spoken_word") {
-    return { credits: c };
-  }
-
-  if (type === "talk") {
     return { topic: raw.topic ?? null, host_organisation: raw.host_organisation ?? null, credits: c };
   }
 

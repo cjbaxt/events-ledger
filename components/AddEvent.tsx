@@ -20,14 +20,14 @@ type ProgrammeItemState = { piece_id: string | null; piece_title: string; compos
 const EVENT_TYPES = [
   "music", "classical", "opera", "ballet", "dance",
   "circus", "theatre", "cabaret", "comedy", "spoken_word",
-  "talk", "exhibition", "screening", "other",
+  "exhibition", "screening", "other",
 ] as const;
 type EventType = typeof EVENT_TYPES[number];
 
 const TYPE_LABELS: Record<string, string> = {
   music: "Music", classical: "Classical", opera: "Opera", ballet: "Ballet",
   dance: "Dance", circus: "Circus", theatre: "Theatre", cabaret: "Cabaret",
-  comedy: "Comedy", spoken_word: "Spoken Word", talk: "Talk",
+  comedy: "Comedy", spoken_word: "Spoken Word",
   exhibition: "Exhibition", screening: "Screening", other: "Other",
 };
 
@@ -41,8 +41,7 @@ const SUBTYPES: Record<string, string[]> = {
   theatre: ["play", "musical", "improv", "improv_musical", "panto", "physical_theatre", "puppet", "other"],
   cabaret: ["comedy", "burlesque", "drag", "cabaret", "variety", "magic", "other"],
   comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "variety", "other"],
-  spoken_word: ["spoken_word", "reading", "slam", "storytelling", "other"],
-  talk: ["lecture", "panel", "debate", "podcast_recording", "book_event", "science_comm", "science", "interview", "other"],
+  spoken_word: ["poetry", "slam", "reading", "storytelling", "lecture", "panel", "debate", "book_event", "podcast_recording", "science_comm", "interview", "other"],
   exhibition: ["art", "natural_history", "science", "photography", "sculpture", "design", "historical", "other"],
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
   other: ["street_circus", "street_magic", "street_music", "street", "immersive_experience", "escape_room", "game", "workshop", "tour", "ceremony", "installation", "other"],
@@ -626,11 +625,6 @@ function ComedyFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => 
 }
 function SpokenWordFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
-    <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
-  </div>;
-}
-function TalkFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
-  return <div className="space-y-4">
     <Field label="Topic"><input className={inputCls} value={(ext.topic as string) ?? ""} onChange={(e) => set("topic", e.target.value)} /></Field>
     <Field label="Host organisation"><input className={inputCls} value={(ext.host_organisation as string) ?? ""} onChange={(e) => set("host_organisation", e.target.value)} /></Field>
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
@@ -659,7 +653,7 @@ function OtherFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
 const EXTENSION_FIELDS: Record<string, React.ComponentType<{ ext: Ext; set: (k: string, v: unknown) => void }>> = {
   music: MusicFields, classical: ClassicalFields, opera: OperaFields, ballet: BalletFields,
   dance: DanceFields, circus: CircusFields, theatre: TheatreFields, cabaret: CabaretFields,
-  comedy: ComedyFields, spoken_word: SpokenWordFields, talk: TalkFields,
+  comedy: ComedyFields, spoken_word: SpokenWordFields,
   exhibition: ExhibitionFields, screening: ScreeningFields, other: OtherFields,
 };
 
@@ -698,8 +692,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
   else if (type === "theatre") Object.assign(payload, { work_id: id(ext.work as NamedRef), production_id: id(ext.production as NamedRef), credits: creditsPayload });
   else if (type === "cabaret") Object.assign(payload, { tour_name: ext.tour_name || null, credits: creditsPayload });
   else if (type === "comedy") Object.assign(payload, { tour_name: ext.tour_name || null, credits: creditsPayload });
-  else if (type === "spoken_word") Object.assign(payload, { credits: creditsPayload });
-  else if (type === "talk") Object.assign(payload, { topic: ext.topic || null, host_organisation: ext.host_organisation || null, credits: creditsPayload });
+  else if (type === "spoken_word") Object.assign(payload, { topic: ext.topic || null, host_organisation: ext.host_organisation || null, credits: creditsPayload });
   else if (type === "exhibition") Object.assign(payload, { exhibition_title: ext.exhibition_title || null, period: ext.period || null, medium: ext.medium || null, credits: creditsPayload });
   else if (type === "screening") Object.assign(payload, { work_id: id(ext.work as NamedRef), credits: creditsPayload });
   else if (type === "other") Object.assign(payload, { credits: creditsPayload });

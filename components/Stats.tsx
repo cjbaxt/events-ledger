@@ -9,7 +9,7 @@ const TYPE_LABELS: Record<string, string> = {
   comedy: "Comedy", theatre: "Theatre", exhibition: "Exhibition",
   music: "Music", circus: "Circus", cabaret: "Cabaret",
   ballet: "Ballet", classical: "Classical", opera: "Opera",
-  talk: "Talk", dance: "Dance", other: "Other",
+  dance: "Dance", other: "Other",
   spoken_word: "Spoken Word", screening: "Screening",
 };
 
@@ -33,7 +33,6 @@ const TYPE_COLORS: Record<string, string> = {
   other:       "#8c8c8c",
   screening:   "#4a5abf",
   spoken_word: "#2a9e8c",
-  talk:        "#8c6a3a",
   theatre:     "#9a4abf",
 };
 
@@ -67,7 +66,7 @@ const CONTEXT_DESCRIPTIONS: Record<string, string> = {
 const ALL_OVER_TIME_TYPES = [
   "ballet", "cabaret", "circus", "classical", "comedy", "dance",
   "exhibition", "music", "opera", "other", "screening", "spoken_word",
-  "talk", "theatre",
+  "theatre",
 ];
 
 function HalfStarPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
@@ -189,7 +188,7 @@ function ByTypeTab({ events, onEventClick, onEntityClick, editorMode, onRatingCh
   const [hovered, setHovered] = useState<{ type: string; subtype: string; count: number } | null>(null);
   const byType = new Map<string, EventListItem[]>();
   for (const e of events) { if (!byType.has(e.type)) byType.set(e.type, []); byType.get(e.type)!.push(e); }
-  const SECONDARY = new Set(["exhibition", "talk", "screening"]);
+  const SECONDARY = new Set(["exhibition", "screening"]);
   const primaryTypes = [...byType.entries()].filter(([t]) => !SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   const secondaryTypes = [...byType.entries()].filter(([t]) => SECONDARY.has(t)).sort((a, b) => b[1].length - a[1].length);
   if (drill) {
@@ -396,9 +395,9 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
 }
 
 function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
-  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "screening"]));
   const [filterOpen, setFilterOpen] = useState(false);
-  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "talk", "screening"]));
+  const [pendingHidden, setPendingHidden] = useState<Set<string>>(new Set(["exhibition", "screening"]));
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ label: string; count: number; cx: number } | null>(null);
   const [ratingTip, setRatingTip] = useState<{ year: string; v: number; cx: number } | null>(null);
@@ -407,7 +406,7 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
   function typeColor(type: string) { return TYPE_COLORS[type] ?? "#aaaaaa"; }
 
   // Fixed stack order (bottom → top)
-  const STACK_ORDER = ["circus","comedy","music","theatre","dance","other","classical","ballet","cabaret","opera","spoken_word","exhibition","screening","talk"];
+  const STACK_ORDER = ["circus","comedy","music","theatre","dance","other","classical","ballet","cabaret","opera","spoken_word","exhibition","screening"];
 
   const presentTypes = new Set(events.map((e) => e.type));
   const filtered = events.filter((e) => !hiddenTypes.has(e.type));

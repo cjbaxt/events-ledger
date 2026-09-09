@@ -17,7 +17,7 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidt
   music: IconMusic, classical: IconPiano, opera: IconMasksTheater,
   dance: IconYoga, circus: IconTent, theatre: IconTheater,
   cabaret: IconFeather, comedy: IconMoodSmile, spoken_word: IconQuote,
-  talk: IconPresentation, exhibition: IconFrame, screening: IconMovie,
+  exhibition: IconFrame, screening: IconMovie,
   other: IconCircleDotted,
 };
 

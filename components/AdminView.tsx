@@ -127,7 +127,7 @@ const CURRENCIES = ["GBP", "EUR", "USD", "CHF", "SEK", "DKK", "NOK"];
 
 const ALL_TYPES = [
   "ballet", "cabaret", "circus", "classical", "comedy", "dance",
-  "exhibition", "music", "opera", "screening", "spoken_word", "talk", "theatre",
+  "exhibition", "music", "opera", "screening", "spoken_word", "theatre",
 ];
 
 

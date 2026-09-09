@@ -4,7 +4,7 @@ const FRINGE_GENRE_MAP: Record<string, string> = {
   COMEDY: "comedy", CABARET: "cabaret", CIRCUS: "circus", THEATRE: "theatre",
   DANCE: "dance", MUSIC: "music", "CLASSICAL MUSIC": "classical", OPERA: "opera",
   BALLET: "ballet", "SPOKEN WORD": "spoken_word", EXHIBITIONS: "exhibition",
-  FILM: "screening", "CHILDREN'S SHOWS": "theatre", EVENTS: "talk",
+  FILM: "screening", "CHILDREN'S SHOWS": "theatre", EVENTS: "spoken_word",
 };
 
 const FRINGE_SUBTYPE_MAP: Array<[string, string, string]> = [
