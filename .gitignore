@@ -48,6 +48,5 @@ __pycache__/
 *.egg
 
 # local data exports
-events_ledger_data.sql
-events_ledger_export.sql
+*.sql
 scripts/load_descriptions_batch*.py
