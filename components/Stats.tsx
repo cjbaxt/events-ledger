@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { fetchEvents, patchEventRating, fetchAllPersons, fetchAllEnsembles } from "@/lib/api";
+import { fetchEvents, patchEventRating, fetchAllPersons, fetchAllEnsembles, eventTimestamp } from "@/lib/api";
 import type { EventListItem } from "@/lib/types";
 import EventTypeIcon from "./EventTypeIcon";
 
@@ -270,7 +270,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
   const [ranked, setRanked] = useState<ArtistEntry[]>([]);
 
   useEffect(() => {
-    const today = new Date().toLocaleDateString("sv");
+    const now = Date.now();
 
     // Build primary-entity counts from events list (each event contributes one unique ID)
     const counts = new Map<string, ArtistEntry>();
@@ -289,7 +289,7 @@ function ArtistsTab({ events, onEntityClick }: { events: EventListItem[]; onEnti
       fetchAllEnsembles(),
       fetchEvents(), // full cache — avoids missing older events outside the 500-event stats window
     ]).then(([credits, persons, ensembles, allEvents]) => {
-      const pastEventIds = new Set(allEvents.filter((e) => e.date <= today).map((e) => e.id));
+      const pastEventIds = new Set(allEvents.filter((e) => eventTimestamp(e) <= now).map((e) => e.id));
       const eventTypeMap = new Map(allEvents.map((e) => [e.id, e.type]));
       const personMap = new Map(persons.map((p) => [p.id, p.name]));
       const ensembleMap = new Map(ensembles.map((e) => [e.id, e.name]));
@@ -882,8 +882,6 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick, refre
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const today = new Date().toLocaleDateString("sv");
-
   const tab: Tab = SLUG_TAB[searchParams.get("tab") ?? ""] ?? "By type";
   const typeParam = searchParams.get("type");
   const subtypeParam = searchParams.get("subtype");
@@ -904,7 +902,8 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick, refre
 
   useEffect(() => {
     setLoading(true);
-    fetchEvents({ limit: 500 }).then((evts) => setEvents(evts.filter((e) => e.date <= today))).catch(() => {}).finally(() => setLoading(false));
+    const now = Date.now();
+    fetchEvents({ limit: 500 }).then((evts) => setEvents(evts.filter((e) => eventTimestamp(e) <= now))).catch(() => {}).finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
   const handleRatingChange = useCallback((id: string, rating: number | null) => { setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, rating } : e))); }, []);
