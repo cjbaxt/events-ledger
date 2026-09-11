@@ -319,7 +319,7 @@ function Empty({ label }: { label: string }) {
 }
 
 
-type EventSummary = { id: string; title: string; date: string; type: string };
+type EventSummary = { id: string; title: string; date: string; type: string; creditRole?: string };
 type RoleEntity = { id: string; name: string; roles: string[] | null; kind: "person" | "ensemble"; recentEvents: EventSummary[] };
 
 function InlineRolePicker({ entity, onSave, onDelete }: { entity: RoleEntity; onSave: () => void; onDelete: () => void }) {
@@ -366,6 +366,7 @@ function InlineRolePicker({ entity, onSave, onDelete }: { entity: RoleEntity; on
             <div key={ev.id} className="flex items-baseline gap-2">
               <span className="text-[11px] text-neutral-400 w-[3.5rem] flex-shrink-0 tabular-nums">{ev.date.slice(0, 4)}</span>
               <span className="text-[11px] text-neutral-500 truncate">{ev.title}</span>
+              {ev.creditRole && <span className="text-[10px] text-neutral-400 flex-shrink-0 italic">{ev.creditRole}</span>}
               <span className="text-[10px] text-neutral-300 flex-shrink-0">{ev.type}</span>
             </div>
           ))}

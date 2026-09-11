@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 
-type EventSummary = { id: string; title: string; date: string; type: string };
+type EventSummary = { id: string; title: string; date: string; type: string; creditRole?: string };
 
 async function recentEvents(
   db: ReturnType<typeof createServiceClient>,
@@ -12,15 +12,16 @@ async function recentEvents(
   if (!ids.length) return new Map();
   const { data } = await db
     .from("event_credit")
-    .select(`${field}, event:event_id(id, title, date, type)`)
+    .select(`role, ${field}, event:event_id(id, title, date, type)`)
     .in(field, ids);
   const map = new Map<string, EventSummary[]>();
   for (const row of data ?? []) {
-    const fk = (row as Record<string, unknown>)[field] as string;
-    const ev = (row as Record<string, unknown>).event as EventSummary | null;
+    const r = row as Record<string, unknown>;
+    const fk = r[field] as string;
+    const ev = r.event as Omit<EventSummary, "creditRole"> | null;
     if (!ev) continue;
     if (!map.has(fk)) map.set(fk, []);
-    map.get(fk)!.push(ev);
+    map.get(fk)!.push({ ...ev, creditRole: r.role as string | undefined });
   }
   for (const [k, evs] of map) {
     map.set(k, evs.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5));
