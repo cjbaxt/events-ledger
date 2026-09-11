@@ -24,7 +24,7 @@ export default function NobProgrammeFetcher({
 }) {
   const [url, setUrl] = useState("");
   const [pasteMode, setPasteMode] = useState(false);
-  const [pastedHtml, setPastedHtml] = useState("");
+  const [pastedText, setPastedText] = useState("");
   const [fetching, setFetching] = useState(false);
   const [result, setResult] = useState<ScrapeResult | null>(null);
   const [includedCards, setIncludedCards] = useState<Set<number>>(new Set());
@@ -115,9 +115,9 @@ export default function NobProgrammeFetcher({
         body: JSON.stringify({ url: url.trim() }),
       });
       const data = await res.json();
-      if (res.status === 403 && data.error === "cloudflare") {
+      if (res.status === 403) {
         setPasteMode(true);
-        setError("The NOB site is blocking automated fetches. Open the page in your browser, press Ctrl+U to view source, select all and copy, then paste below.");
+        setError(null);
         return;
       }
       if (!res.ok) { setError(data.error ?? "Fetch failed"); return; }
@@ -130,13 +130,13 @@ export default function NobProgrammeFetcher({
   }
 
   async function parsePasted() {
-    if (!pastedHtml.trim()) return;
+    if (!pastedText.trim()) return;
     setFetching(true); setError(null);
     try {
       const res = await fetch("/api/scrape/nob", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: pastedHtml, pageTitle: url.trim() || undefined }),
+        body: JSON.stringify({ text: pastedText, pageTitle: url.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Parse failed"); return; }
@@ -237,25 +237,30 @@ export default function NobProgrammeFetcher({
       <p className="text-[10px] uppercase tracking-widest text-neutral-400">Fetch NOB programme</p>
 
       {!result && !pasteMode && (
-        <div className="flex gap-2">
-          <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") fetchProgramme(); }}
-            placeholder="https://www.operaballet.nl/en/dutch-national-opera/…"
-            className="flex-1 min-w-0 border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400" />
-          <button onClick={fetchProgramme} disabled={fetching || !url.trim()}
-            className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap flex-shrink-0">
-            {fetching ? "Fetching…" : "Fetch"}
-          </button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") fetchProgramme(); }}
+              placeholder="https://www.operaballet.nl/en/dutch-national-opera/…"
+              className="flex-1 min-w-0 border border-neutral-200 rounded-lg px-3 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400" />
+            <button onClick={fetchProgramme} disabled={fetching || !url.trim()}
+              className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap flex-shrink-0">
+              {fetching ? "Fetching…" : "Fetch"}
+            </button>
+          </div>
+          <button onClick={() => { setPasteMode(true); setError(null); }}
+            className="text-[11px] text-neutral-400 hover:text-neutral-600">Paste text instead →</button>
         </div>
       )}
 
       {!result && pasteMode && (
         <div className="space-y-2">
-          <p className="text-[10px] text-neutral-500">Open the page in your browser → Ctrl+U (View Source) → Select All → Copy → paste here</p>
-          <textarea value={pastedHtml} onChange={(e) => setPastedHtml(e.target.value)}
-            placeholder="Paste page source HTML here…" rows={5}
-            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-700 font-mono focus:outline-none focus:border-neutral-400 resize-none" />
+          <p className="text-[10px] text-neutral-500">Open the page → select the programme/cast text → Ctrl+C → paste below. Uses two-space separators between role and name (e.g. <span className="font-mono">Choreography  Hans van Manen</span>).</p>
+          <textarea value={pastedText} onChange={(e) => setPastedText(e.target.value)}
+            placeholder={"Symphony in C\nChoreography  George Balanchine\nMusic  Georges Bizet\n…"}
+            rows={8}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-700 font-mono focus:outline-none focus:border-neutral-400 resize-y" />
           <div className="flex gap-2">
-            <button onClick={parsePasted} disabled={fetching || !pastedHtml.trim()}
+            <button onClick={parsePasted} disabled={fetching || !pastedText.trim()}
               className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-40">
               {fetching ? "Parsing…" : "Parse"}
             </button>
@@ -275,7 +280,7 @@ export default function NobProgrammeFetcher({
                 className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${editMode ? "bg-neutral-900 text-white border-neutral-900" : "text-neutral-400 hover:text-neutral-600 border-neutral-200 hover:border-neutral-400"}`}>
                 {editMode ? "Done editing" : "Edit"}
               </button>
-              <button onClick={() => { setResult(null); setUrl(""); setPasteMode(false); setPastedHtml(""); setIncludedCards(new Set()); setIncludedWorks(new Set()); setError(null); setEditMode(false); setAddCard(null); setAddWork(null); }}
+              <button onClick={() => { setResult(null); setUrl(""); setPasteMode(false); setPastedText(""); setIncludedCards(new Set()); setIncludedWorks(new Set()); setError(null); setEditMode(false); setAddCard(null); setAddWork(null); }}
                 className="text-[11px] text-neutral-400 hover:text-neutral-600">Change URL</button>
             </div>
           </div>

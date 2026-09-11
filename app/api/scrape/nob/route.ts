@@ -278,7 +278,95 @@ async function buildResult(
   return { cards, works };
 }
 
-// ── Main fetch + route ────────────────────────────────────────────────────────
+// ── Text parser (plain copy-paste from page) ──────────────────────────────────
+
+const PREPOSITIONS = new Set(["in","at","of","the","and","or","a","an","de","van","von","for","to","by","with","on","as","uit","met"]);
+
+function isDescriptiveLine(line: string): boolean {
+  if (line.length > 60) return true;
+  if (line.endsWith(".")) return true;
+  const words = line.split(" ");
+  if (words.length > 6) return true;
+  // Any lowercase word (>3 chars) that isn't a known preposition signals prose
+  for (let i = 1; i < words.length; i++) {
+    const w = words[i];
+    if (w.length > 3 && /^[a-z]/.test(w) && !PREPOSITIONS.has(w.toLowerCase())) return true;
+  }
+  return false;
+}
+
+async function parseText(
+  text: string,
+  db: ReturnType<typeof createServiceClient>,
+  pageTitle?: string,
+): Promise<ScrapeResult> {
+  type RawEntry = { role: string; name: string; section: string; isEnsemble: boolean };
+  type PendingWork = { title: string; composerName: string | null };
+
+  const rawEntries: RawEntry[] = [];
+  const pendingWorks: PendingWork[] = [];
+  const seenTitles = new Set<string>();
+  let currentSection = "Production";
+  let currentWork: PendingWork | null = null;
+
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    // ── Role  Name (2+ spaces as separator) ───────────────────────────────────
+    const roleMatch = line.match(/^(.+?)\s{2,}(.+)$/);
+    if (roleMatch) {
+      const role = roleMatch[1].trim();
+      const namesRaw = roleMatch[2].trim();
+      const normRole = normalizeRole(role);
+      // Multiple composers / people separated by commas or " / "
+      const names = namesRaw.split(/,|\s\/\s/).map((n) => n.trim()).filter(Boolean);
+      for (const name of names) {
+        rawEntries.push({ role, name, section: currentSection, isEnsemble: false });
+      }
+      if ((normRole === "music" || normRole === "music and libretto") && currentWork && !currentWork.composerName) {
+        currentWork.composerName = names[0] ?? null;
+      }
+      continue;
+    }
+
+    // ── Comma-separated names → performers ────────────────────────────────────
+    if (line.includes(",")) {
+      const names = line.split(",").map((n) => n.trim()).filter(Boolean);
+      for (const name of names) {
+        if (name.toLowerCase() !== "ensemble") {
+          rawEntries.push({ role: "Performer", name, section: currentSection, isEnsemble: false });
+        }
+      }
+      continue;
+    }
+
+    // ── Single "Ensemble" ──────────────────────────────────────────────────────
+    if (line.toLowerCase() === "ensemble") {
+      rawEntries.push({ role: "Ensemble", name: line, section: currentSection, isEnsemble: true });
+      continue;
+    }
+
+    // ── Section header vs descriptive prose ───────────────────────────────────
+    if (isDescriptiveLine(line)) continue;
+
+    // Title-like line → new section
+    currentSection = line;
+    if (!seenTitles.has(line)) {
+      seenTitles.add(line);
+      currentWork = { title: line, composerName: null };
+      pendingWorks.push(currentWork);
+    } else {
+      // Already seen (appears in cast section too) — point to existing work object
+      currentWork = pendingWorks.find((w) => w.title === line) ?? null;
+    }
+  }
+
+  const result = await buildResult(rawEntries, pendingWorks, db);
+  return { pageTitle: pageTitle ?? "", ...result };
+}
+
+// ── HTML parser ───────────────────────────────────────────────────────────────
 
 async function parseHtml(html: string, pageTitle?: string): Promise<ScrapeResult> {
   const root = parse(html);
@@ -294,7 +382,17 @@ async function parseHtml(html: string, pageTitle?: string): Promise<ScrapeResult
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
-  const body = await req.json() as { url?: string; html?: string; pageTitle?: string };
+  const body = await req.json() as { url?: string; html?: string; text?: string; pageTitle?: string };
+  const db = createServiceClient();
+
+  if (body.text) {
+    try {
+      const result = await parseText(body.text, db, body.pageTitle);
+      return NextResponse.json(result);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    }
+  }
 
   if (body.html) {
     try {
@@ -311,11 +409,9 @@ export async function POST(req: NextRequest) {
   }
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, next: { revalidate: 0 } });
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
     const html = await res.text();
-    // Detect Cloudflare challenge page
-    if (html.includes("Just a moment") || html.includes("cf_chl_opt")) {
-      return NextResponse.json({ error: "cloudflare" }, { status: 403 });
+    if (!res.ok || html.includes("Just a moment") || html.includes("cf_chl_opt")) {
+      return NextResponse.json({ error: "blocked" }, { status: 403 });
     }
     const result = await parseHtml(html);
     return NextResponse.json(result);
