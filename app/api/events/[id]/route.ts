@@ -120,8 +120,8 @@ async function resolveExtension(
   }
 
   if (type === "opera") {
-    const [works, productions] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)])]);
-    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, libretto_language: raw.libretto_language ?? null, surtitles_languages: raw.surtitles_languages ?? null, credits: c };
+    const [works, productions, programme] = await Promise.all([lookupWorks(sb, [str(raw.work_id)]), lookupProductions(sb, [str(raw.production_id)]), fetchClassicalProgramme(sb, eventId)]);
+    return { work: works.get(str(raw.work_id)) ?? null, production: productions.get(str(raw.production_id)) ?? null, libretto_language: raw.libretto_language ?? null, surtitles_languages: raw.surtitles_languages ?? null, programme, credits: c };
   }
 
   if (type === "ballet") {
