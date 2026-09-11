@@ -280,30 +280,44 @@ async function buildResult(
 
 // ── Main fetch + route ────────────────────────────────────────────────────────
 
-async function fetchAndParse(url: string): Promise<ScrapeResult> {
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, next: { revalidate: 0 } });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  const html = await res.text();
+async function parseHtml(html: string, pageTitle?: string): Promise<ScrapeResult> {
   const root = parse(html);
-  const pageTitle = root.querySelector("h1")?.innerText?.trim() ?? "";
+  const title = pageTitle ?? root.querySelector("h1")?.innerText?.trim() ?? "";
   const db = createServiceClient();
-
-  const result = await parseSummaryPage(root, db, pageTitle);
+  const result = await parseSummaryPage(root, db, title);
   if (result.cards.length === 0 && result.works.length === 0) {
     const fallback = await parseCarrouselPage(root, db);
-    return { pageTitle, ...fallback };
+    return { pageTitle: title, ...fallback };
   }
-  return { pageTitle, ...result };
+  return { pageTitle: title, ...result };
 }
 
 export async function POST(req: NextRequest) {
   const deny = await requireOwner(); if (deny) return deny;
-  const { url } = await req.json();
+  const body = await req.json() as { url?: string; html?: string; pageTitle?: string };
+
+  if (body.html) {
+    try {
+      const result = await parseHtml(body.html, body.pageTitle);
+      return NextResponse.json(result);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    }
+  }
+
+  const { url } = body;
   if (!url || !url.includes("operaballet.nl")) {
     return NextResponse.json({ error: "Must be an operaballet.nl URL" }, { status: 400 });
   }
   try {
-    const result = await fetchAndParse(url);
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, next: { revalidate: 0 } });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const html = await res.text();
+    // Detect Cloudflare challenge page
+    if (html.includes("Just a moment") || html.includes("cf_chl_opt")) {
+      return NextResponse.json({ error: "cloudflare" }, { status: 403 });
+    }
+    const result = await parseHtml(html);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });

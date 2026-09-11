@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { ScrapeCard, ScrapeResult, ScrapeWork } from "@/app/api/scrape/nob/route";
+import type { ScrapeCard, ScrapeResult } from "@/app/api/scrape/nob/route";
 
 function groupBySection(cards: ScrapeCard[]): Map<string, ScrapeCard[]> {
   const map = new Map<string, ScrapeCard[]>();
@@ -19,6 +19,8 @@ export default function NobProgrammeFetcher({
   eventId: string; eventType: string; onDone: () => void;
 }) {
   const [url, setUrl] = useState("");
+  const [pasteMode, setPasteMode] = useState(false);
+  const [pastedHtml, setPastedHtml] = useState("");
   const [fetching, setFetching] = useState(false);
   const [result, setResult] = useState<ScrapeResult | null>(null);
   const [includedCards, setIncludedCards] = useState<Set<number>>(new Set());
@@ -28,6 +30,13 @@ export default function NobProgrammeFetcher({
   const [done, setDone] = useState(false);
 
   const showWorks = WORK_TYPES.includes(eventType);
+
+  function applyResult(r: ScrapeResult) {
+    if (!r.cards?.length && !r.works?.length) { setError("No programme entries found on this page."); return; }
+    setResult(r);
+    setIncludedCards(new Set(r.cards.map((_, i) => i).filter((i) => r.cards[i].includeByDefault)));
+    setIncludedWorks(new Set(r.works.map((_, i) => i)));
+  }
 
   async function fetchProgramme() {
     if (!url.trim()) return;
@@ -39,14 +48,32 @@ export default function NobProgrammeFetcher({
         body: JSON.stringify({ url: url.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Fetch failed"); return; }
-      const r = data as ScrapeResult;
-      if (!r.cards?.length && !r.works?.length) {
-        setError("No programme entries found on this page."); return;
+      if (res.status === 403 && data.error === "cloudflare") {
+        setPasteMode(true);
+        setError("The NOB site is blocking automated fetches. Open the page in your browser, press Ctrl+U to view source, select all and copy, then paste below.");
+        return;
       }
-      setResult(r);
-      setIncludedCards(new Set(r.cards.map((_, i) => i).filter((i) => r.cards[i].includeByDefault)));
-      setIncludedWorks(new Set(r.works.map((_, i) => i))); // all works checked by default
+      if (!res.ok) { setError(data.error ?? "Fetch failed"); return; }
+      applyResult(data as ScrapeResult);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  async function parsePasted() {
+    if (!pastedHtml.trim()) return;
+    setFetching(true); setError(null);
+    try {
+      const res = await fetch("/api/scrape/nob", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: pastedHtml, pageTitle: url.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Parse failed"); return; }
+      applyResult(data as ScrapeResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
@@ -180,7 +207,7 @@ export default function NobProgrammeFetcher({
     <div className="mt-4 border border-neutral-200 rounded-xl p-4 space-y-3">
       <p className="text-[10px] uppercase tracking-widest text-neutral-400">Fetch NOB programme</p>
 
-      {!result && (
+      {!result && !pasteMode && (
         <div className="flex gap-2">
           <input
             value={url} onChange={(e) => setUrl(e.target.value)}
@@ -192,6 +219,27 @@ export default function NobProgrammeFetcher({
             className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap flex-shrink-0">
             {fetching ? "Fetching…" : "Fetch"}
           </button>
+        </div>
+      )}
+      {!result && pasteMode && (
+        <div className="space-y-2">
+          <p className="text-[10px] text-neutral-500">Open the page in your browser → Ctrl+U (View Source) → Select All → Copy → paste here</p>
+          <textarea
+            value={pastedHtml} onChange={(e) => setPastedHtml(e.target.value)}
+            placeholder="Paste page source HTML here…"
+            rows={5}
+            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-700 font-mono focus:outline-none focus:border-neutral-400 resize-none"
+          />
+          <div className="flex gap-2">
+            <button onClick={parsePasted} disabled={fetching || !pastedHtml.trim()}
+              className="text-xs bg-neutral-900 text-white rounded-lg px-3 py-1.5 disabled:opacity-40">
+              {fetching ? "Parsing…" : "Parse"}
+            </button>
+            <button onClick={() => { setPasteMode(false); setError(null); }}
+              className="text-xs text-neutral-400 hover:text-neutral-600 px-2">
+              ← Back
+            </button>
+          </div>
         </div>
       )}
 
