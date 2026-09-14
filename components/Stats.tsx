@@ -175,6 +175,11 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>Back
       </button>
       <div className="flex items-center gap-2 mb-4"><EventTypeIcon type={type} size={14} /><span className="font-serif text-xl text-neutral-900 capitalize">{label}</span><span className="text-sm text-neutral-300">{filtered.length}</span>{editorMode && <span className="text-xs text-neutral-300 ml-1">{ratedTotal} rated</span>}</div>
+      {type === "spoken_word" && (
+        <div className="mb-4 px-3 py-2 border-l-2 border-orange-300 bg-orange-50 text-xs text-orange-700">
+          Selected talks only — most academic seminars aren&apos;t logged.
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-4">
         <span className="text-[9px] uppercase tracking-widest text-neutral-300">Group by</span>
         <label className="flex items-center gap-1 text-xs text-neutral-500 cursor-pointer"><input type="checkbox" className="rounded border-neutral-200" checked={groupByContext} onChange={(e) => setGroupByContext(e.target.checked)} />Context</label>
