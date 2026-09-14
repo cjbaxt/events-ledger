@@ -254,9 +254,6 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
   }, []);
 
   const presentTypes = useMemo(() => new Set(allEvents.map((e) => e.type)), [allEvents]);
-  const onlySpokenWord = useMemo(() =>
-    presentTypes.has("spoken_word") && [...presentTypes].every((t) => t === "spoken_word" || hiddenTypes.has(t)),
-    [presentTypes, hiddenTypes]);
   const grouped = useMemo(() => groupByYearMonth(allEvents), [allEvents]);
   const years = useMemo(() => Object.keys(grouped).sort((a, b) => {
     if (a === PRE_BUCKET) return 1;
@@ -307,11 +304,6 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
               setPageSize(PAGE_SIZE);
             }}
           />
-        )}
-        {onlySpokenWord && (
-          <div className="mx-0 mb-4 px-4 py-2.5 border-l-2 border-orange-300 bg-orange-50 text-xs text-orange-700">
-            Spoken word events are curated highlights only — science-adjacent or particularly notable talks. Most academic seminars aren&apos;t logged.
-          </div>
         )}
         {selectedYear && Object.keys(pagedMonthGrouped).sort((a, b) => b.localeCompare(a)).map((month) => (
           <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} openEventId={openEventId} />
