@@ -233,6 +233,12 @@ export async function fetchPieceEvents(id: string): Promise<EventListItem[]> {
   return filterFromCache(ids);
 }
 
+export async function createMuseumVisit(date: string, venueId: string, usedMuseumkaart: boolean): Promise<{ id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } }> {
+  const res = await apiFetch("/api/museum-visits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date, venue_id: venueId, used_museumkaart: usedMuseumkaart }) });
+  if (!res.ok) throw new Error(`Failed to create museum visit: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMuseumVisit(id: string): Promise<{ id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } }> {
   return cachedFetch(`museum_visit:${id}`, async () => {
     const res = await apiFetch(`/api/museum-visits/${id}`);

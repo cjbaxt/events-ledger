@@ -261,7 +261,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const supabase = createServiceClient();
 
   const baseAllowed = ["rating", "review", "price_paid", "currency", "notes", "rating_context",
-    "title", "date", "time", "end_time", "venue_id", "festival_id", "payment_method_id", "subtype", "type",
+    "title", "date", "time", "end_time", "venue_id", "festival_id", "visit_id", "payment_method_id", "subtype", "type",
     "data_completeness", "full_description", "ai_summary", "description_source_url", "links"];
   const baseUpdate: Record<string, unknown> = {};
   for (const key of baseAllowed) { if (key in body) baseUpdate[key] = body[key]; }

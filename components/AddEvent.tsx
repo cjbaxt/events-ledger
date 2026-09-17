@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   createEvent, updateEvent, searchEntities, createEntity,
-  fetchPaymentMethods, createPaymentMethod, saveClassicalProgramme,
+  fetchPaymentMethods, createPaymentMethod, saveClassicalProgramme, createMuseumVisit,
 } from "@/lib/api";
 import type { PaymentMethod, ProgrammeItemSave } from "@/lib/api";
 import type { EventDetail } from "@/lib/types";
@@ -675,6 +675,7 @@ function buildPayload(type: string, base: Record<string, unknown>, ext: Ext): Re
     venue_id: (base.venue as NamedRef | null)?.id, title: base.title, date: base.date, time: base.time || null, end_time: base.end_time || null,
     price_paid: base.price_paid || null, currency: base.currency || "EUR",
     festival_id: (base.festival as NamedRef | null)?.id ?? null,
+    visit_id: (base.visit as NamedRef | null)?.id ?? null,
     payment_method_id: (base.payment_method as PaymentMethod | null)?.id ?? null,
     notes: base.notes || null, rating: base.rating ?? null, rating_context: base.rating_context || null,
     review: base.review || null, data_completeness: base.data_completeness || null,
@@ -707,6 +708,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     end_time: event.end_time ? String(event.end_time).slice(0, 5) : "",
     venue: event.venue, subtype: event.subtype ?? "", price_paid: event.price_paid ? String(event.price_paid) : "",
     currency: event.currency ?? "EUR", festival: event.festival ?? null, payment_method: event.payment_method ?? null,
+    visit: event.visit ? { id: event.visit.id, name: `Visit to ${event.visit.venue.name} — ${event.visit.date}${event.visit.used_museumkaart ? " · Museumkaart" : ""}` } : null,
     rating: event.rating ?? null, rating_context: event.rating_context ?? "", review: event.review ?? "",
     notes: event.notes ?? "", data_completeness: event.data_completeness ?? "",
     full_description: event.full_description ?? "", ai_summary: event.ai_summary ?? "",
@@ -797,7 +799,17 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
     setSubmitting(true);
     setError("");
     try {
-      const payload = buildPayload(type, base, ext);
+      // Create a new museum visit first if requested
+      let submitBase = base;
+      if (type === "exhibition" && submitBase.newVisit && !(submitBase.visit as NamedRef | null)?.id) {
+        const venueId = (submitBase.venue as NamedRef | null)?.id;
+        const date = submitBase.date as string;
+        if (venueId && date) {
+          const v = await createMuseumVisit(date, venueId, (submitBase.newVisitMuseumkaart as boolean) ?? false);
+          submitBase = { ...submitBase, visit: { id: v.id, name: `Visit to ${v.venue.name} — ${v.date}` } };
+        }
+      }
+      const payload = buildPayload(type, submitBase, ext);
       let eventId: string;
       if (editMode && initialEvent) {
         await updateEvent(initialEvent.id as unknown as string, payload);
@@ -958,6 +970,23 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
               <Field label="Currency"><select className={inputCls} value={(base.currency as string) ?? "EUR"} onChange={(e) => setBaseField("currency", e.target.value)}>{["EUR", "GBP", "AUD", "USD"].map((c) => <option key={c}>{c}</option>)}</select></Field>
             </div>
             <SearchCombo label="Festival (optional)" endpoint="festivals" value={base.festival as NamedRef | null} onChange={(v) => setBaseField("festival", v)} displayFn={(i) => [i.name, i.edition].filter(Boolean).join(" ")} />
+            {type === "exhibition" && (
+              <div>
+                <SearchCombo label="Museum visit (optional)" endpoint="museum-visits" value={base.visit as NamedRef | null} onChange={(v) => { setBaseField("visit", v); setBaseField("newVisit", false); }} allowCreate={false} showOnFocus displayFn={(i) => String(i.name ?? "")} />
+                {!(base.visit as NamedRef | null) && (
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input type="checkbox" checked={!!(base.newVisit)} onChange={(e) => setBaseField("newVisit", e.target.checked)} className="rounded border-neutral-300" />
+                    <span className="text-xs text-neutral-500">Create new visit for this venue &amp; date</span>
+                  </label>
+                )}
+                {base.newVisit && !(base.visit as NamedRef | null) && (
+                  <label className="flex items-center gap-2 mt-1.5 ml-5 cursor-pointer">
+                    <input type="checkbox" checked={!!(base.newVisitMuseumkaart)} onChange={(e) => setBaseField("newVisitMuseumkaart", e.target.checked)} className="rounded border-neutral-300" />
+                    <span className="text-xs text-neutral-500">Used Museumkaart</span>
+                  </label>
+                )}
+              </div>
+            )}
             {SUBTYPES[type!] && (
               <Field label="Subtype">
                 <input className={inputCls} list={`subtypes-${type}`} value={(base.subtype as string) ?? ""} onChange={(e) => setBaseField("subtype", e.target.value)} placeholder="select or type a subtype" />
