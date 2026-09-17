@@ -181,7 +181,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from("event")
     .select(`
       id, date, time, end_time, type, subtype, title,
-      venue_id, festival_id, payment_method_id,
+      venue_id, festival_id, visit_id, payment_method_id,
       price_paid, currency,
       rating, rating_context, notes, review, links,
       data_completeness, full_description, ai_summary, description_source_url,
@@ -195,11 +195,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const extTable = extensionTable(e.type);
 
   // Fire all independent queries in parallel, including the extension table
-  const [festivalRes, pmRes, relatedRes, extRes] = await Promise.all([
+  const [festivalRes, pmRes, relatedRes, extRes, visitRes] = await Promise.all([
     e.festival_id ? supabase.from("festival").select("id, name, edition").eq("id", e.festival_id).single() : Promise.resolve({ data: null }),
     e.payment_method_id ? supabase.from("payment_method").select("id, name, total_cost, currency, purchase_date").eq("id", e.payment_method_id).single() : Promise.resolve({ data: null }),
     supabase.from("event").select("id, title, date, type").eq("venue_id", e.venue_id).eq("date", e.date).neq("id", id),
     extTable ? supabase.from(extTable).select("*").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
+    (e as Record<string, unknown>).visit_id ? supabase.from("museum_visit").select("id, date, used_museumkaart, venue:venue_id(id, name)").eq("id", (e as Record<string, unknown>).visit_id as string).single() : Promise.resolve({ data: null }),
   ]);
 
   // Build venue path from nested join result (no extra round trips)
@@ -215,6 +216,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const festivalData = festivalRes.data as { id: string; name: string; edition?: string | null } | null;
   const festival = festivalData ? { id: festivalData.id, name: [festivalData.name, festivalData.edition].filter(Boolean).join(" ") } : null;
+  type VisitRow = { id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } | null };
+  const visitData = visitRes.data as VisitRow | null;
+  const visit = visitData ? { id: visitData.id, date: visitData.date, used_museumkaart: visitData.used_museumkaart, venue: visitData.venue ?? { id: "", name: "Unknown" } } : null;
   const pm = pmRes.data as { id: string; name: string; total_cost: string; currency: string; purchase_date: string } | null;
 
   let extension: Record<string, unknown> | null = null;
@@ -230,6 +234,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     venue: { id: venue.id, name: venue.name, city: (venue as VenueRow).city ?? null },
     venue_path: venuePath,
     festival,
+    visit,
     price_paid: e.price_paid != null ? String(e.price_paid) : null,
     currency: e.currency,
     payment_method: pm,

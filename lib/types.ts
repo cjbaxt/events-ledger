@@ -52,6 +52,7 @@ export interface EventDetail {
   venue_path: NamedRef[];
   work_id: string | null;
   festival: NamedRef | null;
+  visit: { id: string; date: string; venue: NamedRef; used_museumkaart: boolean } | null;
   price_paid: string | null;
   currency: string | null;
   payment_method: PaymentMethodRef | null;

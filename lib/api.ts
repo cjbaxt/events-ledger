@@ -233,6 +233,19 @@ export async function fetchPieceEvents(id: string): Promise<EventListItem[]> {
   return filterFromCache(ids);
 }
 
+export async function fetchMuseumVisit(id: string): Promise<{ id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } }> {
+  return cachedFetch(`museum_visit:${id}`, async () => {
+    const res = await apiFetch(`/api/museum-visits/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch museum visit: ${res.status}`);
+    return res.json();
+  });
+}
+
+export async function fetchMuseumVisitEvents(id: string): Promise<EventListItem[]> {
+  const ids = await fetchEntityEventIds(`/api/museum-visits/${id}/events`);
+  return filterFromCache(ids);
+}
+
 export async function fetchFestival(id: string): Promise<{ id: string; name: string; edition?: string | null }> {
   return cachedFetch(`festival:${id}`, async () => {
     const res = await apiFetch(`/api/festivals/${id}`);

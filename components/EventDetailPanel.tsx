@@ -4,7 +4,7 @@ import { IconX, IconExternalLink, IconChevronLeft, IconCheck, IconWriting, IconA
 import {
   fetchEvent, fetchPerson, fetchPersonEvents,
   fetchVenue, fetchVenueEvents, fetchEnsemble, fetchEnsembleEvents,
-  fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents,
+  fetchFestival, fetchFestivalEvents, fetchPaymentMethodEvents, fetchMuseumVisit, fetchMuseumVisitEvents,
   fetchWork, fetchWorkEvents, updateWork,
   fetchPiece, fetchPieceEvents, updatePiece,
   patchEventRating, patchEventPrice, patchEventReview,
@@ -249,9 +249,9 @@ function ExtensionFields({ extension, type, onPersonClick, onEnsembleClick, onWo
   );
 }
 
-type NavKind = "person" | "venue" | "ensemble" | "festival" | "payment_method" | "work" | "piece";
+type NavKind = "person" | "venue" | "ensemble" | "festival" | "museum_visit" | "payment_method" | "work" | "piece";
 interface NavTarget { kind: NavKind; id: string; hint?: string; }
-const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", payment_method: "Payment method", work: "Work", piece: "Classical piece" };
+const NAV_LABELS: Record<NavKind, string> = { person: "Person", venue: "Venue", ensemble: "Ensemble", festival: "Festival", museum_visit: "Museum visit", payment_method: "Payment method", work: "Work", piece: "Classical piece" };
 
 const PERSON_ROLE_VOCAB = ["Comedian", "Actor", "Singer", "Opera Singer", "Dancer", "Choreographer", "Musician", "Conductor", "Composer", "Circus Performer", "Drag Performer", "Cabaret Performer", "Burlesque Performer", "Host", "Writer", "Playwright", "Director", "Producer", "Visual Artist", "Curator"];
 const ENSEMBLE_ROLE_VOCAB = ["Theatre Company", "Dance Company", "Circus Company", "Opera Company", "Ballet Company", "Orchestra", "Band", "Production Company", "Comedy Group", "Cabaret Company", "Duo"];
@@ -261,6 +261,7 @@ async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<s
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") { const v = await fetchVenue(id); return [v.name, v.city].filter(Boolean).join(", "); }
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
+  if (kind === "museum_visit") { const v = await fetchMuseumVisit(id); return `Visit to ${v.venue.name}`; }
   if (kind === "payment_method") return id;
   if (kind === "work") return (await fetchWork(id)).title;
   if (kind === "piece") { const p = await fetchPiece(id); return [p.title, p.movement].filter(Boolean).join(" — "); }
@@ -270,6 +271,7 @@ async function fetchNavEvents(kind: NavKind, id: string): Promise<EventListItem[
   if (kind === "person") return fetchPersonEvents(id);
   if (kind === "venue") return fetchVenueEvents(id);
   if (kind === "festival") return fetchFestivalEvents(id);
+  if (kind === "museum_visit") return fetchMuseumVisitEvents(id);
   if (kind === "payment_method") return fetchPaymentMethodEvents(id);
   if (kind === "work") return fetchWorkEvents(id);
   if (kind === "piece") return fetchPieceEvents(id);
@@ -765,6 +767,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   </div>
 
                   {event.festival && <Field label="Festival"><button onClick={() => navigate("festival", event.festival!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.festival.name}</button></Field>}
+                  {event.visit && <Field label="Visit"><button onClick={() => navigate("museum_visit", event.visit!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">Visit to {event.visit.venue.name}{event.visit.used_museumkaart ? " · Museumkaart" : ""}</button></Field>}
 
                   {event.payment_method ? (
                     <Field label="Payment method">
