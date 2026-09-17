@@ -979,7 +979,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                     <span className="text-xs text-neutral-500">Create new visit for this venue &amp; date</span>
                   </label>
                 )}
-                {base.newVisit && !(base.visit as NamedRef | null) && (
+                {!!(base.newVisit) && !(base.visit as NamedRef | null) && (
                   <label className="flex items-center gap-2 mt-1.5 ml-5 cursor-pointer">
                     <input type="checkbox" checked={!!(base.newVisitMuseumkaart)} onChange={(e) => setBaseField("newVisitMuseumkaart", e.target.checked)} className="rounded border-neutral-300" />
                     <span className="text-xs text-neutral-500">Used Museumkaart</span>
