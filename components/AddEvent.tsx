@@ -708,7 +708,7 @@ function initFromEvent(event: EventDetail): { base: Record<string, unknown>; ext
     end_time: event.end_time ? String(event.end_time).slice(0, 5) : "",
     venue: event.venue, subtype: event.subtype ?? "", price_paid: event.price_paid ? String(event.price_paid) : "",
     currency: event.currency ?? "EUR", festival: event.festival ?? null, payment_method: event.payment_method ?? null,
-    visit: event.visit ? { id: event.visit.id, name: `Visit to ${event.visit.venue.name} — ${event.visit.date}${event.visit.used_museumkaart ? " · Museumkaart" : ""}` } : null,
+    visit: event.visit ? { id: event.visit.id, name: `Visit to ${event.visit.venue.name} — ${event.visit.date}${event.visit.payment_method ? ` · ${event.visit.payment_method.name}` : ""}` } : null,
     rating: event.rating ?? null, rating_context: event.rating_context ?? "", review: event.review ?? "",
     notes: event.notes ?? "", data_completeness: event.data_completeness ?? "",
     full_description: event.full_description ?? "", ai_summary: event.ai_summary ?? "",
@@ -805,7 +805,8 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         const venueId = (submitBase.venue as NamedRef | null)?.id;
         const date = submitBase.date as string;
         if (venueId && date) {
-          const v = await createMuseumVisit(date, venueId, (submitBase.newVisitMuseumkaart as boolean) ?? false);
+          const pmId = (submitBase.newVisitPaymentMethod as NamedRef | null)?.id ?? null;
+          const v = await createMuseumVisit(date, venueId, pmId);
           submitBase = { ...submitBase, visit: { id: v.id, name: `Visit to ${v.venue.name} — ${v.date}` } };
         }
       }
@@ -980,10 +981,9 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
                   </label>
                 )}
                 {!!(base.newVisit) && !(base.visit as NamedRef | null) && (
-                  <label className="flex items-center gap-2 mt-1.5 ml-5 cursor-pointer">
-                    <input type="checkbox" checked={!!(base.newVisitMuseumkaart)} onChange={(e) => setBaseField("newVisitMuseumkaart", e.target.checked)} className="rounded border-neutral-300" />
-                    <span className="text-xs text-neutral-500">Used Museumkaart</span>
-                  </label>
+                  <div className="ml-5 mt-1">
+                    <SearchCombo label="Payment method (optional)" endpoint="payment-methods" value={base.newVisitPaymentMethod as NamedRef | null} onChange={(v) => setBaseField("newVisitPaymentMethod", v)} allowCreate={false} showOnFocus displayFn={(i) => String(i.name ?? "")} />
+                  </div>
                 )}
               </div>
             )}

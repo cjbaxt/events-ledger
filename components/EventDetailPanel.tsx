@@ -261,7 +261,7 @@ async function fetchNavName(kind: NavKind, id: string, hint?: string): Promise<s
   if (kind === "person") return (await fetchPerson(id)).name;
   if (kind === "venue") { const v = await fetchVenue(id); return [v.name, v.city].filter(Boolean).join(", "); }
   if (kind === "festival") { const f = await fetchFestival(id); return [f.name, f.edition].filter(Boolean).join(" "); }
-  if (kind === "museum_visit") { const v = await fetchMuseumVisit(id); return `Visit to ${v.venue.name}`; }
+  if (kind === "museum_visit") { const v = await fetchMuseumVisit(id); return `Visit to ${v.venue.name} · ${v.date}`; }
   if (kind === "payment_method") return id;
   if (kind === "work") return (await fetchWork(id)).title;
   if (kind === "piece") { const p = await fetchPiece(id); return [p.title, p.movement].filter(Boolean).join(" — "); }
@@ -767,7 +767,7 @@ export default function EventDetailPanel({ open, eventId, preview, onClose, onNa
                   </div>
 
                   {event.festival && <Field label="Festival"><button onClick={() => navigate("festival", event.festival!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">{event.festival.name}</button></Field>}
-                  {event.visit && <Field label="Visit"><button onClick={() => navigate("museum_visit", event.visit!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">Visit to {event.visit.venue.name}{event.visit.used_museumkaart ? " · Museumkaart" : ""}</button></Field>}
+                  {event.visit && <Field label="Visit"><button onClick={() => navigate("museum_visit", event.visit!.id)} className="hover:text-neutral-900 hover:underline underline-offset-2">Visit to {event.visit.venue.name} · {event.visit.date}{event.visit.payment_method ? ` · ${event.visit.payment_method.name}` : ""}</button></Field>}
 
                   {event.payment_method ? (
                     <Field label="Payment method">

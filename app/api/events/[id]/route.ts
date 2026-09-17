@@ -200,7 +200,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     e.payment_method_id ? supabase.from("payment_method").select("id, name, total_cost, currency, purchase_date").eq("id", e.payment_method_id).single() : Promise.resolve({ data: null }),
     supabase.from("event").select("id, title, date, type").eq("venue_id", e.venue_id).eq("date", e.date).neq("id", id),
     extTable ? supabase.from(extTable).select("*").eq("event_id", id).maybeSingle() : Promise.resolve({ data: null }),
-    (e as Record<string, unknown>).visit_id ? supabase.from("museum_visit").select("id, date, used_museumkaart, venue:venue_id(id, name)").eq("id", (e as Record<string, unknown>).visit_id as string).single() : Promise.resolve({ data: null }),
+    (e as Record<string, unknown>).visit_id ? supabase.from("museum_visit").select("id, date, payment_method_id, venue:venue_id(id, name), payment_method:payment_method_id(id, name)").eq("id", (e as Record<string, unknown>).visit_id as string).single() : Promise.resolve({ data: null }),
   ]);
 
   // Build venue path from nested join result (no extra round trips)
@@ -216,9 +216,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const festivalData = festivalRes.data as { id: string; name: string; edition?: string | null } | null;
   const festival = festivalData ? { id: festivalData.id, name: [festivalData.name, festivalData.edition].filter(Boolean).join(" ") } : null;
-  type VisitRow = { id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } | null };
+  type VisitRow = { id: string; date: string; payment_method_id: string | null; venue: { id: string; name: string } | { id: string; name: string }[] | null; payment_method: { id: string; name: string } | { id: string; name: string }[] | null };
   const visitData = visitRes.data as VisitRow | null;
-  const visit = visitData ? { id: visitData.id, date: visitData.date, used_museumkaart: visitData.used_museumkaart, venue: visitData.venue ?? { id: "", name: "Unknown" } } : null;
+  const normV = <T>(v: T | T[] | null): T | null => Array.isArray(v) ? (v[0] ?? null) : v;
+  const visit = visitData ? { id: visitData.id, date: visitData.date, venue: normV(visitData.venue) ?? { id: "", name: "Unknown" }, payment_method: normV(visitData.payment_method) } : null;
   const pm = pmRes.data as { id: string; name: string; total_cost: string; currency: string; purchase_date: string } | null;
 
   let extension: Record<string, unknown> | null = null;
