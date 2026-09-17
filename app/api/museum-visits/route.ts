@@ -11,18 +11,27 @@ export async function GET(req: NextRequest) {
     .order("date", { ascending: false })
     .limit(20);
   if (error) return NextResponse.json([], { status: 200 });
-  const results = (data ?? []).filter((v: { venue: { name: string } | null; date: string }) => {
+  type VisitRow = { id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } | { id: string; name: string }[] | null };
+  const rows = (data ?? []) as VisitRow[];
+  const venueName = (v: VisitRow) => {
+    if (!v.venue) return "";
+    return Array.isArray(v.venue) ? (v.venue[0]?.name ?? "") : v.venue.name;
+  };
+  const results = rows.filter((v) => {
     if (!q) return true;
     const search = q.toLowerCase();
-    return (v.venue?.name ?? "").toLowerCase().includes(search) || v.date.includes(search);
+    return venueName(v).toLowerCase().includes(search) || v.date.includes(search);
   });
-  return NextResponse.json(results.map((v: { id: string; date: string; used_museumkaart: boolean; venue: { id: string; name: string } | null }) => ({
-    id: v.id,
-    name: `${v.venue?.name ?? "Unknown"} — ${v.date}${v.used_museumkaart ? " · Museumkaart" : ""}`,
-    date: v.date,
-    venue: v.venue,
-    used_museumkaart: v.used_museumkaart,
-  })));
+  return NextResponse.json(results.map((v) => {
+    const venueObj = Array.isArray(v.venue) ? (v.venue[0] ?? null) : v.venue;
+    return {
+      id: v.id,
+      name: `${venueObj?.name ?? "Unknown"} — ${v.date}${v.used_museumkaart ? " · Museumkaart" : ""}`,
+      date: v.date,
+      venue: venueObj,
+      used_museumkaart: v.used_museumkaart,
+    };
+  }));
 }
 
 export async function POST(req: NextRequest) {
