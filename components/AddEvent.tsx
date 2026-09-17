@@ -42,7 +42,7 @@ const SUBTYPES: Record<string, string[]> = {
   cabaret: ["comedy", "burlesque", "drag", "cabaret", "variety", "magic", "other"],
   comedy: ["standup", "sketch", "double_act", "panel", "character", "musical_comedy", "variety", "other"],
   spoken_word: ["poetry", "slam", "reading", "storytelling", "lecture", "panel", "debate", "book_event", "podcast_recording", "science_comm", "interview", "other"],
-  exhibition: ["art", "natural_history", "science", "photography", "sculpture", "design", "historical", "other"],
+  exhibition: ["art", "natural_history", "science_technology", "photography", "sculpture", "design", "history", "film", "other"],
   screening: ["film", "live_broadcast", "archive_screening", "live_score", "documentary", "other"],
   other: ["street_circus", "street_magic", "street_music", "street", "immersive_experience", "escape_room", "game", "workshop", "tour", "ceremony", "installation", "other"],
 };
