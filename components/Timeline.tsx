@@ -26,7 +26,7 @@ function FringeBadge({ year }: { year: string }) {
 }
 
 const PAGE_SIZE = 30;
-const PRE_YEAR = 2022;
+const PRE_YEAR = 2014;
 const PRE_BUCKET = `pre-${PRE_YEAR}`;
 
 const MONTH_NAMES = [
@@ -118,7 +118,7 @@ function YearSummary({ events, year, paymentMethods, hiddenTypes, totalTypeCount
     <div className="sticky top-0 md:top-14 z-10 bg-white border-b border-neutral-100 mb-6 pb-4 pt-4">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-baseline gap-3">
-          <h2 className="font-serif text-3xl text-neutral-900">{year === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : year}</h2>
+          <h2 className="font-serif text-3xl text-neutral-900">{year === PRE_BUCKET ? `< ${PRE_YEAR}` : year}</h2>
           {(year === PRE_BUCKET || parseInt(year) < 2025) && (
             <span className="text-[10px] uppercase tracking-widest text-orange-300">memory gaps</span>
           )}
@@ -329,7 +329,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
               return (
                 <button key={y} onClick={() => { if (!empty) { setSelectedYear(y); setPageSize(PAGE_SIZE); } }} disabled={empty}
                   className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "border-neutral-900 text-neutral-900 bg-neutral-50" : empty ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : "border-neutral-200 text-neutral-400"}`}>
-                  {y === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : y}
+                  {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
                 </button>
               );
             })}
@@ -342,7 +342,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
                 return (
                   <button key={y} onClick={() => { if (!empty) { setSelectedYear(y); setPageSize(PAGE_SIZE); } }} disabled={empty}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "border-neutral-900 text-neutral-900 bg-neutral-50" : empty ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : "border-neutral-200 text-neutral-400"}`}>
-                    {y === PRE_BUCKET ? `≤ ${PRE_YEAR - 1}` : y}
+                    {y === PRE_BUCKET ? `< ${PRE_YEAR}` : y}
                   </button>
                 );
               })}
