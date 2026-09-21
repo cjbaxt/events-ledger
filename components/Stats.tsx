@@ -176,9 +176,7 @@ function TypeDrillDown({ type, evts, subtype, onBack, onEventClick, onEntityClic
       </button>
       <div className="flex items-center gap-2 mb-4"><EventTypeIcon type={type} size={14} /><span className="font-serif text-xl text-neutral-900 capitalize">{label}</span><span className="text-sm text-neutral-300">{filtered.length}</span>{editorMode && <span className="text-xs text-neutral-300 ml-1">{ratedTotal} rated</span>}</div>
       {type === "spoken_word" && (
-        <div className="mb-4 px-3 py-2 border-l-2 border-orange-300 bg-orange-50 text-xs text-orange-700">
-          Selected talks only — most academic seminars aren&apos;t logged.
-        </div>
+        <p className="mb-4 text-[10px] uppercase tracking-widest text-orange-300">Selected talks only — most academic seminars aren&apos;t logged.</p>
       )}
       <div className="flex items-center gap-3 mb-4">
         <span className="text-[9px] uppercase tracking-widest text-neutral-300">Group by</span>

@@ -309,9 +309,7 @@ export default function Timeline({ onEventClick, openEventId, onYearEventsChange
           />
         )}
         {onlySpokenWord && (
-          <div className="mb-4 px-4 py-2.5 border-l-2 border-orange-300 bg-orange-50 text-xs text-orange-700">
-            Selected talks only — most academic seminars aren&apos;t logged.
-          </div>
+          <p className="mb-4 text-[10px] uppercase tracking-widest text-orange-300">Selected talks only — most academic seminars aren&apos;t logged.</p>
         )}
         {selectedYear && Object.keys(pagedMonthGrouped).sort((a, b) => b.localeCompare(a)).map((month) => (
           <MonthGroup key={month} month={month} events={pagedMonthGrouped[month]} onEventClick={onEventClick} showYear={selectedYear === PRE_BUCKET} openEventId={openEventId} />
