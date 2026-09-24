@@ -583,12 +583,14 @@ function OperaFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => v
     <SearchCombo label="Production" endpoint="productions" value={ext.production as NamedRef | null} onChange={(v) => set("production", v)} displayFn={(i) => (i.title as string) ?? ""} />
     <Field label="Libretto language"><input className={inputCls} placeholder="e.g. Italian" value={(ext.libretto_language as string) ?? ""} onChange={(e) => set("libretto_language", e.target.value)} /></Field>
     <Field label="Surtitle languages"><input className={inputCls} placeholder="e.g. English, Dutch" value={(ext.surtitles_languages as string) ?? ""} onChange={(e) => set("surtitles_languages", e.target.value)} /></Field>
+    <ClassicalProgrammeEditor items={(ext.programme as ProgrammeItemState[]) ?? []} set={(v) => set("programme", v)} />
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
 function BalletFields({ ext, set }: { ext: Ext; set: (k: string, v: unknown) => void }) {
   return <div className="space-y-4">
     <SearchCombo label="Work (if single)" endpoint="works" value={ext.work as NamedRef | null} onChange={(v) => set("work", v)} displayFn={(i) => (i.title as string) ?? ""} />
+    <ClassicalProgrammeEditor items={(ext.programme as ProgrammeItemState[]) ?? []} set={(v) => set("programme", v)} />
     <Field label="Credits"><CreditsEditor credits={(ext.credits as CreditRow[]) ?? []} set={(v) => set("credits", v)} /></Field>
   </div>;
 }
@@ -819,7 +821,7 @@ export default function AddEvent({ initialEvent }: { initialEvent?: EventDetail 
         const result = await createEvent(type, payload);
         eventId = result.id;
       }
-      if (type === "classical" && Array.isArray(ext.programme)) {
+      if (["classical", "opera", "ballet"].includes(type!) && Array.isArray(ext.programme)) {
         const saves: ProgrammeItemSave[] = (ext.programme as ProgrammeItemState[])
           .filter((item) => item.piece_id || item.piece_title.trim())
           .map((item) => ({
