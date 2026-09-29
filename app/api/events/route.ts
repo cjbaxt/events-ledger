@@ -134,5 +134,17 @@ export async function GET(req: NextRequest) {
 
   const res = NextResponse.json(items);
   res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=300");
+  res.headers.set("Access-Control-Allow-Origin", "*");
   return res;
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
