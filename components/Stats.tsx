@@ -433,6 +433,7 @@ function StandoutsTab({ events, onEventClick }: { events: EventListItem[]; onEve
 
   return (
     <div className="space-y-5">
+      <p className="text-[10px] uppercase tracking-widest text-neutral-400">Five-star shows</p>
       {availableYears.length > 1 && (
         <div className="flex gap-1.5 flex-wrap">
           {availableYears.map((y) => (
