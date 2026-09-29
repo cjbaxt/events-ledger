@@ -425,27 +425,14 @@ function StaticStars({ rating }: { rating: number }) {
 
 function StandoutsTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
   const currentYear = new Date().getFullYear().toString();
-  const ratedEvents = events.filter((e) => e.rating !== null);
-  const availableYears = [...new Set(ratedEvents.map((e) => e.date.slice(0, 4)))].sort((a, b) => +b - +a);
+  const fiveStarEvents = events.filter((e) => e.rating === 5);
+  const availableYears = [...new Set(fiveStarEvents.map((e) => e.date.slice(0, 4)))].sort((a, b) => +b - +a);
   const [year, setYear] = useState<string>(availableYears.includes(currentYear) ? currentYear : (availableYears[0] ?? currentYear));
 
-  const yearEvents = ratedEvents.filter((e) => e.date.startsWith(year));
-
-  const typeOrder = ["circus", "classical", "opera", "ballet", "theatre", "comedy", "dance", "music", "cabaret", "exhibition", "spoken_word", "screening", "other"];
-  const byType = typeOrder
-    .map((type) => {
-      const evts = yearEvents
-        .filter((e) => e.type === type)
-        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.date.localeCompare(a.date))
-        .slice(0, 3);
-      return { type, evts };
-    })
-    .filter(({ evts }) => evts.length > 0);
-
-  if (!yearEvents.length) return <p className="text-sm text-neutral-400">No rated events for {year}.</p>;
+  const yearEvents = fiveStarEvents.filter((e) => e.date.startsWith(year)).sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {availableYears.length > 1 && (
         <div className="flex gap-1.5 flex-wrap">
           {availableYears.map((y) => (
@@ -456,30 +443,28 @@ function StandoutsTab({ events, onEventClick }: { events: EventListItem[]; onEve
           ))}
         </div>
       )}
-      {byType.map(({ type, evts }) => (
-        <div key={type}>
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <EventTypeIcon type={type} size={12} />
-            <span className="text-[10px] uppercase tracking-widest text-neutral-400">{TYPE_LABELS[type] ?? type}</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {evts.map((e) => (
-              <button key={e.id} onClick={() => onEventClick(e.id)}
-                className="text-left rounded-xl border border-neutral-100 px-3.5 py-3 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group space-y-1">
-                <div className="font-serif text-sm text-neutral-900 leading-snug line-clamp-2 group-hover:underline underline-offset-2">{e.title}</div>
-                {e.primary_entity_name && (
-                  <div className="text-[11px] text-neutral-400 truncate">{e.primary_entity_name}</div>
-                )}
-                <div className="text-[10px] text-neutral-300 truncate">{e.venue_name} · {e.date.slice(5).replace("-", "/")}</div>
-                <div className="flex items-center gap-1.5 pt-0.5">
-                  <StaticStars rating={e.rating!} />
-                  {e.has_review && <span className="text-[9px] uppercase tracking-widest text-neutral-300">review</span>}
-                </div>
-              </button>
-            ))}
-          </div>
+      {yearEvents.length === 0 ? (
+        <p className="text-sm text-neutral-400">No 5-star events for {year}.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {yearEvents.map((e) => (
+            <button key={e.id} onClick={() => onEventClick(e.id)}
+              className="text-left rounded-xl border border-neutral-100 px-3.5 py-3 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group space-y-1.5">
+              <div className="flex items-center gap-1">
+                <EventTypeIcon type={e.type} size={10} />
+                <span className="text-[9px] uppercase tracking-widest text-neutral-300">
+                  {TYPE_LABELS[e.type] ?? e.type}{e.subtype ? ` · ${e.subtype.replace(/_/g, " ")}` : ""}
+                </span>
+              </div>
+              <div className="font-serif text-sm text-neutral-900 leading-snug line-clamp-2 group-hover:underline underline-offset-2">{e.title}</div>
+              {e.primary_entity_name && (
+                <div className="text-[11px] text-neutral-400 truncate">{e.primary_entity_name}</div>
+              )}
+              <div className="text-[10px] text-neutral-300 truncate">{e.venue_name} · {e.date.slice(5).replace("-", "/")}</div>
+            </button>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
