@@ -404,6 +404,86 @@ function VenuesTab({ events, onVenueClick }: { events: EventListItem[]; onVenueC
   );
 }
 
+function StaticStars({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-px">
+      {[1, 2, 3, 4, 5].map((s) => {
+        const full = rating >= s;
+        const half = !full && rating >= s - 0.5;
+        return (
+          <span key={s} className="relative inline-block" style={{ fontSize: 11, width: "0.9em", lineHeight: 1 }}>
+            <span style={{ color: "#d1d5db" }}>★</span>
+            {(full || half) && (
+              <span className="absolute inset-0 overflow-hidden" style={{ color: "#d97706", width: full ? "100%" : "50%" }}>★</span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function StandoutsTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
+  const currentYear = new Date().getFullYear().toString();
+  const ratedEvents = events.filter((e) => e.rating !== null);
+  const availableYears = [...new Set(ratedEvents.map((e) => e.date.slice(0, 4)))].sort((a, b) => +b - +a);
+  const [year, setYear] = useState<string>(availableYears.includes(currentYear) ? currentYear : (availableYears[0] ?? currentYear));
+
+  const yearEvents = ratedEvents.filter((e) => e.date.startsWith(year));
+
+  const typeOrder = ["circus", "classical", "opera", "ballet", "theatre", "comedy", "dance", "music", "cabaret", "exhibition", "spoken_word", "screening", "other"];
+  const byType = typeOrder
+    .map((type) => {
+      const evts = yearEvents
+        .filter((e) => e.type === type)
+        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.date.localeCompare(a.date))
+        .slice(0, 3);
+      return { type, evts };
+    })
+    .filter(({ evts }) => evts.length > 0);
+
+  if (!yearEvents.length) return <p className="text-sm text-neutral-400">No rated events for {year}.</p>;
+
+  return (
+    <div className="space-y-6">
+      {availableYears.length > 1 && (
+        <div className="flex gap-1.5 flex-wrap">
+          {availableYears.map((y) => (
+            <button key={y} onClick={() => setYear(y)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${y === year ? "border-neutral-900 text-neutral-900 bg-neutral-50" : "border-neutral-200 text-neutral-400 hover:text-neutral-600"}`}>
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+      {byType.map(({ type, evts }) => (
+        <div key={type}>
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <EventTypeIcon type={type} size={12} />
+            <span className="text-[10px] uppercase tracking-widest text-neutral-400">{TYPE_LABELS[type] ?? type}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {evts.map((e) => (
+              <button key={e.id} onClick={() => onEventClick(e.id)}
+                className="text-left rounded-xl border border-neutral-100 px-3.5 py-3 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group space-y-1">
+                <div className="font-serif text-sm text-neutral-900 leading-snug line-clamp-2 group-hover:underline underline-offset-2">{e.title}</div>
+                {e.primary_entity_name && (
+                  <div className="text-[11px] text-neutral-400 truncate">{e.primary_entity_name}</div>
+                )}
+                <div className="text-[10px] text-neutral-300 truncate">{e.venue_name} · {e.date.slice(5).replace("-", "/")}</div>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <StaticStars rating={e.rating!} />
+                  {e.has_review && <span className="text-[9px] uppercase tracking-widest text-neutral-300">review</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEventClick: (id: string) => void }) {
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set(["exhibition", "screening"]));
   const [filterOpen, setFilterOpen] = useState(false);
@@ -865,11 +945,11 @@ function OverTimeTab({ events, onEventClick }: { events: EventListItem[]; onEven
 }
 
 
-const TABS = ["By type", "Artists", "Venues", "Over time"] as const;
+const TABS = ["By type", "Standouts", "Artists", "Venues", "Over time"] as const;
 type Tab = typeof TABS[number];
 
 const TAB_SLUG: Record<Tab, string> = {
-  "By type": "by-type", "Artists": "artists", "Venues": "venues", "Over time": "over-time",
+  "By type": "by-type", "Standouts": "standouts", "Artists": "artists", "Venues": "venues", "Over time": "over-time",
 };
 const SLUG_TAB: Record<string, Tab> = Object.fromEntries(
   (Object.entries(TAB_SLUG) as [Tab, string][]).map(([t, s]) => [s, t])
@@ -917,6 +997,7 @@ export default function Stats({ onEventClick, onEntityClick, onVenueClick, refre
         {TABS.map((t) => <button key={t} onClick={() => setTab(t)} className={`px-3 py-2 text-xs uppercase tracking-widest transition-colors border-b-2 -mb-px ${tab === t ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-400 hover:text-neutral-600"}`}>{t}</button>)}
       </div>
       {tab === "By type" && <ByTypeTab events={events} onEventClick={onEventClick} onEntityClick={onEntityClick} editorMode={true} onRatingChange={handleRatingChange} drill={drill} onDrill={setDrill} />}
+      {tab === "Standouts" && <StandoutsTab events={events} onEventClick={onEventClick} />}
       {tab === "Artists" && <ArtistsTab events={events} onEntityClick={onEntityClick} />}
       {tab === "Venues" && <VenuesTab events={events} onVenueClick={onVenueClick} />}
       {tab === "Over time" && <OverTimeTab events={events} onEventClick={onEventClick} />}
