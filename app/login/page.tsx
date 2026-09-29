@@ -15,6 +15,10 @@ export default async function LoginPage({
           <p className="mt-1 text-sm text-neutral-400">ledger.claireheaded.com</p>
         </div>
 
+        <p className="text-center text-xs text-neutral-400">
+          Want to see what Claire&apos;s been up to? Ask her for guest access.
+        </p>
+
         <form action={login} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1.5">
